@@ -1,0 +1,128 @@
+{{define "content"}}
+<div class="row mb-4">
+    <div class="col-lg-8 mx-auto">
+        <h1 class="h3 mb-2">Import Transactions</h1>
+        <p class="text-muted">Upload an OFX file from your bank to import transactions</p>
+
+        <div class="card">
+            <div class="card-body">
+                <form id="importForm">
+                    <div class="mb-4">
+                        <label for="accountSelect" class="form-label">Select Account</label>
+                        <select class="form-select" id="accountSelect" name="account_id" required>
+                            <option value="">Choose an account...</option>
+                            {{range .Accounts}}
+                            <option value="{{.AccountID}}">{{.Name}}</option>
+                            {{end}}
+                        </select>
+                        {{if eq (len .Accounts) 0}}
+                        <div class="alert alert-warning mt-2">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            No accounts found. <a href="/accounts">Create an account</a> first.
+                        </div>
+                        {{end}}
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="ofxFile" class="form-label">OFX File</label>
+                        <div class="file-upload-area">
+                            <i class="bi bi-cloud-upload display-4 text-muted"></i>
+                            <p class="mt-2 mb-0">
+                                <label for="ofxFile" class="btn btn-primary">
+                                    <i class="bi bi-file-earmark-arrow-up"></i> Choose File
+                                </label>
+                            </p>
+                            <input type="file" class="d-none" id="ofxFile" name="file" accept=".ofx,.qfx" required>
+                            <p class="text-muted mt-2 mb-0" id="fileName">No file selected</p>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-lg btn-primary" {{if eq (len .Accounts) 0}}disabled{{end}}>
+                            <span class="spinner spinner-border spinner-border-sm me-2"></span>
+                            <i class="bi bi-upload"></i> Import Transactions
+                        </button>
+                    </div>
+                </form>
+
+                <div id="importResult" class="mt-4" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> How to get OFX files</h6>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li><strong>TD Canada Trust:</strong> Log in → Accounts → Download Transactions → Select OFX format</li>
+                    <li><strong>RBC:</strong> Log in → Account Summary → Download → OFX/Quicken format</li>
+                    <li><strong>CIBC:</strong> Log in → Account → Download Transactions → Select OFX format</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('ofxFile').addEventListener('change', function(e) {
+    const fileName = e.target.files[0]?.name || 'No file selected';
+    document.getElementById('fileName').textContent = fileName;
+});
+
+document.getElementById('importForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const spinner = submitBtn.querySelector('.spinner');
+
+    submitBtn.disabled = true;
+    spinner.style.display = 'inline-block';
+
+    try {
+        const response = await fetch('/api/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            document.getElementById('importResult').style.display = 'block';
+            document.getElementById('importResult').innerHTML = `
+                <div class="alert alert-success">
+                    <h5><i class="bi bi-check-circle"></i> Import Successful!</h5>
+                    <ul class="mb-0">
+                        <li><strong>${result.imported_count}</strong> transactions imported</li>
+                        <li><strong>${result.duplicate_count}</strong> duplicates skipped</li>
+                        <li><strong>${result.categorized_count}</strong> auto-categorized</li>
+                        ${result.error_count > 0 ? `<li class="text-danger"><strong>${result.error_count}</strong> errors</li>` : ''}
+                    </ul>
+                    <a href="/transactions" class="btn btn-primary mt-3">View Transactions</a>
+                </div>
+            `;
+            this.reset();
+            document.getElementById('fileName').textContent = 'No file selected';
+        } else {
+            document.getElementById('importResult').style.display = 'block';
+            document.getElementById('importResult').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> ${result.error || 'Import failed'}
+                </div>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('importResult').style.display = 'block';
+        document.getElementById('importResult').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> An error occurred during import
+            </div>
+        `;
+    } finally {
+        submitBtn.disabled = false;
+        spinner.style.display = 'none';
+    }
+});
+</script>
+{{end}}

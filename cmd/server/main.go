@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -74,6 +76,7 @@ func main() {
 	categoryHandler := handler.NewCategoryHandler(categoryRepo, patternRepo, categorizer)
 	importHandler := handler.NewImportHandler(importService)
 	insightsHandler := handler.NewInsightsHandler(insightsService, accountRepo)
+	pageHandler := handler.NewPageHandler(embeddedFiles, accountRepo, transactionRepo, categoryRepo, patternRepo, insightsService)
 
 	// Initialize Gin router
 	if !gin.IsDebugging() {
@@ -120,20 +123,16 @@ func main() {
 		api.GET("/insights/current-period", insightsHandler.GetCurrentPeriod)
 	}
 
-	// Root route - API info
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"name":    "PrivateLedger API",
-			"version": "0.1.0",
-			"endpoints": gin.H{
-				"accounts":     "/api/accounts",
-				"transactions": "/api/transactions",
-				"categories":   "/api/categories",
-				"import":       "/api/import",
-				"insights":     "/api/insights",
-			},
-		})
-	})
+	// Serve static files
+	staticFS, _ := fs.Sub(embeddedFiles, "web/static")
+	router.StaticFS("/static", http.FS(staticFS))
+
+	// Page routes (HTML)
+	router.GET("/", pageHandler.Dashboard)
+	router.GET("/accounts", pageHandler.Accounts)
+	router.GET("/categories", pageHandler.Categories)
+	router.GET("/transactions", pageHandler.Transactions)
+	router.GET("/import", pageHandler.Import)
 
 	// Start server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

@@ -1,0 +1,122 @@
+{{define "content"}}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h3 mb-0">Transactions</h1>
+        <p class="text-muted">View and manage your transactions</p>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <form id="filterForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Account</label>
+                        <select class="form-select" name="account_id">
+                            <option value="">All Accounts</option>
+                            {{range .Accounts}}
+                            <option value="{{.AccountID}}">{{.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Category</label>
+                        <select class="form-select" name="category_id">
+                            <option value="">All Categories</option>
+                            <option value="uncategorized">Uncategorized</option>
+                            {{range .Categories}}
+                            <option value="{{.CategoryID}}">{{.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-control" name="start_date">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">End Date</label>
+                        <input type="date" class="form-control" name="end_date">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Account</th>
+                                <th>Category</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionsTable">
+                            {{if gt (len .Transactions) 0}}
+                            {{range .Transactions}}
+                            <tr>
+                                <td>{{.DatePosted.Format "Jan 2, 2006"}}</td>
+                                <td>{{.TransactionDetails}}</td>
+                                <td>
+                                    <small class="text-muted">Account {{.AccountID}}</small>
+                                </td>
+                                <td>
+                                    {{if .CategoryID}}
+                                    <span class="category-badge {{if eq .CategorySource 2}}category-source-manual{{else}}category-source-rule{{end}}">
+                                        Category {{.CategoryID}}
+                                    </span>
+                                    {{else}}
+                                    <span class="category-badge category-badge-uncategorized">Uncategorized</span>
+                                    {{end}}
+                                </td>
+                                <td class="text-end {{if eq .TransactionType 2}}transaction-amount-credit{{else}}transaction-amount-debit{{end}}">
+                                    ${{printf "%.2f" .Amount}}
+                                </td>
+                            </tr>
+                            {{end}}
+                            {{else}}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    No transactions found. Import your first OFX file to get started!
+                                </td>
+                            </tr>
+                            {{end}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('filterForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams();
+
+    for (const [key, value] of formData.entries()) {
+        if (value) {
+            if (key === 'category_id' && value === 'uncategorized') {
+                params.append('uncategorized', 'true');
+            } else {
+                params.append(key, value);
+            }
+        }
+    }
+
+    window.location.href = '/transactions?' + params.toString();
+});
+</script>
+{{end}}

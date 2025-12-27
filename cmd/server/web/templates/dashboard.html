@@ -1,0 +1,226 @@
+{{define "content"}}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h3 mb-0">Dashboard</h1>
+        <p class="text-muted">Overview of your finances</p>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-success bg-opacity-10 text-success me-3">
+                        <i class="bi bi-arrow-down-circle"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1 small">Income (This Month)</h6>
+                        <h4 class="mb-0 text-income">${{printf "%.2f" .Stats.CurrentMonth.TotalIncome}}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-danger bg-opacity-10 text-danger me-3">
+                        <i class="bi bi-arrow-up-circle"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1 small">Expenses (This Month)</h6>
+                        <h4 class="mb-0 text-expense">${{printf "%.2f" .Stats.CurrentMonth.TotalExpenses}}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-primary bg-opacity-10 text-primary me-3">
+                        <i class="bi bi-piggy-bank"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1 small">Net (This Month)</h6>
+                        <h4 class="mb-0 {{if ge .Stats.CurrentMonth.NetAmount 0}}text-income{{else}}text-expense{{end}}">
+                            ${{printf "%.2f" .Stats.CurrentMonth.NetAmount}}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-warning bg-opacity-10 text-warning me-3">
+                        <i class="bi bi-question-circle"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="text-muted mb-1 small">Uncategorized</h6>
+                        <h4 class="mb-0">{{.Stats.UncategorizedCount}}</h4>
+                        <small class="text-muted">transactions</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- Category Breakdown -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Spending by Category</h5>
+                <small class="text-muted">Current month breakdown</small>
+            </div>
+            <div class="card-body">
+                {{if gt (len .Stats.CurrentMonth.CategoryBreakdown) 0}}
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+                {{else}}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-pie-chart display-4"></i>
+                    <p class="mt-3">No categorized transactions yet</p>
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <!-- Trends -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">6-Month Trends</h5>
+                <small class="text-muted">Income vs Expenses</small>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="trendsChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mt-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Quick Actions</h5>
+                <div class="d-flex gap-2">
+                    <a href="/import" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Import Transactions
+                    </a>
+                    <a href="/categories" class="btn btn-outline-primary">
+                        <i class="bi bi-tags"></i> Manage Categories
+                    </a>
+                    <a href="/transactions?uncategorized=true" class="btn btn-outline-warning">
+                        <i class="bi bi-question-circle"></i> View Uncategorized
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{if gt (len .Stats.CurrentMonth.CategoryBreakdown) 0}}
+<script>
+// Category Pie Chart
+const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+const categoryData = {
+    labels: [
+        {{range .Stats.CurrentMonth.CategoryBreakdown}}
+        '{{.CategoryName}}',
+        {{end}}
+    ],
+    datasets: [{
+        data: [
+            {{range .Stats.CurrentMonth.CategoryBreakdown}}
+            {{.TotalAmount}},
+            {{end}}
+        ],
+        backgroundColor: [
+            {{range .Stats.CurrentMonth.CategoryBreakdown}}
+            {{if .CategoryColor}}'{{.CategoryColor}}'{{else}}'#6b7280'{{end}},
+            {{end}}
+        ]
+    }]
+};
+
+new Chart(categoryCtx, {
+    type: 'doughnut',
+    data: categoryData,
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+</script>
+{{end}}
+
+<script>
+// Trends Line Chart
+const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+fetch('/api/insights/trends?months=6')
+    .then(response => response.json())
+    .then(trends => {
+        const trendsData = {
+            labels: trends.map(t => t.period.label),
+            datasets: [
+                {
+                    label: 'Income',
+                    data: trends.map(t => t.total_income),
+                    borderColor: '#16a34a',
+                    backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Expenses',
+                    data: trends.map(t => t.total_expenses),
+                    borderColor: '#dc2626',
+                    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        };
+
+        new Chart(trendsCtx, {
+            type: 'line',
+            data: trendsData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    });
+</script>
+{{end}}
