@@ -1,0 +1,32 @@
+# Binaries
+privateledger
+privateledger.exe
+dist/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Config files (local settings)
+config.json
+
+# Test data
+testdata/*.ofx
+testdata/*.xml
+
+# Go
+*.test
+*.out
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
