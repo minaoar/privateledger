@@ -209,6 +209,39 @@
                             <button type="button" class="btn btn-outline-secondary" onclick="showStep(2)">
                                 <i class="bi bi-arrow-left"></i> Back
                             </button>
+                            <button type="button" class="btn btn-primary" onclick="proceedToPatterns()">
+                                Next: Add Patterns <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Pattern Setup -->
+            <div id="step4" class="onboarding-step" style="display: none;">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-funnel"></i> Step 3: Add Matching Patterns (Optional)</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <p class="text-muted mb-4">
+                            Add keywords or text patterns that will automatically categorize transactions.
+                            For example, add "Walmart" or "Loblaws" to your Groceries category.
+                        </p>
+
+                        <div id="patternsContainer">
+                            <!-- Category pattern forms will be added here -->
+                        </div>
+
+                        <div class="alert alert-info mt-3">
+                            <i class="bi bi-info-circle"></i>
+                            <small>You can skip this step and add patterns later from the Categories page. Patterns help automatically categorize imported transactions.</small>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="showStep(3)">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </button>
                             <button type="button" class="btn btn-primary" onclick="completeOnboarding()">
                                 Complete Setup <i class="bi bi-check-lg"></i>
                             </button>
@@ -217,8 +250,8 @@
                 </div>
             </div>
 
-            <!-- Step 4: Completion -->
-            <div id="step4" class="onboarding-step" style="display: none;">
+            <!-- Step 5: Completion -->
+            <div id="step5" class="onboarding-step" style="display: none;">
                 <div class="card shadow-lg">
                     <div class="card-body p-5 text-center">
                         <div class="mb-4">
@@ -246,6 +279,7 @@
                     <span class="progress-dot" data-step="2"></span>
                     <span class="progress-dot" data-step="3"></span>
                     <span class="progress-dot" data-step="4"></span>
+                    <span class="progress-dot" data-step="5"></span>
                 </div>
             </div>
         </div>
@@ -419,11 +453,11 @@ function removeCategory(idx) {
     updateCategoriesList();
 }
 
-async function completeOnboarding() {
-    // Create all categories
+async function proceedToPatterns() {
+    // Create all categories and store their IDs
     try {
         for (const cat of addedCategories) {
-            await fetch('/api/categories', {
+            const response = await fetch('/api/categories', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -432,11 +466,121 @@ async function completeOnboarding() {
                     color: cat.color
                 })
             });
+
+            if (!response.ok) throw new Error('Failed to create category');
+
+            const result = await response.json();
+            cat.category_id = result.category_id;
+            cat.patterns = []; // Initialize patterns array
         }
 
+        // Initialize patterns UI
+        initPatternsUI();
         showStep(4);
     } catch (error) {
         alert('Error creating categories: ' + error.message);
+    }
+}
+
+function initPatternsUI() {
+    const container = document.getElementById('patternsContainer');
+
+    if (addedCategories.length === 0) {
+        container.innerHTML = '<p class="text-muted">No categories to add patterns to.</p>';
+        return;
+    }
+
+    container.innerHTML = addedCategories.map((cat, catIdx) => `
+        <div class="mb-4 border rounded p-3">
+            <div class="d-flex align-items-center mb-3">
+                <div class="category-badge-preview me-3" style="background-color: ${cat.color}">
+                    ${cat.name}
+                </div>
+                <small class="text-muted">(${cat.patterns.length} pattern${cat.patterns.length !== 1 ? 's' : ''})</small>
+            </div>
+
+            <div class="input-group mb-2">
+                <input type="text" class="form-control" id="pattern-${catIdx}"
+                       placeholder="e.g., Walmart, Loblaws, Superstore">
+                <button class="btn btn-success" onclick="addPattern(${catIdx})">
+                    <i class="bi bi-plus-lg"></i> Add
+                </button>
+            </div>
+
+            <div id="patterns-list-${catIdx}" class="d-flex flex-wrap gap-2 mt-2">
+                ${cat.patterns.length === 0 ? '<small class="text-muted">No patterns yet</small>' : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function addPattern(catIdx) {
+    const input = document.getElementById(`pattern-${catIdx}`);
+    const patternName = input.value.trim();
+
+    if (!patternName) return;
+
+    const cat = addedCategories[catIdx];
+
+    // Check for duplicates
+    if (cat.patterns.some(p => p.toLowerCase() === patternName.toLowerCase())) {
+        alert('Pattern already added to this category');
+        return;
+    }
+
+    cat.patterns.push(patternName);
+    input.value = '';
+
+    // Update the patterns list display
+    updatePatternsList(catIdx);
+}
+
+function updatePatternsList(catIdx) {
+    const cat = addedCategories[catIdx];
+    const listEl = document.getElementById(`patterns-list-${catIdx}`);
+
+    if (cat.patterns.length === 0) {
+        listEl.innerHTML = '<small class="text-muted">No patterns yet</small>';
+        return;
+    }
+
+    listEl.innerHTML = cat.patterns.map((pattern, pIdx) => `
+        <span class="badge bg-secondary">
+            ${pattern}
+            <button type="button" class="btn-close btn-close-white btn-sm ms-1"
+                    onclick="removePattern(${catIdx}, ${pIdx})" style="font-size: 0.6rem;"></button>
+        </span>
+    `).join('');
+
+    // Update count badge
+    const parentDiv = listEl.closest('.mb-4');
+    const countBadge = parentDiv.querySelector('.text-muted');
+    countBadge.textContent = `(${cat.patterns.length} pattern${cat.patterns.length !== 1 ? 's' : ''})`;
+}
+
+function removePattern(catIdx, pIdx) {
+    addedCategories[catIdx].patterns.splice(pIdx, 1);
+    updatePatternsList(catIdx);
+}
+
+async function completeOnboarding() {
+    // Create all patterns for each category
+    try {
+        for (const cat of addedCategories) {
+            for (const patternName of cat.patterns) {
+                await fetch(`/api/categories/${cat.category_id}/patterns`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pattern_name: patternName
+                    })
+                });
+            }
+        }
+
+        showStep(5);
+    } catch (error) {
+        alert('Error creating patterns: ' + error.message);
     }
 }
 
