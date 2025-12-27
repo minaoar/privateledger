@@ -22,7 +22,7 @@ func NewTransactionRepository(db *sql.DB) *TransactionRepository {
 // Create inserts a new transaction into the database
 func (r *TransactionRepository) Create(txn *model.Transaction) error {
 	query := `
-		INSERT INTO transaction (
+		INSERT INTO ledger_transaction (
 			account_id, trn_type, fit_id, date_posted, amount,
 			transaction_details, transaction_type, category_id, category_source
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -57,7 +57,7 @@ func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID stri
 	query := `
 		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
 			transaction_details, transaction_type, category_id, category_source, created_at
-		FROM transaction
+		FROM ledger_transaction
 		WHERE account_id = ? AND trn_type = ? AND fit_id = ? AND date_posted = ?
 	`
 
@@ -91,7 +91,7 @@ func (r *TransactionRepository) GetByID(transactionID int) (*model.Transaction, 
 	query := `
 		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
 			transaction_details, transaction_type, category_id, category_source, created_at
-		FROM transaction
+		FROM ledger_transaction
 		WHERE transaction_id = ?
 	`
 
@@ -136,7 +136,7 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 	query := `
 		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
 			transaction_details, transaction_type, category_id, category_source, created_at
-		FROM transaction
+		FROM ledger_transaction
 		WHERE 1=1
 	`
 	var args []interface{}
@@ -217,7 +217,7 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 
 // UpdateCategory updates the category assignment for a transaction
 func (r *TransactionRepository) UpdateCategory(transactionID int, categoryID *int, source model.CategorySource) error {
-	query := `UPDATE transaction SET category_id = ?, category_source = ? WHERE transaction_id = ?`
+	query := `UPDATE ledger_transaction SET category_id = ?, category_source = ? WHERE transaction_id = ?`
 	result, err := r.db.Exec(query, categoryID, source, transactionID)
 	if err != nil {
 		return fmt.Errorf("failed to update transaction category: %w", err)
@@ -240,7 +240,7 @@ func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error)
 	query := `
 		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
 			transaction_details, transaction_type, category_id, category_source, created_at
-		FROM transaction
+		FROM ledger_transaction
 		WHERE category_source = 0
 		ORDER BY date_posted DESC
 	`
@@ -278,7 +278,7 @@ func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error)
 
 // CountUncategorized returns the number of uncategorized transactions
 func (r *TransactionRepository) CountUncategorized() (int, error) {
-	query := `SELECT COUNT(*) FROM transaction WHERE category_source = 0`
+	query := `SELECT COUNT(*) FROM ledger_transaction WHERE category_source = 0`
 
 	var count int
 	err := r.db.QueryRow(query).Scan(&count)
@@ -291,7 +291,7 @@ func (r *TransactionRepository) CountUncategorized() (int, error) {
 
 // Delete deletes a transaction by ID
 func (r *TransactionRepository) Delete(transactionID int) error {
-	query := `DELETE FROM transaction WHERE transaction_id = ?`
+	query := `DELETE FROM ledger_transaction WHERE transaction_id = ?`
 	result, err := r.db.Exec(query, transactionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete transaction: %w", err)
@@ -324,7 +324,7 @@ func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.
 	}
 
 	query := fmt.Sprintf(
-		`UPDATE transaction SET category_id = ?, category_source = ? WHERE transaction_id IN (%s)`,
+		`UPDATE ledger_transaction SET category_id = ?, category_source = ? WHERE transaction_id IN (%s)`,
 		strings.Join(placeholders, ","),
 	)
 

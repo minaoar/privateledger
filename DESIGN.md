@@ -136,26 +136,27 @@ CREATE TABLE account (
 );
 
 -- All transactions (deduplicated)
-CREATE TABLE transaction (
+-- Note: Using 'ledger_transaction' to avoid SQL reserved keyword 'transaction'
+CREATE TABLE ledger_transaction (
     transaction_id  INTEGER PRIMARY KEY,
     account_id      INTEGER NOT NULL REFERENCES account(account_id),
-    
+
     -- OFX fields (composite key for dedup)
     trn_type        TEXT NOT NULL,
     fit_id          TEXT NOT NULL,
     date_posted     DATE NOT NULL,
     amount          DECIMAL(10,2) NOT NULL,
-    
+
     -- Processed fields
     transaction_details TEXT,
     transaction_type    INTEGER NOT NULL,  -- 1=debit, 2=credit
-    
+
     -- Categorization
     category_id     INTEGER REFERENCES category(category_id),
     category_source INTEGER DEFAULT 0,     -- 0=none, 1=rule, 2=manual
-    
+
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-    
+
     UNIQUE(account_id, trn_type, fit_id, date_posted)
 );
 
@@ -176,9 +177,9 @@ CREATE TABLE category_pattern (
 );
 
 -- Indexes
-CREATE INDEX idx_txn_date ON transaction(date_posted);
-CREATE INDEX idx_txn_category ON transaction(category_id);
-CREATE INDEX idx_txn_account ON transaction(account_id);
+CREATE INDEX idx_txn_date ON ledger_transaction(date_posted);
+CREATE INDEX idx_txn_category ON ledger_transaction(category_id);
+CREATE INDEX idx_txn_account ON ledger_transaction(account_id);
 ```
 
 ### Schema Notes

@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS account (
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- All transactions (deduplicated)
-CREATE TABLE IF NOT EXISTS transaction (
+-- All transactions (deduplicated) - used 'ledger_transaction' to avoid SQL reserved keyword 'transaction'
+CREATE TABLE IF NOT EXISTS ledger_transaction (
     transaction_id  INTEGER PRIMARY KEY,
     account_id      INTEGER NOT NULL REFERENCES account(account_id) ON DELETE CASCADE,
 
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS category_pattern (
 );
 
 -- Indexes for query performance
-CREATE INDEX IF NOT EXISTS idx_txn_date ON transaction(date_posted);
-CREATE INDEX IF NOT EXISTS idx_txn_category ON transaction(category_id);
-CREATE INDEX IF NOT EXISTS idx_txn_account ON transaction(account_id);
+CREATE INDEX IF NOT EXISTS idx_txn_date ON ledger_transaction(date_posted);
+CREATE INDEX IF NOT EXISTS idx_txn_category ON ledger_transaction(category_id);
+CREATE INDEX IF NOT EXISTS idx_txn_account ON ledger_transaction(account_id);
 CREATE INDEX IF NOT EXISTS idx_pattern_category ON category_pattern(category_id);
