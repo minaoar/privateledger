@@ -13,7 +13,7 @@ import (
 
 // PageHandler handles serving HTML pages
 type PageHandler struct {
-	templates       *template.Template
+	files           embed.FS
 	accountRepo     *repository.AccountRepository
 	transactionRepo *repository.TransactionRepository
 	categoryRepo    *repository.CategoryRepository
@@ -30,16 +30,22 @@ func NewPageHandler(
 	patternRepo *repository.CategoryPatternRepository,
 	insightsService *service.InsightsService,
 ) *PageHandler {
-	tmpl := template.Must(template.ParseFS(files, "web/templates/*.html"))
-
 	return &PageHandler{
-		templates:       tmpl,
+		files:           files,
 		accountRepo:     accountRepo,
 		transactionRepo: transactionRepo,
 		categoryRepo:    categoryRepo,
 		patternRepo:     patternRepo,
 		insightsService: insightsService,
 	}
+}
+
+// parseTemplate parses layout.html with a specific page template
+func (h *PageHandler) parseTemplate(pageName string) *template.Template {
+	return template.Must(template.ParseFS(h.files,
+		"web/templates/layout.html",
+		"web/templates/"+pageName+".html",
+	))
 }
 
 // Dashboard renders the dashboard page
@@ -64,7 +70,7 @@ func (h *PageHandler) Dashboard(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	h.templates.ExecuteTemplate(c.Writer, "layout.html", data)
+	h.parseTemplate("dashboard").ExecuteTemplate(c.Writer, "layout.html", data)
 }
 
 // Accounts renders the accounts management page
@@ -82,7 +88,7 @@ func (h *PageHandler) Accounts(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	h.templates.ExecuteTemplate(c.Writer, "layout.html", data)
+	h.parseTemplate("accounts").ExecuteTemplate(c.Writer, "layout.html", data)
 }
 
 // Categories renders the categories management page
@@ -100,7 +106,7 @@ func (h *PageHandler) Categories(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	h.templates.ExecuteTemplate(c.Writer, "layout.html", data)
+	h.parseTemplate("categories").ExecuteTemplate(c.Writer, "layout.html", data)
 }
 
 // Transactions renders the transactions list page
@@ -147,7 +153,7 @@ func (h *PageHandler) Transactions(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	h.templates.ExecuteTemplate(c.Writer, "layout.html", data)
+	h.parseTemplate("transactions").ExecuteTemplate(c.Writer, "layout.html", data)
 }
 
 // Import renders the OFX import page
@@ -165,7 +171,7 @@ func (h *PageHandler) Import(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	h.templates.ExecuteTemplate(c.Writer, "layout.html", data)
+	h.parseTemplate("import").ExecuteTemplate(c.Writer, "layout.html", data)
 }
 
 // Onboarding renders the onboarding wizard page
@@ -182,5 +188,6 @@ func (h *PageHandler) Onboarding(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	h.templates.ExecuteTemplate(c.Writer, "onboarding.html", data)
+	tmpl := template.Must(template.ParseFS(h.files, "web/templates/onboarding.html"))
+	tmpl.Execute(c.Writer, data)
 }
