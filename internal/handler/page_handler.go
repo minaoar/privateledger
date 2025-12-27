@@ -44,6 +44,13 @@ func NewPageHandler(
 
 // Dashboard renders the dashboard page
 func (h *PageHandler) Dashboard(c *gin.Context) {
+	// Check if onboarding is needed
+	accounts, err := h.accountRepo.GetAll()
+	if err == nil && len(accounts) == 0 {
+		c.Redirect(http.StatusFound, "/onboarding")
+		return
+	}
+
 	stats, err := h.insightsService.GetDashboardStats(h.accountRepo)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Error loading dashboard: %v", err)
@@ -159,4 +166,21 @@ func (h *PageHandler) Import(c *gin.Context) {
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	h.templates.ExecuteTemplate(c.Writer, "layout.html", data)
+}
+
+// Onboarding renders the onboarding wizard page
+func (h *PageHandler) Onboarding(c *gin.Context) {
+	// If accounts already exist, redirect to dashboard
+	accounts, err := h.accountRepo.GetAll()
+	if err == nil && len(accounts) > 0 {
+		c.Redirect(http.StatusFound, "/")
+		return
+	}
+
+	data := gin.H{
+		"Title": "Welcome to PrivateLedger",
+	}
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	h.templates.ExecuteTemplate(c.Writer, "onboarding.html", data)
 }

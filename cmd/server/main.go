@@ -129,6 +129,7 @@ func main() {
 
 	// Page routes (HTML)
 	router.GET("/", pageHandler.Dashboard)
+	router.GET("/onboarding", pageHandler.Onboarding)
 	router.GET("/accounts", pageHandler.Accounts)
 	router.GET("/categories", pageHandler.Categories)
 	router.GET("/transactions", pageHandler.Transactions)

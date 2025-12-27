@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to PrivateLedger</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/static/css/app.css" rel="stylesheet">
+
+    <style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+
+    .onboarding-step {
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .progress-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background-color: rgba(255,255,255,0.3);
+        transition: all 0.3s;
+    }
+
+    .progress-dot.active {
+        background-color: white;
+        transform: scale(1.3);
+    }
+
+    .category-badge-preview {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        color: white;
+        font-weight: 500;
+    }
+
+    .category-badge-preview .btn-close {
+        filter: brightness(0) invert(1);
+    }
+
+    .preset-category-btn {
+        transition: all 0.2s;
+    }
+
+    .preset-category-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .preset-category-btn.selected {
+        border-width: 2px;
+        border-color: #0d6efd !important;
+    }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="row justify-content-center min-vh-100 align-items-center py-5">
+        <div class="col-lg-8">
+            <div class="text-center mb-4">
+                <h1 class="display-4 mb-2 text-white">Welcome to PrivateLedger</h1>
+                <p class="lead text-white-50">Let's get your personal finance tracker set up</p>
+            </div>
+
+            <!-- Step 1: Welcome -->
+            <div id="step1" class="onboarding-step">
+                <div class="card shadow-lg">
+                    <div class="card-body p-5 text-center">
+                        <div class="mb-4">
+                            <i class="bi bi-wallet2 display-1 text-primary"></i>
+                        </div>
+                        <h3 class="mb-3">Your Privacy-First Finance Manager</h3>
+                        <p class="text-muted mb-4">PrivateLedger keeps all your financial data on your computer. No cloud sync, no third parties, just you and your data.</p>
+
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <i class="bi bi-shield-check text-success fs-3"></i>
+                                <p class="small mb-0 mt-2">100% Private</p>
+                            </div>
+                            <div class="col-md-4">
+                                <i class="bi bi-hdd text-primary fs-3"></i>
+                                <p class="small mb-0 mt-2">Local Storage</p>
+                            </div>
+                            <div class="col-md-4">
+                                <i class="bi bi-file-earmark-arrow-up text-info fs-3"></i>
+                                <p class="small mb-0 mt-2">OFX Import</p>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-lg btn-primary" onclick="showStep(2)">
+                            Get Started <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Account Creation -->
+            <div id="step2" class="onboarding-step" style="display: none;">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-bank"></i> Step 1: Add Your First Account</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <p class="text-muted mb-4">Add a bank account to start tracking transactions. You can add more accounts later.</p>
+
+                        <form id="accountForm">
+                            <div class="mb-3">
+                                <label for="accountName" class="form-label">Account Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-lg" id="accountName" placeholder="e.g., TD Checking Account" required>
+                                <div class="form-text">A friendly name to identify this account</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="institution" class="form-label">Bank/Institution</label>
+                                <input type="text" class="form-control" id="institution" placeholder="e.g., TD Canada Trust">
+                                <div class="form-text">Optional: Your bank's name</div>
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label for="accountType" class="form-label">Account Type</label>
+                                    <select class="form-select" id="accountType">
+                                        <option value="checking">Checking</option>
+                                        <option value="savings">Savings</option>
+                                        <option value="credit">Credit Card</option>
+                                        <option value="investment">Investment</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="accountNumber" class="form-label">Account Number (Last 4 digits)</label>
+                                    <input type="text" class="form-control" id="accountNumber" placeholder="e.g., 1234" maxlength="4">
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-outline-secondary" onclick="showStep(1)">
+                                    <i class="bi bi-arrow-left"></i> Back
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    Next: Add Categories <i class="bi bi-arrow-right"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Category Creation -->
+            <div id="step3" class="onboarding-step" style="display: none;">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-tags"></i> Step 2: Set Up Categories</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <p class="text-muted mb-4">Categories help organize your spending. Select common categories below or add your own.</p>
+
+                        <div class="mb-4">
+                            <h6 class="mb-3">Quick Add: Common Categories</h6>
+                            <div class="row g-2" id="presetCategories">
+                                <!-- Preset category buttons will be added here -->
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="mb-4">
+                            <h6 class="mb-3">Add Custom Category</h6>
+                            <form id="categoryForm" class="row g-3">
+                                <div class="col-md-5">
+                                    <input type="text" class="form-control" id="categoryName" placeholder="Category name">
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="categoryType">
+                                        <option value="expense">Expense</option>
+                                        <option value="income">Income</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="color" class="form-control form-control-color" id="categoryColor" value="#6c757d">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-success w-100">
+                                        <i class="bi bi-plus-lg"></i> Add
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div id="addedCategories" class="mb-4">
+                            <h6 class="mb-3">Your Categories (<span id="categoryCount">0</span>)</h6>
+                            <div class="text-muted" id="noCategoriesMsg">No categories added yet</div>
+                            <div id="categoriesList" class="d-flex flex-wrap gap-2"></div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-secondary" onclick="showStep(2)">
+                                <i class="bi bi-arrow-left"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="completeOnboarding()">
+                                Complete Setup <i class="bi bi-check-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Completion -->
+            <div id="step4" class="onboarding-step" style="display: none;">
+                <div class="card shadow-lg">
+                    <div class="card-body p-5 text-center">
+                        <div class="mb-4">
+                            <i class="bi bi-check-circle-fill display-1 text-success"></i>
+                        </div>
+                        <h3 class="mb-3">You're All Set!</h3>
+                        <p class="text-muted mb-4">Your PrivateLedger is ready. Start by importing your first OFX file.</p>
+
+                        <div class="d-flex gap-3 justify-content-center">
+                            <a href="/import" class="btn btn-lg btn-primary">
+                                <i class="bi bi-upload"></i> Import Transactions
+                            </a>
+                            <a href="/" class="btn btn-lg btn-outline-primary">
+                                <i class="bi bi-house"></i> Go to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Indicator -->
+            <div class="text-center mt-4">
+                <div id="progressDots" class="d-inline-flex gap-2">
+                    <span class="progress-dot active" data-step="1"></span>
+                    <span class="progress-dot" data-step="2"></span>
+                    <span class="progress-dot" data-step="3"></span>
+                    <span class="progress-dot" data-step="4"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let currentStep = 1;
+let createdAccountId = null;
+let addedCategories = [];
+
+// Preset categories with colors
+const presetCategories = [
+    { name: 'Groceries', type: 'expense', color: '#28a745', icon: 'cart' },
+    { name: 'Restaurants', type: 'expense', color: '#fd7e14', icon: 'cup-straw' },
+    { name: 'Transportation', type: 'expense', color: '#6610f2', icon: 'bus-front' },
+    { name: 'Utilities', type: 'expense', color: '#20c997', icon: 'lightning-charge' },
+    { name: 'Entertainment', type: 'expense', color: '#e83e8c', icon: 'film' },
+    { name: 'Healthcare', type: 'expense', color: '#dc3545', icon: 'heart-pulse' },
+    { name: 'Shopping', type: 'expense', color: '#6f42c1', icon: 'bag' },
+    { name: 'Salary', type: 'income', color: '#198754', icon: 'cash-coin' },
+    { name: 'Investments', type: 'income', color: '#0dcaf0', icon: 'graph-up-arrow' },
+    { name: 'Gifts', type: 'income', color: '#ffc107', icon: 'gift' }
+];
+
+// Initialize preset categories
+function initPresetCategories() {
+    const container = document.getElementById('presetCategories');
+    presetCategories.forEach((cat, idx) => {
+        const btn = document.createElement('div');
+        btn.className = 'col-6 col-md-4 col-lg-3';
+        btn.innerHTML = `
+            <button type="button" class="btn btn-outline-secondary w-100 preset-category-btn"
+                    data-index="${idx}"
+                    onclick="togglePresetCategory(${idx})">
+                <i class="bi bi-${cat.icon}"></i><br>
+                <small>${cat.name}</small>
+            </button>
+        `;
+        container.appendChild(btn);
+    });
+}
+
+function togglePresetCategory(idx) {
+    const cat = presetCategories[idx];
+    const btn = document.querySelector(`[data-index="${idx}"]`);
+
+    // Check if already added
+    const existing = addedCategories.findIndex(c => c.name === cat.name);
+    if (existing >= 0) {
+        // Remove it
+        addedCategories.splice(existing, 1);
+        btn.classList.remove('selected');
+    } else {
+        // Add it
+        addedCategories.push(cat);
+        btn.classList.add('selected');
+    }
+
+    updateCategoriesList();
+}
+
+function showStep(step) {
+    // Hide all steps
+    document.querySelectorAll('.onboarding-step').forEach(el => el.style.display = 'none');
+
+    // Show target step
+    document.getElementById('step' + step).style.display = 'block';
+    currentStep = step;
+
+    // Update progress dots
+    document.querySelectorAll('.progress-dot').forEach((dot, idx) => {
+        if (idx + 1 <= step) {
+            dot.classList.add('active');
+        } else {
+            dot.classList.remove('active');
+        }
+    });
+}
+
+// Account form submission
+document.getElementById('accountForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const accountData = {
+        name: document.getElementById('accountName').value,
+        institution: document.getElementById('institution').value || undefined,
+        account_type: document.getElementById('accountType').value,
+        account_number: document.getElementById('accountNumber').value || undefined
+    };
+
+    try {
+        const response = await fetch('/api/accounts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(accountData)
+        });
+
+        if (!response.ok) throw new Error('Failed to create account');
+
+        const result = await response.json();
+        createdAccountId = result.account_id;
+
+        showStep(3);
+    } catch (error) {
+        alert('Error creating account: ' + error.message);
+    }
+});
+
+// Category form submission
+document.getElementById('categoryForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const name = document.getElementById('categoryName').value.trim();
+    if (!name) return;
+
+    const category = {
+        name: name,
+        type: document.getElementById('categoryType').value,
+        color: document.getElementById('categoryColor').value
+    };
+
+    // Check for duplicates
+    if (addedCategories.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+        alert('Category already added');
+        return;
+    }
+
+    addedCategories.push(category);
+    updateCategoriesList();
+
+    // Reset form
+    document.getElementById('categoryName').value = '';
+    document.getElementById('categoryColor').value = '#6c757d';
+});
+
+function updateCategoriesList() {
+    const list = document.getElementById('categoriesList');
+    const noMsg = document.getElementById('noCategoriesMsg');
+    const countEl = document.getElementById('categoryCount');
+
+    countEl.textContent = addedCategories.length;
+
+    if (addedCategories.length === 0) {
+        noMsg.style.display = 'block';
+        list.innerHTML = '';
+        return;
+    }
+
+    noMsg.style.display = 'none';
+    list.innerHTML = addedCategories.map((cat, idx) => `
+        <div class="category-badge-preview" style="background-color: ${cat.color}">
+            ${cat.name}
+            <button type="button" class="btn-close btn-close-white btn-sm"
+                    onclick="removeCategory(${idx})"></button>
+        </div>
+    `).join('');
+}
+
+function removeCategory(idx) {
+    const cat = addedCategories[idx];
+
+    // If it was a preset, unselect the button
+    const presetIdx = presetCategories.findIndex(p => p.name === cat.name);
+    if (presetIdx >= 0) {
+        document.querySelector(`[data-index="${presetIdx}"]`)?.classList.remove('selected');
+    }
+
+    addedCategories.splice(idx, 1);
+    updateCategoriesList();
+}
+
+async function completeOnboarding() {
+    // Create all categories
+    try {
+        for (const cat of addedCategories) {
+            await fetch('/api/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: cat.name,
+                    category_type: cat.type,
+                    color: cat.color
+                })
+            });
+        }
+
+        showStep(4);
+    } catch (error) {
+        alert('Error creating categories: ' + error.message);
+    }
+}
+
+// Initialize on load
+initPresetCategories();
+</script>
+</body>
+</html>
