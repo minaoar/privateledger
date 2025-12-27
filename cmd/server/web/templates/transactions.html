@@ -69,12 +69,12 @@
                                 <td>{{.DatePosted.Format "Jan 2, 2006"}}</td>
                                 <td>{{.TransactionDetails}}</td>
                                 <td>
-                                    <small class="text-muted">Account {{.AccountID}}</small>
+                                    <small class="text-muted">{{if .AccountName}}{{.AccountName}}{{else}}Unknown{{end}}</small>
                                 </td>
                                 <td>
                                     {{if .CategoryID}}
                                     <span class="category-badge {{if eq .CategorySource 2}}category-source-manual{{else}}category-source-rule{{end}}">
-                                        Category {{.CategoryID}}
+                                        {{if .CategoryName}}{{.CategoryName}}{{else}}Category {{.CategoryID}}{{end}}
                                     </span>
                                     {{else}}
                                     <span class="category-badge category-badge-uncategorized">Uncategorized</span>

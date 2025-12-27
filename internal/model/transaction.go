@@ -41,6 +41,10 @@ type Transaction struct {
 	// Categorization
 	CategoryID     *int           `json:"category_id" db:"category_id"`         // Nullable
 	CategorySource CategorySource `json:"category_source" db:"category_source"`
+
+	// Display fields (populated via JOIN, not stored in DB)
+	AccountName  *string `json:"account_name,omitempty" db:"account_name"`
+	CategoryName *string `json:"category_name,omitempty" db:"category_name"`
 }
 
 // NewTransaction creates a new Transaction from OFX data

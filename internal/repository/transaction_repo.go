@@ -134,40 +134,45 @@ type TransactionFilter struct {
 // List retrieves transactions with optional filters
 func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transaction, error) {
 	query := `
-		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source, created_at
-		FROM ledger_transaction
+		SELECT
+			t.transaction_id, t.account_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
+			t.transaction_details, t.transaction_type, t.category_id, t.category_source, t.created_at,
+			a.name as account_name,
+			c.name as category_name
+		FROM ledger_transaction t
+		LEFT JOIN account a ON t.account_id = a.account_id
+		LEFT JOIN category c ON t.category_id = c.category_id
 		WHERE 1=1
 	`
 	var args []interface{}
 
 	// Apply filters
 	if filter.AccountID != nil {
-		query += " AND account_id = ?"
+		query += " AND t.account_id = ?"
 		args = append(args, *filter.AccountID)
 	}
 
 	if filter.CategoryID != nil {
-		query += " AND category_id = ?"
+		query += " AND t.category_id = ?"
 		args = append(args, *filter.CategoryID)
 	}
 
 	if filter.Uncategorized {
-		query += " AND (category_id IS NULL OR category_source = 0)"
+		query += " AND (t.category_id IS NULL OR t.category_source = 0)"
 	}
 
 	if filter.StartDate != nil {
-		query += " AND date_posted >= ?"
+		query += " AND t.date_posted >= ?"
 		args = append(args, *filter.StartDate)
 	}
 
 	if filter.EndDate != nil {
-		query += " AND date_posted <= ?"
+		query += " AND t.date_posted <= ?"
 		args = append(args, *filter.EndDate)
 	}
 
 	// Order by date descending (most recent first)
-	query += " ORDER BY date_posted DESC, transaction_id DESC"
+	query += " ORDER BY t.date_posted DESC, t.transaction_id DESC"
 
 	// Apply pagination
 	if filter.Limit > 0 {
@@ -201,6 +206,8 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 			&txn.CategoryID,
 			&txn.CategorySource,
 			&txn.CreatedAt,
+			&txn.AccountName,
+			&txn.CategoryName,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
