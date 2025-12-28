@@ -184,8 +184,9 @@
                                 </div>
                                 <div class="col-md-3">
                                     <select class="form-select" id="categoryType">
-                                        <option value="expense">Expense</option>
-                                        <option value="income">Income</option>
+                                        <option value="General">General</option>
+                                        <option value="Expense">Expense</option>
+                                        <option value="Income">Income</option>
                                     </select>
                                 </div>
                                 <div class="col-md-2">
@@ -294,16 +295,22 @@ let addedCategories = [];
 
 // Preset categories with colors
 const presetCategories = [
-    { name: 'Groceries', type: 'expense', color: '#28a745', icon: 'cart' },
-    { name: 'Restaurants', type: 'expense', color: '#fd7e14', icon: 'cup-straw' },
-    { name: 'Transportation', type: 'expense', color: '#6610f2', icon: 'bus-front' },
-    { name: 'Utilities', type: 'expense', color: '#20c997', icon: 'lightning-charge' },
-    { name: 'Entertainment', type: 'expense', color: '#e83e8c', icon: 'film' },
-    { name: 'Healthcare', type: 'expense', color: '#dc3545', icon: 'heart-pulse' },
-    { name: 'Shopping', type: 'expense', color: '#6f42c1', icon: 'bag' },
-    { name: 'Salary', type: 'income', color: '#198754', icon: 'cash-coin' },
-    { name: 'Investments', type: 'income', color: '#0dcaf0', icon: 'graph-up-arrow' },
-    { name: 'Gifts', type: 'income', color: '#ffc107', icon: 'gift' }
+    { name: 'Groceries / Essentials', type: 'Expense', color: '#28a745', icon: 'cart' },
+    { name: 'Restaurant', type: 'Expense', color: '#fd7e14', icon: 'cup-straw' },
+    { name: 'Shopping', type: 'Expense', color: '#6f42c1', icon: 'bag' },
+    { name: 'Housing Related', type: 'Expense', color: '#20c997', icon: 'house-door' },
+    { name: 'Car Related', type: 'Expense', color: '#6610f2', icon: 'car-front' },
+    { name: 'Kids Activities', type: 'Expense', color: '#ff6b9d', icon: 'puzzle' },
+    { name: 'Insurance', type: 'Expense', color: '#0d6efd', icon: 'shield-check' },
+    { name: 'Fitness', type: 'Expense', color: '#198754', icon: 'heart-pulse' },
+    { name: 'Mobile / Internet', type: 'Expense', color: '#17a2b8', icon: 'phone' },
+    { name: 'Entertainment', type: 'Expense', color: '#e83e8c', icon: 'film' },
+    { name: 'Gifts / Socializing', type: 'Expense', color: '#ffc107', icon: 'gift' },
+    { name: 'Healthcare / Medical', type: 'Expense', color: '#dc3545', icon: 'hospital' },
+    { name: 'Investment', type: 'General', color: '#0dcaf0', icon: 'graph-up-arrow' },
+    { name: 'Income', type: 'Income', color: '#198754', icon: 'cash-coin' },
+    { name: 'Credit Card Payment', type: 'General', color: '#adb5bd', icon: 'arrow-left-right' },
+    { name: 'Skip / Ignore', type: 'General', color: '#6c757d', icon: 'slash-circle' }
 ];
 
 // Initialize preset categories

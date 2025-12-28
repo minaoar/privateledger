@@ -82,9 +82,10 @@ func (h *CategoryHandler) GetCategory(c *gin.Context) {
 
 // CreateCategoryRequest represents the request body for creating a category
 type CreateCategoryRequest struct {
-	Name     string   `json:"name" binding:"required"`
-	Color    *string  `json:"color"`
-	Patterns []string `json:"patterns"` // Initial patterns (optional)
+	Name         string   `json:"name" binding:"required"`
+	CategoryType string   `json:"category_type"`
+	Color        *string  `json:"color"`
+	Patterns     []string `json:"patterns"` // Initial patterns (optional)
 }
 
 // CreateCategory creates a new category with optional initial patterns
@@ -107,8 +108,14 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
+	// Default to "General" if category_type is not provided
+	categoryType := req.CategoryType
+	if categoryType == "" {
+		categoryType = "General"
+	}
+
 	// Create category
-	category := model.NewCategory(req.Name, req.Color)
+	category := model.NewCategory(req.Name, categoryType, req.Color)
 	err = h.categoryRepo.Create(category)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -160,8 +167,9 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 
 // UpdateCategoryRequest represents the request body for updating a category
 type UpdateCategoryRequest struct {
-	Name  string  `json:"name" binding:"required"`
-	Color *string `json:"color"`
+	Name         string  `json:"name" binding:"required"`
+	CategoryType string  `json:"category_type"`
+	Color        *string `json:"color"`
 }
 
 // UpdateCategory updates an existing category
@@ -201,7 +209,14 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
+	// Default to "General" if category_type is not provided
+	categoryType := req.CategoryType
+	if categoryType == "" {
+		categoryType = "General"
+	}
+
 	category.Name = req.Name
+	category.CategoryType = categoryType
 	category.Color = req.Color
 	err = h.categoryRepo.Update(category)
 	if err != nil {

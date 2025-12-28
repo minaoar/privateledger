@@ -19,8 +19,8 @@ func NewCategoryRepository(db *sql.DB) *CategoryRepository {
 
 // Create inserts a new category into the database
 func (r *CategoryRepository) Create(category *model.Category) error {
-	query := `INSERT INTO category (name, color) VALUES (?, ?)`
-	result, err := r.db.Exec(query, category.Name, category.Color)
+	query := `INSERT INTO category (name, category_type, color) VALUES (?, ?, ?)`
+	result, err := r.db.Exec(query, category.Name, category.CategoryType, category.Color)
 	if err != nil {
 		return fmt.Errorf("failed to create category: %w", err)
 	}
@@ -36,12 +36,13 @@ func (r *CategoryRepository) Create(category *model.Category) error {
 
 // GetByID retrieves a category by its ID
 func (r *CategoryRepository) GetByID(categoryID int) (*model.Category, error) {
-	query := `SELECT category_id, name, color, created_at FROM category WHERE category_id = ?`
+	query := `SELECT category_id, name, category_type, color, created_at FROM category WHERE category_id = ?`
 
 	var category model.Category
 	err := r.db.QueryRow(query, categoryID).Scan(
 		&category.CategoryID,
 		&category.Name,
+		&category.CategoryType,
 		&category.Color,
 		&category.CreatedAt,
 	)
@@ -58,12 +59,13 @@ func (r *CategoryRepository) GetByID(categoryID int) (*model.Category, error) {
 
 // GetByName retrieves a category by its name
 func (r *CategoryRepository) GetByName(name string) (*model.Category, error) {
-	query := `SELECT category_id, name, color, created_at FROM category WHERE name = ?`
+	query := `SELECT category_id, name, category_type, color, created_at FROM category WHERE name = ?`
 
 	var category model.Category
 	err := r.db.QueryRow(query, name).Scan(
 		&category.CategoryID,
 		&category.Name,
+		&category.CategoryType,
 		&category.Color,
 		&category.CreatedAt,
 	)
@@ -80,7 +82,7 @@ func (r *CategoryRepository) GetByName(name string) (*model.Category, error) {
 
 // GetAll retrieves all categories
 func (r *CategoryRepository) GetAll() ([]*model.Category, error) {
-	query := `SELECT category_id, name, color, created_at FROM category ORDER BY name ASC`
+	query := `SELECT category_id, name, category_type, color, created_at FROM category ORDER BY name ASC`
 
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -94,6 +96,7 @@ func (r *CategoryRepository) GetAll() ([]*model.Category, error) {
 		err := rows.Scan(
 			&category.CategoryID,
 			&category.Name,
+			&category.CategoryType,
 			&category.Color,
 			&category.CreatedAt,
 		)
@@ -140,10 +143,10 @@ func (r *CategoryRepository) GetAllWithPatterns(patternRepo *CategoryPatternRepo
 	return result, nil
 }
 
-// Update updates a category's name and color
+// Update updates a category's name, type, and color
 func (r *CategoryRepository) Update(category *model.Category) error {
-	query := `UPDATE category SET name = ?, color = ? WHERE category_id = ?`
-	result, err := r.db.Exec(query, category.Name, category.Color, category.CategoryID)
+	query := `UPDATE category SET name = ?, category_type = ?, color = ? WHERE category_id = ?`
+	result, err := r.db.Exec(query, category.Name, category.CategoryType, category.Color, category.CategoryID)
 	if err != nil {
 		return fmt.Errorf("failed to update category: %w", err)
 	}

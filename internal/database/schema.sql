@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS ledger_transaction (
 CREATE TABLE IF NOT EXISTS category (
     category_id     INTEGER PRIMARY KEY,
     name            TEXT NOT NULL UNIQUE,
+    category_type   TEXT NOT NULL DEFAULT 'General',  -- General/Expense/Income
     color           TEXT,
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
