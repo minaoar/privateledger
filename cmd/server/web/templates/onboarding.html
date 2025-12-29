@@ -402,7 +402,7 @@ document.getElementById('accountForm').addEventListener('submit', async function
     }
 
     try {
-        const response = await fetch('/api/accounts/bulk', {
+        const response = await fetch('/api/accounts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ names: accountNames })

@@ -83,8 +83,10 @@ document.getElementById('addAccountForm').addEventListener('submit', async funct
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name })
+            body: JSON.stringify({ names: [name] })
         });
+
+        const result = await response.json();
 
         if (response.ok) {
             showToast('Account added successfully!', 'success');
@@ -93,8 +95,8 @@ document.getElementById('addAccountForm').addEventListener('submit', async funct
             // Reload page to show new account
             setTimeout(() => location.reload(), 1000);
         } else {
-            const error = await response.json();
-            showToast(error.error || 'Failed to add account', 'danger');
+            const errorMsg = result.errors ? result.errors.join(', ') : (result.error || 'Failed to add account');
+            showToast(errorMsg, 'danger');
         }
     } catch (error) {
         showToast('An error occurred', 'danger');

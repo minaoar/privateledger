@@ -54,50 +54,15 @@ func (h *AccountHandler) GetAccount(c *gin.Context) {
 	c.JSON(http.StatusOK, account)
 }
 
-// CreateAccountRequest represents the request body for creating an account
+// CreateAccountRequest represents the request body for creating account(s)
 type CreateAccountRequest struct {
-	Name string `json:"name" binding:"required"`
-}
-
-// CreateAccount creates a new account
-// POST /api/accounts
-func (h *AccountHandler) CreateAccount(c *gin.Context) {
-	var req CreateAccountRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if account with same name already exists
-	existing, err := h.repo.GetByName(req.Name)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if existing != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Account with this name already exists"})
-		return
-	}
-
-	account := model.NewAccount(req.Name)
-	err = h.repo.Create(account)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusCreated, account)
-}
-
-// CreateAccountsBulkRequest represents the request body for creating multiple accounts
-type CreateAccountsBulkRequest struct {
 	Names []string `json:"names" binding:"required"`
 }
 
-// CreateAccountsBulk creates multiple accounts at once
-// POST /api/accounts/bulk
-func (h *AccountHandler) CreateAccountsBulk(c *gin.Context) {
-	var req CreateAccountsBulkRequest
+// CreateAccount creates one or more accounts
+// POST /api/accounts
+func (h *AccountHandler) CreateAccount(c *gin.Context) {
+	var req CreateAccountRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

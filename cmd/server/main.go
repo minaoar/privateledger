@@ -91,7 +91,6 @@ func main() {
 		api.GET("/accounts", accountHandler.ListAccounts)
 		api.GET("/accounts/:id", accountHandler.GetAccount)
 		api.POST("/accounts", accountHandler.CreateAccount)
-		api.POST("/accounts/bulk", accountHandler.CreateAccountsBulk)
 		api.PUT("/accounts/:id", accountHandler.UpdateAccount)
 		api.DELETE("/accounts/:id", accountHandler.DeleteAccount)
 
