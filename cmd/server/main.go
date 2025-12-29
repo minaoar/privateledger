@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -14,6 +15,8 @@ import (
 	"github.com/oronno/privateledger/internal/config"
 	"github.com/oronno/privateledger/internal/database"
 	"github.com/oronno/privateledger/internal/handler"
+	"github.com/oronno/privateledger/internal/logger"
+	"github.com/oronno/privateledger/internal/middleware"
 	"github.com/oronno/privateledger/internal/parser"
 	"github.com/oronno/privateledger/internal/repository"
 	"github.com/oronno/privateledger/internal/service"
@@ -40,18 +43,32 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	log.Printf("PrivateLedger v0.1.0")
-	log.Printf("Config loaded from: %s", configPath)
-	log.Printf("Database: %s", dbPath)
+	// Setup structured logging
+	logFile, err := logger.Setup(cfg, execDir)
+	if err != nil {
+		log.Fatalf("Failed to setup logger: %v", err)
+	}
+	if logFile != nil {
+		defer logFile.Close()
+	}
+
+	slog.Info("PrivateLedger starting",
+		slog.String("version", "0.1.0"),
+		slog.String("config_path", configPath),
+		slog.String("database_path", dbPath),
+		slog.Bool("file_logging", cfg.Logging.EnableFileLogging),
+		slog.String("log_level", cfg.Logging.LogLevel),
+	)
 
 	// Open database
 	db, err := database.Open(database.Config{Path: dbPath})
 	if err != nil {
+		slog.Error("Failed to open database", slog.String("error", err.Error()))
 		log.Fatalf("Failed to open database: %v", err)
 	}
 	defer database.Close(db)
 
-	log.Printf("Database initialized successfully")
+	slog.Info("Database initialized successfully")
 
 	// Initialize repositories
 	accountRepo := repository.NewAccountRepository(db)
@@ -67,7 +84,7 @@ func main() {
 
 	// Load patterns for categorizer
 	if err := categorizer.LoadPatterns(); err != nil {
-		log.Printf("Warning: Failed to load categorizer patterns: %v", err)
+		slog.Warn("Failed to load categorizer patterns", slog.String("error", err.Error()))
 	}
 
 	// Initialize handlers
@@ -79,13 +96,22 @@ func main() {
 	pageHandler := handler.NewPageHandler(embeddedFiles, accountRepo, transactionRepo, categoryRepo, patternRepo, insightsService)
 
 	// Initialize Gin router
-	if !gin.IsDebugging() {
+	if cfg.DebugMode {
+		gin.SetMode(gin.DebugMode)
+	} else {
 		gin.SetMode(gin.ReleaseMode)
+		// Disable Gin's default logger output to console
+		gin.DisableConsoleColor()
 	}
-	router := gin.Default()
 
-	// API routes
+	router := gin.New()
+
+	// Add global middleware
+	router.Use(gin.Recovery())
+
+	// API routes with logging middleware
 	api := router.Group("/api")
+	api.Use(middleware.LoggingMiddleware())
 	{
 		// Account routes
 		api.GET("/accounts", accountHandler.ListAccounts)
@@ -137,14 +163,21 @@ func main() {
 
 	// Start server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
-	log.Printf("Starting server on http://localhost%s", addr)
+	serverURL := fmt.Sprintf("http://localhost%s", addr)
+
+	slog.Info("Starting server",
+		slog.String("address", addr),
+		slog.String("url", serverURL),
+		slog.Bool("auto_open_browser", cfg.Server.AutoOpenBrowser),
+	)
 
 	// Auto-open browser if configured
 	if cfg.Server.AutoOpenBrowser {
-		go openBrowser(fmt.Sprintf("http://localhost%s", addr))
+		go openBrowser(serverURL)
 	}
 
 	if err := router.Run(addr); err != nil {
+		slog.Error("Failed to start server", slog.String("error", err.Error()))
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -161,11 +194,11 @@ func openBrowser(url string) {
 	case "darwin":
 		cmd = exec.Command("open", url)
 	default:
-		log.Printf("Unable to open browser on OS: %s", runtime.GOOS)
+		slog.Warn("Unable to open browser", slog.String("os", runtime.GOOS))
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("Failed to open browser: %v", err)
+		slog.Warn("Failed to open browser", slog.String("error", err.Error()))
 	}
 }

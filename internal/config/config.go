@@ -9,15 +9,24 @@ import (
 
 // Config represents the application configuration
 type Config struct {
-	Version      int          `json:"version"`
-	Server       ServerConfig `json:"server"`
-	StartOfMonth int          `json:"start_of_month"`
+	Version      int           `json:"version"`
+	Server       ServerConfig  `json:"server"`
+	Logging      LoggingConfig `json:"logging"`
+	StartOfMonth int           `json:"start_of_month"`
+	DebugMode    bool          `json:"debug_mode"`
 }
 
 // ServerConfig holds server-specific configuration
 type ServerConfig struct {
 	Port            int  `json:"port"`
 	AutoOpenBrowser bool `json:"auto_open_browser"`
+}
+
+// LoggingConfig holds logging-specific configuration
+type LoggingConfig struct {
+	EnableFileLogging bool   `json:"enable_file_logging"`
+	LogFilePath       string `json:"log_file_path"`
+	LogLevel          string `json:"log_level"` // "debug", "info", "warn", "error"
 }
 
 // DefaultConfig returns a config with default values
@@ -28,7 +37,13 @@ func DefaultConfig() *Config {
 			Port:            8080,
 			AutoOpenBrowser: true,
 		},
+		Logging: LoggingConfig{
+			EnableFileLogging: false,
+			LogFilePath:       "server.log",
+			LogLevel:          "debug",
+		},
 		StartOfMonth: 1,
+		DebugMode:    false,
 	}
 }
 
