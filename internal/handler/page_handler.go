@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/oronno/privateledger/internal/repository"
@@ -132,6 +133,21 @@ func (h *PageHandler) Transactions(c *gin.Context) {
 		filter.Uncategorized = true
 	}
 
+	// Parse date filters
+	if startDateStr := c.Query("start_date"); startDateStr != "" {
+		if startDate, err := time.Parse("2006-01-02", startDateStr); err == nil {
+			filter.StartDate = &startDate
+		}
+	}
+
+	if endDateStr := c.Query("end_date"); endDateStr != "" {
+		if endDate, err := time.Parse("2006-01-02", endDateStr); err == nil {
+			// Set to end of day to include all transactions on the end date
+			endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			filter.EndDate = &endDate
+		}
+	}
+
 	transactions, err := h.transactionRepo.List(filter)
 	if err != nil {
 		c.String(http.StatusInternalServerError, "Error loading transactions: %v", err)
@@ -144,12 +160,22 @@ func (h *PageHandler) Transactions(c *gin.Context) {
 	// Get categories for filter dropdown
 	categories, _ := h.categoryRepo.GetAll()
 
+	// Prepare filter values for template
+	filterValues := gin.H{
+		"AccountID":     c.Query("account_id"),
+		"CategoryID":    c.Query("category_id"),
+		"Uncategorized": c.Query("uncategorized"),
+		"StartDate":     c.Query("start_date"),
+		"EndDate":       c.Query("end_date"),
+	}
+
 	data := gin.H{
 		"Title":        "Transactions",
 		"ActivePage":   "transactions",
 		"Transactions": transactions,
 		"Accounts":     accounts,
 		"Categories":   categories,
+		"Filter":       filterValues,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")

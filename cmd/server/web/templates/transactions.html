@@ -6,40 +6,63 @@
     </div>
 </div>
 
-<div class="row mb-3">
+<div class="row mb-4">
     <div class="col">
-        <div class="card">
-            <div class="card-body">
-                <form id="filterForm" class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Account</label>
-                        <select class="form-select" name="account_id">
+        <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <div class="card-body p-3">
+                <form id="filterForm" class="row g-2 align-items-end justify-content-center">
+                    <div class="col-auto">
+                        <div class="d-flex align-items-center h-100 pb-1">
+                            <div class="bg-white bg-opacity-25 rounded-circle p-2 me-2">
+                                <i class="bi bi-funnel-fill text-white" style="font-size: 1rem;"></i>
+                            </div>
+                            <span class="text-white fw-semibold">Filter</span>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-white small mb-1">
+                            <i class="bi bi-wallet2 me-1"></i>Account
+                        </label>
+                        <select class="form-select form-select-sm shadow-sm" name="account_id">
                             <option value="">All Accounts</option>
                             {{range .Accounts}}
-                            <option value="{{.AccountID}}">{{.Name}}</option>
+                            <option value="{{.AccountID}}" {{if eq (printf "%d" .AccountID) $.Filter.AccountID}}selected{{end}}>{{.Name}}</option>
                             {{end}}
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Category</label>
-                        <select class="form-select" name="category_id">
+                    <div class="col-md-2">
+                        <label class="form-label text-white small mb-1">
+                            <i class="bi bi-tags me-1"></i>Category
+                        </label>
+                        <select class="form-select form-select-sm shadow-sm" name="category_id">
                             <option value="">All Categories</option>
-                            <option value="uncategorized">Uncategorized</option>
+                            <option value="uncategorized" {{if eq $.Filter.Uncategorized "true"}}selected{{end}}>Uncategorized</option>
                             {{range .Categories}}
-                            <option value="{{.CategoryID}}">{{.Name}}</option>
+                            <option value="{{.CategoryID}}" {{if eq (printf "%d" .CategoryID) $.Filter.CategoryID}}selected{{end}}>{{.Name}}</option>
                             {{end}}
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Start Date</label>
-                        <input type="date" class="form-control" name="start_date">
+                        <label class="form-label text-white small mb-1">
+                            <i class="bi bi-calendar-event me-1"></i>Start Date
+                        </label>
+                        <input type="date" class="form-control form-control-sm shadow-sm" name="start_date" value="{{.Filter.StartDate}}">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">End Date</label>
-                        <input type="date" class="form-control" name="end_date">
+                        <label class="form-label text-white small mb-1">
+                            <i class="bi bi-calendar-check me-1"></i>End Date
+                        </label>
+                        <input type="date" class="form-control form-control-sm shadow-sm" name="end_date" value="{{.Filter.EndDate}}">
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-light btn-sm fw-semibold shadow-sm">
+                            <i class="bi bi-search me-1"></i>Apply
+                        </button>
+                    </div>
+                    <div class="col-auto">
+                        <button type="button" class="btn btn-outline-light btn-sm shadow-sm" onclick="clearFilters()" title="Clear all filters">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -118,5 +141,9 @@ document.getElementById('filterForm').addEventListener('submit', function(e) {
 
     window.location.href = '/transactions?' + params.toString();
 });
+
+function clearFilters() {
+    window.location.href = '/transactions';
+}
 </script>
 {{end}}
