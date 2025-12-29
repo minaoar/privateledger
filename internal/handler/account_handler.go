@@ -89,6 +89,75 @@ func (h *AccountHandler) CreateAccount(c *gin.Context) {
 	c.JSON(http.StatusCreated, account)
 }
 
+// CreateAccountsBulkRequest represents the request body for creating multiple accounts
+type CreateAccountsBulkRequest struct {
+	Names []string `json:"names" binding:"required"`
+}
+
+// CreateAccountsBulk creates multiple accounts at once
+// POST /api/accounts/bulk
+func (h *AccountHandler) CreateAccountsBulk(c *gin.Context) {
+	var req CreateAccountsBulkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Filter out empty names
+	var validNames []string
+	for _, name := range req.Names {
+		if name != "" {
+			validNames = append(validNames, name)
+		}
+	}
+
+	if len(validNames) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "At least one account name is required"})
+		return
+	}
+
+	createdAccounts := make([]*model.Account, 0)
+	errors := make([]string, 0)
+
+	for _, name := range validNames {
+		// Check if account with same name already exists
+		existing, err := h.repo.GetByName(name)
+		if err != nil {
+			errors = append(errors, "Error checking account '"+name+"': "+err.Error())
+			continue
+		}
+		if existing != nil {
+			errors = append(errors, "Account '"+name+"' already exists")
+			continue
+		}
+
+		account := model.NewAccount(name)
+		err = h.repo.Create(account)
+		if err != nil {
+			errors = append(errors, "Error creating account '"+name+"': "+err.Error())
+			continue
+		}
+
+		createdAccounts = append(createdAccounts, account)
+	}
+
+	response := gin.H{
+		"created": createdAccounts,
+		"count":   len(createdAccounts),
+	}
+
+	if len(errors) > 0 {
+		response["errors"] = errors
+	}
+
+	// Return 201 if at least one account was created, otherwise 400
+	if len(createdAccounts) > 0 {
+		c.JSON(http.StatusCreated, response)
+	} else {
+		c.JSON(http.StatusBadRequest, response)
+	}
+}
+
 // UpdateAccountRequest represents the request body for updating an account
 type UpdateAccountRequest struct {
 	Name string `json:"name" binding:"required"`

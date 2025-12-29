@@ -51,8 +51,8 @@ func (h *PageHandler) parseTemplate(pageName string) *template.Template {
 // Dashboard renders the dashboard page
 func (h *PageHandler) Dashboard(c *gin.Context) {
 	// Check if onboarding is needed
-	accounts, err := h.accountRepo.GetAll()
-	if err == nil && len(accounts) == 0 {
+	categories, err := h.categoryRepo.GetAll()
+	if err == nil && len(categories) == 0 {
 		c.Redirect(http.StatusFound, "/onboarding")
 		return
 	}
@@ -176,9 +176,9 @@ func (h *PageHandler) Import(c *gin.Context) {
 
 // Onboarding renders the onboarding wizard page
 func (h *PageHandler) Onboarding(c *gin.Context) {
-	// If accounts already exist, redirect to dashboard
-	accounts, err := h.accountRepo.GetAll()
-	if err == nil && len(accounts) > 0 {
+	// If categories already exist, redirect to dashboard
+	categories, err := h.categoryRepo.GetAll()
+	if err == nil && len(categories) > 0 {
 		c.Redirect(http.StatusFound, "/")
 		return
 	}

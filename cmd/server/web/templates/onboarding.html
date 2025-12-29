@@ -107,62 +107,11 @@
                 </div>
             </div>
 
-            <!-- Step 2: Account Creation -->
+            <!-- Step 2: Category Creation -->
             <div id="step2" class="onboarding-step" style="display: none;">
                 <div class="card shadow-lg">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-bank"></i> Step 1: Add Your First Account</h5>
-                    </div>
-                    <div class="card-body p-4">
-                        <p class="text-muted mb-4">Add a bank account to start tracking transactions. You can add more accounts later.</p>
-
-                        <form id="accountForm">
-                            <div class="mb-3">
-                                <label for="accountName" class="form-label">Account Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control form-control-lg" id="accountName" placeholder="e.g., TD Checking Account" required>
-                                <div class="form-text">A friendly name to identify this account</div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="institution" class="form-label">Bank/Institution</label>
-                                <input type="text" class="form-control" id="institution" placeholder="e.g., TD Canada Trust">
-                                <div class="form-text">Optional: Your bank's name</div>
-                            </div>
-
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-6">
-                                    <label for="accountType" class="form-label">Account Type</label>
-                                    <select class="form-select" id="accountType">
-                                        <option value="checking">Checking</option>
-                                        <option value="savings">Savings</option>
-                                        <option value="credit">Credit Card</option>
-                                        <option value="investment">Investment</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="accountNumber" class="form-label">Account Number (Last 4 digits)</label>
-                                    <input type="text" class="form-control" id="accountNumber" placeholder="e.g., 1234" maxlength="4">
-                                </div>
-                            </div>
-
-                            <div class="d-flex justify-content-between mt-4">
-                                <button type="button" class="btn btn-outline-secondary" onclick="showStep(1)">
-                                    <i class="bi bi-arrow-left"></i> Back
-                                </button>
-                                <button type="submit" class="btn btn-primary">
-                                    Next: Add Categories <i class="bi bi-arrow-right"></i>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 3: Category Creation -->
-            <div id="step3" class="onboarding-step" style="display: none;">
-                <div class="card shadow-lg">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-tags"></i> Step 2: Set Up Categories</h5>
+                        <h5 class="mb-0"><i class="bi bi-tags"></i> Step 1: Set Up Categories</h5>
                     </div>
                     <div class="card-body p-4">
                         <p class="text-muted mb-4">Categories help organize your spending. Select common categories below or add your own.</p>
@@ -207,7 +156,7 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-outline-secondary" onclick="showStep(2)">
+                            <button type="button" class="btn btn-outline-secondary" onclick="showStep(1)">
                                 <i class="bi bi-arrow-left"></i> Back
                             </button>
                             <button type="button" class="btn btn-primary" onclick="proceedToPatterns()">
@@ -218,11 +167,11 @@
                 </div>
             </div>
 
-            <!-- Step 4: Pattern Setup -->
-            <div id="step4" class="onboarding-step" style="display: none;">
+            <!-- Step 3: Pattern Setup -->
+            <div id="step3" class="onboarding-step" style="display: none;">
                 <div class="card shadow-lg">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-funnel"></i> Step 3: Add Matching Patterns (Optional)</h5>
+                        <h5 class="mb-0"><i class="bi bi-funnel"></i> Step 2: Add Matching Patterns (Optional)</h5>
                     </div>
                     <div class="card-body p-4">
                         <p class="text-muted mb-4">
@@ -240,13 +189,55 @@
                         </div>
 
                         <div class="d-flex justify-content-between mt-4">
-                            <button type="button" class="btn btn-outline-secondary" onclick="showStep(3)">
+                            <button type="button" class="btn btn-outline-secondary" onclick="showStep(2)">
                                 <i class="bi bi-arrow-left"></i> Back
                             </button>
-                            <button type="button" class="btn btn-primary" onclick="completeOnboarding()">
-                                Complete Setup <i class="bi bi-check-lg"></i>
+                            <button type="button" class="btn btn-primary" onclick="showStep(4)">
+                                Next: Add Account <i class="bi bi-arrow-right"></i>
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Account Creation -->
+            <div id="step4" class="onboarding-step" style="display: none;">
+                <div class="card shadow-lg">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-bank"></i> Step 3: Add Your Accounts</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <p class="text-muted mb-4">Add one or more accounts to start tracking transactions.</p>
+
+                        <form id="accountForm">
+                            <div id="accountInputsContainer">
+                                <div class="mb-3">
+                                    <label class="form-label">Account Name 1 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control account-name-input" placeholder="e.g., TD Checking Account" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Account Name 2</label>
+                                    <input type="text" class="form-control account-name-input" placeholder="e.g., RBC Credit Card">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Account Name 3</label>
+                                    <input type="text" class="form-control account-name-input" placeholder="e.g., Tangerine Savings">
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-outline-secondary mb-3" onclick="addMoreAccountInput()">
+                                <i class="bi bi-plus-circle"></i> Add More Account
+                            </button>
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="button" class="btn btn-outline-secondary" onclick="showStep(3)">
+                                    <i class="bi bi-arrow-left"></i> Back
+                                </button>
+                                <button type="submit" class="btn btn-primary">
+                                    Complete Setup <i class="bi bi-check-lg"></i>
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -293,24 +284,24 @@ let currentStep = 1;
 let createdAccountId = null;
 let addedCategories = [];
 
-// Preset categories with colors
+// Preset categories with colors and patterns
 const presetCategories = [
-    { name: 'Groceries / Essentials', type: 'Expense', color: '#28a745', icon: 'cart' },
-    { name: 'Restaurant', type: 'Expense', color: '#fd7e14', icon: 'cup-straw' },
-    { name: 'Shopping', type: 'Expense', color: '#6f42c1', icon: 'bag' },
-    { name: 'Housing Related', type: 'Expense', color: '#20c997', icon: 'house-door' },
-    { name: 'Car Related', type: 'Expense', color: '#6610f2', icon: 'car-front' },
-    { name: 'Kids Activities', type: 'Expense', color: '#ff6b9d', icon: 'puzzle' },
-    { name: 'Insurance', type: 'Expense', color: '#0d6efd', icon: 'shield-check' },
-    { name: 'Fitness', type: 'Expense', color: '#198754', icon: 'heart-pulse' },
-    { name: 'Mobile / Internet', type: 'Expense', color: '#17a2b8', icon: 'phone' },
-    { name: 'Entertainment', type: 'Expense', color: '#e83e8c', icon: 'film' },
+    { name: 'Groceries / Essentials', type: 'Expense', color: '#28a745', icon: 'cart', category_pattern: 'COSTCO, SHOPPERS DRUG MART, BESTCO, FRESHCO, WALMART, WAL-MART, SUPERMARKET, METRO, THE HOME DEPOT, DOLLARAMA, LOBLAWS' },
+    { name: 'Restaurant', type: 'Expense', color: '#fd7e14', icon: 'cup-straw', category_pattern: 'TIM HORTONS, STARBUCKS, A&W, MCDONALD, MCDONALDS, THAI EXPRESS, SUBWAY, KFC, SWISS CHALET, UBER EATS, DOORDASH' },
+    { name: 'Shopping', type: 'Expense', color: '#6f42c1', icon: 'bag', category_pattern: 'WINNERS, BATH AND BODY, SEPHORA, TEMU, OLD NAVY, Tommy Hilfiger, THE CHILDREN, Uniqlo, SUZY SHIER, URBAN KIDS, HOMESENSE, SPORT CHEK, SHEIN, MARSHALLS, CARTERS, AMZN Mktp, Amazon' },
+    { name: 'Housing Related', type: 'Expense', color: '#20c997', icon: 'house-door', category_pattern: 'HYDRO, ENBRIDGE, MORTGAGE, PROPERTY TAX' },
+    { name: 'Car Related', type: 'Expense', color: '#6610f2', icon: 'car-front', category_pattern: 'SHELL, PETRO-CANADA, ESSO, CANADIAN TIRE GAS, COSTCO GAS' },
+    { name: 'Kids Activities', type: 'Expense', color: '#ff6b9d', icon: 'puzzle', category_pattern: 'YMCA, KUMON' },
+    { name: 'Insurance', type: 'Expense', color: '#0d6efd', icon: 'shield-check', category_pattern: 'MANULIFE, SUNLIFE, GREAT-WEST LIFE, DESJARDINS, INSURANCE' },
+    { name: 'Fitness', type: 'Expense', color: '#198754', icon: 'heart-pulse', category_pattern: 'ORANGETHEORY, GOODLIFE, PLANET FITNESS, ANYTIME FITNESS' },
+    { name: 'Mobile / Internet', type: 'Expense', color: '#17a2b8', icon: 'phone', category_pattern: 'ROGERS, BELL, TELUS, FIDO, FREEDOM MOBILE, CHATR, PUBLIC MOBILE, VIRGIN MOBILE' },
+    { name: 'Entertainment', type: 'Expense', color: '#e83e8c', icon: 'film', category_pattern: 'NETFLIX, SPOTIFY, DISNEY, CINEPLEX' },
     { name: 'Gifts / Socializing', type: 'Expense', color: '#ffc107', icon: 'gift' },
-    { name: 'Healthcare / Medical', type: 'Expense', color: '#dc3545', icon: 'hospital' },
-    { name: 'Investment', type: 'General', color: '#0dcaf0', icon: 'graph-up-arrow' },
-    { name: 'Income', type: 'Income', color: '#198754', icon: 'cash-coin' },
-    { name: 'Credit Card Payment', type: 'General', color: '#adb5bd', icon: 'arrow-left-right' },
-    { name: 'Skip / Ignore', type: 'General', color: '#6c757d', icon: 'slash-circle' }
+    { name: 'Healthcare / Medical', type: 'Expense', color: '#dc3545', icon: 'hospital', category_pattern: 'PHARMACY, MEDICAL, DENTAL, HOSPITAL, CLINIC, PHYSIO, CHIROPRACTOR, OPTOMETRIST' },
+    { name: 'Investment', type: 'General', color: '#0dcaf0', icon: 'graph-up-arrow', category_pattern: 'WEALTHSIMPLE, QUESTRADE, TD DIRECT, RBC DIRECT, BMO INVESTORLINE' },
+    { name: 'Income', type: 'Income', color: '#198754', icon: 'cash-coin', category_pattern: 'PAYROLL' },
+    { name: 'Credit Card Payment', type: 'General', color: '#adb5bd', icon: 'arrow-left-right', category_pattern: 'CC PAYMENT' },
+    { name: 'Skip / Ignore', type: 'General', color: '#6c757d', icon: 'slash-circle'}
 ];
 
 // Initialize preset categories
@@ -342,8 +333,16 @@ function togglePresetCategory(idx) {
         addedCategories.splice(existing, 1);
         btn.classList.remove('selected');
     } else {
-        // Add it
-        addedCategories.push(cat);
+        // Add it with parsed patterns
+        const categoryWithPatterns = { ...cat };
+        if (cat.category_pattern) {
+            // Parse comma-separated patterns
+            categoryWithPatterns.patterns = cat.category_pattern
+                .split(',')
+                .map(p => p.trim())
+                .filter(p => p);
+        }
+        addedCategories.push(categoryWithPatterns);
         btn.classList.add('selected');
     }
 
@@ -368,32 +367,72 @@ function showStep(step) {
     });
 }
 
+// Add more account input function
+let accountInputCount = 3;
+function addMoreAccountInput() {
+    accountInputCount++;
+    const container = document.getElementById('accountInputsContainer');
+    const newInput = document.createElement('div');
+    newInput.className = 'mb-3';
+    newInput.innerHTML = `
+        <label class="form-label">Account Name ${accountInputCount}</label>
+        <input type="text" class="form-control account-name-input" placeholder="e.g., Scotiabank Savings">
+    `;
+    container.appendChild(newInput);
+}
+
 // Account form submission
 document.getElementById('accountForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
-    const accountData = {
-        name: document.getElementById('accountName').value,
-        institution: document.getElementById('institution').value || undefined,
-        account_type: document.getElementById('accountType').value,
-        account_number: document.getElementById('accountNumber').value || undefined
-    };
+    // Collect all account names from inputs
+    const accountInputs = document.querySelectorAll('.account-name-input');
+    const accountNames = [];
+
+    accountInputs.forEach(input => {
+        const name = input.value.trim();
+        if (name) {
+            accountNames.push(name);
+        }
+    });
+
+    if (accountNames.length === 0) {
+        alert('Please enter at least one account name');
+        return;
+    }
 
     try {
-        const response = await fetch('/api/accounts', {
+        const response = await fetch('/api/accounts/bulk', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(accountData)
+            body: JSON.stringify({ names: accountNames })
         });
 
-        if (!response.ok) throw new Error('Failed to create account');
-
         const result = await response.json();
-        createdAccountId = result.account_id;
 
-        showStep(3);
+        if (!response.ok) {
+            if (result.errors && result.errors.length > 0) {
+                alert('Errors: ' + result.errors.join(', '));
+            } else {
+                throw new Error('Failed to create accounts');
+            }
+            return;
+        }
+
+        // Store the first created account ID for reference
+        if (result.created && result.created.length > 0) {
+            createdAccountId = result.created[0].account_id;
+        }
+
+        // Show any errors but continue
+        if (result.errors && result.errors.length > 0) {
+            alert('Some accounts had issues: ' + result.errors.join(', '));
+        }
+
+        // Create all patterns before completing onboarding
+        await completeOnboarding();
     } catch (error) {
-        alert('Error creating account: ' + error.message);
+        alert('Error creating accounts: ' + error.message);
     }
 });
 
@@ -478,12 +517,15 @@ async function proceedToPatterns() {
 
             const result = await response.json();
             cat.category_id = result.category_id;
-            cat.patterns = []; // Initialize patterns array
+            // Only initialize patterns array if it doesn't exist (preserve preset patterns)
+            if (!cat.patterns) {
+                cat.patterns = [];
+            }
         }
 
         // Initialize patterns UI
         initPatternsUI();
-        showStep(4);
+        showStep(3);
     } catch (error) {
         alert('Error creating categories: ' + error.message);
     }
@@ -515,7 +557,16 @@ function initPatternsUI() {
             </div>
 
             <div id="patterns-list-${catIdx}" class="d-flex flex-wrap gap-2 mt-2">
-                ${cat.patterns.length === 0 ? '<small class="text-muted">No patterns yet</small>' : ''}
+                ${cat.patterns.length === 0
+                    ? '<small class="text-muted">No patterns yet</small>'
+                    : cat.patterns.map((pattern, pIdx) => `
+                        <span class="badge bg-secondary">
+                            ${pattern}
+                            <button type="button" class="btn-close btn-close-white btn-sm ms-1"
+                                    onclick="removePattern(${catIdx}, ${pIdx})" style="font-size: 0.6rem;"></button>
+                        </span>
+                    `).join('')
+                }
             </div>
         </div>
     `).join('');
