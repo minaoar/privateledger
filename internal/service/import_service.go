@@ -15,6 +15,7 @@ type ImportService struct {
 	txnRepo      *repository.TransactionRepository
 	accountRepo  *repository.AccountRepository
 	categorizer  *Categorizer
+	batchRepo    *repository.ImportBatchRepository
 }
 
 // NewImportService creates a new ImportService
@@ -23,12 +24,14 @@ func NewImportService(
 	txnRepo *repository.TransactionRepository,
 	accountRepo *repository.AccountRepository,
 	categorizer *Categorizer,
+	batchRepo *repository.ImportBatchRepository,
 ) *ImportService {
 	return &ImportService{
 		parser:      parser,
 		txnRepo:     txnRepo,
 		accountRepo: accountRepo,
 		categorizer: categorizer,
+		batchRepo:   batchRepo,
 	}
 }
 
@@ -44,7 +47,7 @@ type ImportResult struct {
 }
 
 // ImportOFX imports transactions from an OFX file
-func (s *ImportService) ImportOFX(reader io.Reader, accountID int) (*ImportResult, error) {
+func (s *ImportService) ImportOFX(reader io.Reader, accountID int, batchID *int) (*ImportResult, error) {
 	// Verify account exists
 	account, err := s.accountRepo.GetByID(accountID)
 	if err != nil {
@@ -68,6 +71,11 @@ func (s *ImportService) ImportOFX(reader io.Reader, accountID int) (*ImportResul
 
 	// Process each transaction
 	for _, txn := range parseResult.Transactions {
+		// Set batch ID if provided
+		if batchID != nil {
+			txn.ImportBatchID = batchID
+		}
+
 		// Check for duplicates
 		duplicate, err := s.txnRepo.FindDuplicate(
 			txn.AccountID,
@@ -104,6 +112,17 @@ func (s *ImportService) ImportOFX(reader io.Reader, accountID int) (*ImportResul
 
 		result.ImportedCount++
 		result.Transactions = append(result.Transactions, txn)
+	}
+
+	// Update batch record if batch ID was provided
+	if batchID != nil && s.batchRepo != nil {
+		batch, err := s.batchRepo.GetByID(*batchID)
+		if err == nil && batch != nil {
+			batch.ImportedTransactions = &result.ImportedCount
+			batch.DuplicateTransactions = &result.DuplicateCount
+			batch.TotalAutoCategorized = &result.CategorizedCount
+			s.batchRepo.Update(batch)
+		}
 	}
 
 	return result, nil

@@ -1,11 +1,29 @@
 {{define "content"}}
 <div class="row mb-4">
-    <div class="col-lg-8 mx-auto">
+    <div class="col-lg-10 mx-auto">
         <h1 class="h3 mb-2">Import Transactions</h1>
         <p class="text-muted">Upload an OFX file from your bank to import transactions</p>
 
-        <div class="card">
-            <div class="card-body">
+        <!-- Tab Navigation -->
+        <ul class="nav nav-tabs mb-3" id="importTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="import-tab" data-bs-toggle="tab" data-bs-target="#import-content" type="button" role="tab">
+                    <i class="bi bi-upload"></i> Import File
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-content" type="button" role="tab" onclick="loadImportHistory()">
+                    <i class="bi bi-clock-history"></i> Import History
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="importTabsContent">
+            <!-- Import Tab -->
+            <div class="tab-pane fade show active" id="import-content" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
                 <form id="importForm">
                     <div class="mb-4">
                         <label for="accountSelect" class="form-label">Select Account</label>
@@ -49,16 +67,34 @@
             </div>
         </div>
 
-        <div class="card mt-4">
-            <div class="card-header bg-light">
-                <h6 class="mb-0"><i class="bi bi-info-circle"></i> How to get OFX files</h6>
+                <div class="card mt-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="bi bi-info-circle"></i> How to get OFX files</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="mb-0">
+                            <li><strong>TD Canada Trust:</strong> Log in → Accounts → Download Transactions → Select OFX format</li>
+                            <li><strong>RBC:</strong> Log in → Account Summary → Download → OFX/Quicken format</li>
+                            <li><strong>CIBC:</strong> Log in → Account → Download Transactions → Select OFX format</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <ul class="mb-0">
-                    <li><strong>TD Canada Trust:</strong> Log in → Accounts → Download Transactions → Select OFX format</li>
-                    <li><strong>RBC:</strong> Log in → Account Summary → Download → OFX/Quicken format</li>
-                    <li><strong>CIBC:</strong> Log in → Account → Download Transactions → Select OFX format</li>
-                </ul>
+
+            <!-- History Tab -->
+            <div class="tab-pane fade" id="history-content" role="tabpanel">
+                <div class="card">
+                    <div class="card-body">
+                        <div id="historyLoading" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="historyContent">
+                            <p class="text-muted text-center py-5">Click "Import History" tab to load history</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -76,11 +112,35 @@ document.getElementById('importForm').addEventListener('submit', async function(
     const formData = new FormData(this);
     const submitBtn = this.querySelector('button[type="submit"]');
     const spinner = submitBtn.querySelector('.spinner');
+    const fileName = formData.get('file').name;
+    const accountId = formData.get('account_id');
 
     submitBtn.disabled = true;
     spinner.style.display = 'inline-block';
 
     try {
+        // Step 1: Create import batch record
+        const batchResponse = await fetch('/api/import/history', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                file_name: fileName,
+                account_id: parseInt(accountId)
+            })
+        });
+
+        if (!batchResponse.ok) {
+            throw new Error('Failed to create import batch record');
+        }
+
+        const batch = await batchResponse.json();
+        const batchId = batch.import_batch_id;
+
+        // Step 2: Import transactions with batch ID
+        formData.append('batch_id', batchId);
+
         const response = await fetch('/api/import', {
             method: 'POST',
             body: formData
@@ -89,6 +149,20 @@ document.getElementById('importForm').addEventListener('submit', async function(
         const result = await response.json();
 
         if (response.ok) {
+            // Step 3: Update batch with results (optional, service already does this)
+            // But we'll do it anyway to ensure consistency
+            await fetch(`/api/import/history/${batchId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    imported_transactions: result.imported_count,
+                    duplicate_transactions: result.duplicate_count,
+                    total_auto_categorized: result.categorized_count
+                })
+            });
+
             document.getElementById('importResult').style.display = 'block';
             document.getElementById('importResult').innerHTML = `
                 <div class="alert alert-success">
@@ -104,6 +178,11 @@ document.getElementById('importForm').addEventListener('submit', async function(
             `;
             this.reset();
             document.getElementById('fileName').textContent = 'No file selected';
+
+            // Refresh history tab if it's loaded
+            if (typeof loadImportHistory === 'function') {
+                loadImportHistory();
+            }
         } else {
             document.getElementById('importResult').style.display = 'block';
             document.getElementById('importResult').innerHTML = `
@@ -116,7 +195,7 @@ document.getElementById('importForm').addEventListener('submit', async function(
         document.getElementById('importResult').style.display = 'block';
         document.getElementById('importResult').innerHTML = `
             <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i> An error occurred during import
+                <i class="bi bi-exclamation-triangle"></i> An error occurred during import: ${error.message}
             </div>
         `;
     } finally {
@@ -124,5 +203,84 @@ document.getElementById('importForm').addEventListener('submit', async function(
         spinner.style.display = 'none';
     }
 });
+
+// Function to load import history
+async function loadImportHistory() {
+    const historyContent = document.getElementById('historyContent');
+    const historyLoading = document.getElementById('historyLoading');
+
+    historyLoading.style.display = 'block';
+    historyContent.innerHTML = '';
+
+    try {
+        const response = await fetch('/api/import/history');
+        if (!response.ok) {
+            throw new Error('Failed to load import history');
+        }
+
+        const batches = await response.json();
+
+        if (batches.length === 0) {
+            historyContent.innerHTML = `
+                <p class="text-muted text-center py-5">No import history found</p>
+            `;
+        } else {
+            historyContent.innerHTML = `
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>File Name</th>
+                                <th>Account</th>
+                                <th class="text-end">Imported</th>
+                                <th class="text-end">Duplicates</th>
+                                <th class="text-end">Auto-Categorized</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${batches.map(batch => {
+                                const createdAt = new Date(batch.created_at);
+                                const dateStr = createdAt.toLocaleDateString();
+                                const timeStr = createdAt.toLocaleTimeString();
+                                const imported = batch.imported_transactions ?? '-';
+                                const duplicates = batch.duplicate_transactions ?? '-';
+                                const categorized = batch.total_auto_categorized ?? '-';
+
+                                return `
+                                    <tr>
+                                        <td>
+                                            <div>${dateStr}</div>
+                                            <small class="text-muted">${timeStr}</small>
+                                        </td>
+                                        <td>${batch.file_name}</td>
+                                        <td>${batch.account_name || 'Unknown'}</td>
+                                        <td class="text-end">${imported}</td>
+                                        <td class="text-end">${duplicates}</td>
+                                        <td class="text-end">${categorized}</td>
+                                        <td class="text-center">
+                                            <a href="/transactions?batch_id=${batch.import_batch_id}" class="btn btn-sm btn-outline-primary" title="View transactions">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+    } catch (error) {
+        historyContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> Failed to load import history: ${error.message}
+            </div>
+        `;
+    } finally {
+        historyLoading.style.display = 'none';
+    }
+}
 </script>
 {{end}}

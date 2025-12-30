@@ -75,11 +75,12 @@ func main() {
 	transactionRepo := repository.NewTransactionRepository(db)
 	categoryRepo := repository.NewCategoryRepository(db)
 	patternRepo := repository.NewCategoryPatternRepository(db)
+	importBatchRepo := repository.NewImportBatchRepository(db)
 
 	// Initialize services
 	ofxParser := parser.NewOFXParser()
 	categorizer := service.NewCategorizer(patternRepo, transactionRepo)
-	importService := service.NewImportService(ofxParser, transactionRepo, accountRepo, categorizer)
+	importService := service.NewImportService(ofxParser, transactionRepo, accountRepo, categorizer, importBatchRepo)
 	insightsService := service.NewInsightsService(transactionRepo, categoryRepo, cfg)
 
 	// Load patterns for categorizer
@@ -92,6 +93,7 @@ func main() {
 	transactionHandler := handler.NewTransactionHandler(transactionRepo)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo, patternRepo, categorizer)
 	importHandler := handler.NewImportHandler(importService)
+	importBatchHandler := handler.NewImportBatchHandler(importBatchRepo)
 	insightsHandler := handler.NewInsightsHandler(insightsService, accountRepo)
 	pageHandler := handler.NewPageHandler(embeddedFiles, accountRepo, transactionRepo, categoryRepo, patternRepo, insightsService)
 
@@ -141,6 +143,13 @@ func main() {
 		// Import routes
 		api.POST("/import", importHandler.ImportOFX)
 		api.POST("/import/validate", importHandler.ValidateOFX)
+
+		// Import batch/history routes
+		api.POST("/import/history", importBatchHandler.CreateBatch)
+		api.GET("/import/history", importBatchHandler.ListBatches)
+		api.GET("/import/history/:id", importBatchHandler.GetBatch)
+		api.PUT("/import/history/:id", importBatchHandler.UpdateBatch)
+		api.DELETE("/import/history/:id", importBatchHandler.DeleteBatch)
 
 		// Insights routes
 		api.GET("/insights/dashboard", insightsHandler.GetDashboard)

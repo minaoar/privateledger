@@ -23,13 +23,14 @@ func NewTransactionRepository(db *sql.DB) *TransactionRepository {
 func (r *TransactionRepository) Create(txn *model.Transaction) error {
 	query := `
 		INSERT INTO ledger_transaction (
-			account_id, trn_type, fit_id, date_posted, amount,
+			account_id, import_batch_id, trn_type, fit_id, date_posted, amount,
 			transaction_details, transaction_type, category_id, category_source
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	result, err := r.db.Exec(query,
 		txn.AccountID,
+		txn.ImportBatchID,
 		txn.TrnType,
 		txn.FitID,
 		txn.DatePosted,
@@ -124,6 +125,7 @@ func (r *TransactionRepository) GetByID(transactionID int) (*model.Transaction, 
 type TransactionFilter struct {
 	AccountID     *int       // Filter by account
 	CategoryID    *int       // Filter by category
+	BatchID       *int       // Filter by import batch
 	Uncategorized bool       // Only uncategorized transactions
 	StartDate     *time.Time // Date range start (inclusive)
 	EndDate       *time.Time // Date range end (inclusive)
@@ -135,7 +137,7 @@ type TransactionFilter struct {
 func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transaction, error) {
 	query := `
 		SELECT
-			t.transaction_id, t.account_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
+			t.transaction_id, t.account_id, t.import_batch_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
 			t.transaction_details, t.transaction_type, t.category_id, t.category_source, t.created_at,
 			a.name as account_name,
 			c.name as category_name
@@ -155,6 +157,11 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 	if filter.CategoryID != nil {
 		query += " AND t.category_id = ?"
 		args = append(args, *filter.CategoryID)
+	}
+
+	if filter.BatchID != nil {
+		query += " AND t.import_batch_id = ?"
+		args = append(args, *filter.BatchID)
 	}
 
 	if filter.Uncategorized {
@@ -197,6 +204,7 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 		err := rows.Scan(
 			&txn.TransactionID,
 			&txn.AccountID,
+			&txn.ImportBatchID,
 			&txn.TrnType,
 			&txn.FitID,
 			&txn.DatePosted,

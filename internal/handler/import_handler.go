@@ -26,6 +26,7 @@ func NewImportHandler(importService *service.ImportService) *ImportHandler {
 // Fields:
 //   - file: OFX file
 //   - account_id: Target account ID
+//   - batch_id: (optional) Import batch ID for tracking
 func (h *ImportHandler) ImportOFX(c *gin.Context) {
 	// Get account_id from form
 	accountIDStr := c.PostForm("account_id")
@@ -38,6 +39,14 @@ func (h *ImportHandler) ImportOFX(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account_id"})
 		return
+	}
+
+	// Get optional batch_id from form
+	var batchID *int
+	if batchIDStr := c.PostForm("batch_id"); batchIDStr != "" {
+		if id, err := strconv.Atoi(batchIDStr); err == nil {
+			batchID = &id
+		}
 	}
 
 	// Get uploaded file
@@ -60,7 +69,7 @@ func (h *ImportHandler) ImportOFX(c *gin.Context) {
 	defer src.Close()
 
 	// Import transactions
-	result, err := h.importService.ImportOFX(src, accountID)
+	result, err := h.importService.ImportOFX(src, accountID, batchID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

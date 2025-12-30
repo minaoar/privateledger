@@ -24,9 +24,10 @@ const (
 
 // Transaction represents a bank transaction
 type Transaction struct {
-	TransactionID int       `json:"transaction_id" db:"transaction_id"`
-	AccountID     int       `json:"account_id" db:"account_id"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	TransactionID  int       `json:"transaction_id" db:"transaction_id"`
+	AccountID      int       `json:"account_id" db:"account_id"`
+	ImportBatchID  *int      `json:"import_batch_id" db:"import_batch_id"` // Nullable
+	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 
 	// OFX fields (used for deduplication)
 	TrnType    string    `json:"trn_type" db:"trn_type"`

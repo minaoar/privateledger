@@ -129,6 +129,12 @@ func (h *PageHandler) Transactions(c *gin.Context) {
 		}
 	}
 
+	if batchIDStr := c.Query("batch_id"); batchIDStr != "" {
+		if batchID, err := strconv.Atoi(batchIDStr); err == nil {
+			filter.BatchID = &batchID
+		}
+	}
+
 	if c.Query("uncategorized") == "true" {
 		filter.Uncategorized = true
 	}

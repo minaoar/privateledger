@@ -8,10 +8,22 @@ CREATE TABLE IF NOT EXISTS account (
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Import batch tracking
+CREATE TABLE IF NOT EXISTS import_batch (
+    import_batch_id         INTEGER PRIMARY KEY,
+    file_name               TEXT NOT NULL,
+    account_id              INTEGER NOT NULL REFERENCES account(account_id) ON DELETE CASCADE,
+    created_at              DATETIME DEFAULT CURRENT_TIMESTAMP,
+    imported_transactions   INTEGER,
+    duplicate_transactions  INTEGER,
+    total_auto_categorized  INTEGER
+);
+
 -- All transactions (deduplicated) - used 'ledger_transaction' to avoid SQL reserved keyword 'transaction'
 CREATE TABLE IF NOT EXISTS ledger_transaction (
     transaction_id  INTEGER PRIMARY KEY,
     account_id      INTEGER NOT NULL REFERENCES account(account_id) ON DELETE CASCADE,
+    import_batch_id INTEGER REFERENCES import_batch(import_batch_id) ON DELETE SET NULL,
 
     -- OFX fields (composite key for dedup)
     trn_type        TEXT NOT NULL,
@@ -53,4 +65,6 @@ CREATE TABLE IF NOT EXISTS category_pattern (
 CREATE INDEX IF NOT EXISTS idx_txn_date ON ledger_transaction(date_posted);
 CREATE INDEX IF NOT EXISTS idx_txn_category ON ledger_transaction(category_id);
 CREATE INDEX IF NOT EXISTS idx_txn_account ON ledger_transaction(account_id);
+CREATE INDEX IF NOT EXISTS idx_txn_batch ON ledger_transaction(import_batch_id);
 CREATE INDEX IF NOT EXISTS idx_pattern_category ON category_pattern(category_id);
+CREATE INDEX IF NOT EXISTS idx_batch_account ON import_batch(account_id);
