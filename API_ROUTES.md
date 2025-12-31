@@ -307,12 +307,12 @@ Delete a pattern.
 ## Import
 
 ### POST /api/import
-Import transactions from an OFX file.
+Import transactions from an OFX or QFX file.
 
 **Content-Type:** `multipart/form-data`
 
 **Form Fields:**
-- `file` (file) - OFX file
+- `file` (file) - OFX or QFX file
 - `account_id` (int) - Target account ID
 
 **Example (curl):**
@@ -336,18 +336,18 @@ curl -X POST http://localhost:8080/api/import \
 ```
 
 ### POST /api/import/validate
-Validate an OFX file without importing.
+Validate an OFX or QFX file without importing.
 
 **Content-Type:** `multipart/form-data`
 
 **Form Fields:**
-- `file` (file) - OFX file
+- `file` (file) - OFX or QFX file
 
 **Response:**
 ```json
 {
   "valid": true,
-  "message": "OFX file is valid"
+  "message": "OFX/QFX file is valid"
 }
 ```
 

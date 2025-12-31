@@ -96,7 +96,7 @@
                             </div>
                             <div class="col-md-4">
                                 <i class="bi bi-file-earmark-arrow-up text-info fs-3"></i>
-                                <p class="small mb-0 mt-2">OFX Import</p>
+                                <p class="small mb-0 mt-2">OFX/QFX Import</p>
                             </div>
                         </div>
 
@@ -250,7 +250,7 @@
                             <i class="bi bi-check-circle-fill display-1 text-success"></i>
                         </div>
                         <h3 class="mb-3">You're All Set!</h3>
-                        <p class="text-muted mb-4">Your PrivateLedger is ready. Start by importing your first OFX file.</p>
+                        <p class="text-muted mb-4">Your PrivateLedger is ready. Start by importing your first OFX or QFX file.</p>
 
                         <div class="d-flex gap-3 justify-content-center">
                             <a href="/import" class="btn btn-lg btn-primary">
@@ -286,19 +286,19 @@ let addedCategories = [];
 
 // Preset categories with colors and patterns
 const presetCategories = [
-    { name: 'Groceries / Essentials', type: 'Expense', color: '#28a745', icon: 'cart', category_pattern: 'COSTCO, SHOPPERS DRUG MART, BESTCO, FRESHCO, WALMART, WAL-MART, SUPERMARKET, METRO, THE HOME DEPOT, DOLLARAMA, LOBLAWS' },
-    { name: 'Restaurant', type: 'Expense', color: '#fd7e14', icon: 'cup-straw', category_pattern: 'TIM HORTONS, STARBUCKS, A&W, MCDONALD, MCDONALDS, THAI EXPRESS, SUBWAY, KFC, SWISS CHALET, UBER EATS, DOORDASH' },
-    { name: 'Shopping', type: 'Expense', color: '#6f42c1', icon: 'bag', category_pattern: 'WINNERS, BATH AND BODY, SEPHORA, TEMU, OLD NAVY, Tommy Hilfiger, THE CHILDREN, Uniqlo, SUZY SHIER, URBAN KIDS, HOMESENSE, SPORT CHEK, SHEIN, MARSHALLS, CARTERS, AMZN Mktp, Amazon' },
-    { name: 'Housing Related', type: 'Expense', color: '#20c997', icon: 'house-door', category_pattern: 'HYDRO, ENBRIDGE, MORTGAGE, PROPERTY TAX' },
+    { name: 'Groceries & Household', type: 'Expense', color: '#28a745', icon: 'cart', category_pattern: 'COSTCO, SHOPPERS DRUG MART, BESTCO, FRESHCO, WALMART, WAL-MART, SUPERMARKET, METRO, THE HOME DEPOT, DOLLARAMA, LOBLAWS' },
+    { name: 'Food & Dining', type: 'Expense', color: '#fd7e14', icon: 'cup-straw', category_pattern: 'TIM HORTONS, STARBUCKS, A&W, MCDONALD, MCDONALDS, THAI EXPRESS, SUBWAY, KFC, SWISS CHALET, UBER EATS, DOORDASH, PIZZA PIZZA' },
+    { name: 'Shopping & Retail', type: 'Expense', color: '#6f42c1', icon: 'bag', category_pattern: 'WINNERS, BATH AND BODY, SEPHORA, TEMU, OLD NAVY, Tommy Hilfiger, THE CHILDREN, Uniqlo, SUZY SHIER, URBAN KIDS, HOMESENSE, SPORT CHEK, SHEIN, MARSHALLS, CARTERS, AMZN Mktp, Amazon' },
+    { name: 'Housing & Utilities', type: 'Expense', color: '#20c997', icon: 'house-door', category_pattern: 'HYDRO, ENBRIDGE, MORTGAGE, PROPERTY TAX' },
     { name: 'Car Related', type: 'Expense', color: '#6610f2', icon: 'car-front', category_pattern: 'SHELL, PETRO-CANADA, ESSO, CANADIAN TIRE GAS, COSTCO GAS' },
     { name: 'Kids Activities', type: 'Expense', color: '#ff6b9d', icon: 'puzzle', category_pattern: 'YMCA, KUMON' },
     { name: 'Insurance', type: 'Expense', color: '#0d6efd', icon: 'shield-check', category_pattern: 'MANULIFE, SUNLIFE, GREAT-WEST LIFE, DESJARDINS, INSURANCE' },
-    { name: 'Fitness', type: 'Expense', color: '#198754', icon: 'heart-pulse', category_pattern: 'ORANGETHEORY, GOODLIFE, PLANET FITNESS, ANYTIME FITNESS' },
-    { name: 'Mobile / Internet', type: 'Expense', color: '#17a2b8', icon: 'phone', category_pattern: 'ROGERS, BELL, TELUS, FIDO, FREEDOM MOBILE, CHATR, PUBLIC MOBILE, VIRGIN MOBILE' },
+    { name: 'Fitness & Wellness', type: 'Expense', color: '#198754', icon: 'heart-pulse', category_pattern: 'ORANGETHEORY, GOODLIFE, PLANET FITNESS, ANYTIME FITNESS' },
+    { name: 'Phone & Internet', type: 'Expense', color: '#17a2b8', icon: 'phone', category_pattern: 'ROGERS, BELL, TELUS, FIDO, FREEDOM MOBILE, CHATR, PUBLIC MOBILE, VIRGIN MOBILE' },
     { name: 'Entertainment', type: 'Expense', color: '#e83e8c', icon: 'film', category_pattern: 'NETFLIX, SPOTIFY, DISNEY, CINEPLEX' },
-    { name: 'Gifts / Socializing', type: 'Expense', color: '#ffc107', icon: 'gift' },
-    { name: 'Healthcare / Medical', type: 'Expense', color: '#dc3545', icon: 'hospital', category_pattern: 'PHARMACY, MEDICAL, DENTAL, HOSPITAL, CLINIC, PHYSIO, CHIROPRACTOR, OPTOMETRIST' },
-    { name: 'Investment', type: 'General', color: '#0dcaf0', icon: 'graph-up-arrow', category_pattern: 'WEALTHSIMPLE, QUESTRADE, TD DIRECT, RBC DIRECT, BMO INVESTORLINE' },
+    { name: 'Gifts & Social', type: 'Expense', color: '#ffc107', icon: 'gift' },
+    { name: 'Healthcare', type: 'Expense', color: '#dc3545', icon: 'hospital', category_pattern: 'PHARMACY, MEDICAL, DENTAL, HOSPITAL, CLINIC, PHYSIO, CHIROPRACTOR, OPTOMETRIST' },
+    { name: 'Investments', type: 'General', color: '#0dcaf0', icon: 'graph-up-arrow', category_pattern: 'WEALTHSIMPLE, QUESTRADE, TD DIRECT, RBC DIRECT, BMO INVESTORLINE' },
     { name: 'Income', type: 'Income', color: '#198754', icon: 'cash-coin', category_pattern: 'PAYROLL' },
     { name: 'Credit Card Payment', type: 'General', color: '#adb5bd', icon: 'arrow-left-right', category_pattern: 'CC PAYMENT' },
     { name: 'Skip / Ignore', type: 'General', color: '#6c757d', icon: 'slash-circle'}

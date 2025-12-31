@@ -2,7 +2,7 @@
 <div class="row mb-4">
     <div class="col-lg-10 mx-auto">
         <h1 class="h3 mb-2">Import Transactions</h1>
-        <p class="text-muted">Upload an OFX file from your bank to import transactions</p>
+        <p class="text-muted">Upload an OFX or QFX file from your bank to import transactions</p>
 
         <!-- Tab Navigation -->
         <ul class="nav nav-tabs mb-3" id="importTabs" role="tablist">
@@ -42,7 +42,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label for="ofxFile" class="form-label">OFX File</label>
+                        <label for="ofxFile" class="form-label">OFX/QFX File</label>
                         <div class="file-upload-area">
                             <i class="bi bi-cloud-upload display-4 text-muted"></i>
                             <p class="mt-2 mb-0">
@@ -69,13 +69,16 @@
 
                 <div class="card mt-4">
                     <div class="card-header bg-light">
-                        <h6 class="mb-0"><i class="bi bi-info-circle"></i> How to get OFX files</h6>
+                        <h6 class="mb-0"><i class="bi bi-info-circle"></i> How to get OFX/QFX files</h6>
                     </div>
                     <div class="card-body">
+                        <p class="mb-2">Most banks in the US, Canada, and UK allow you to download transaction history in OFX (Microsoft Money) or QFX (Intuit Quicken) format. Both formats are supported.</p>
+                        <p class="mb-2"><strong>Example download locations:</strong></p>
                         <ul class="mb-0">
-                            <li><strong>TD Canada Trust:</strong> Log in → Accounts → Download Transactions → Select OFX format</li>
+                            <li><strong>TD Canada Trust:</strong> Log in → Accounts → Download Transactions → Select OFX or Quicken format</li>
                             <li><strong>RBC:</strong> Log in → Account Summary → Download → OFX/Quicken format</li>
-                            <li><strong>CIBC:</strong> Log in → Account → Download Transactions → Select OFX format</li>
+                            <li><strong>CIBC:</strong> Log in → Account → Download Transactions → Select OFX or Quicken format</li>
+                            <li><strong>Most US Banks:</strong> Look for "Download" or "Export" options in your account statements section</li>
                         </ul>
                     </div>
                 </div>

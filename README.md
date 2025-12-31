@@ -1,17 +1,43 @@
 # PrivateLedger
 
-**Personal Expenditure Insight - Privacy-First Finance Tracking**
+**Privacy-First Personal Expense Tracker**
 
-A local-only personal finance application that consolidates bank transactions from OFX files, providing categorization and spending insights while keeping all data on your machine.
+PrivateLedger is a **local-only personal finance application** that helps you understand your monthly spending across multiple bank accounts and credit cards—**without giving any third-party access to your financial data**.
+
+Many personal finance apps require direct access to your bank accounts or uploading statements to external servers. For privacy-conscious users, this creates an uncomfortable trade-off between convenience and control. PrivateLedger takes a different approach.
+
+Instead of connecting to your bank, PrivateLedger works entirely with **transaction files you download yourself**. Most banks in the **US, Canada, and the UK** allow exporting transaction history in **OFX (Microsoft Money)** or **QFX (Intuit Quicken)** formats. PrivateLedger imports these files locally, consolidates transactions across accounts, and generates meaningful spending insights—while keeping **all data on your own machine**.
+
+No cloud.  
+No bank credentials.  
+No data leaving your system.
+
+PrivateLedger is designed for users who want **full ownership of their financial data**, transparency in how categorization works, and the flexibility to extend or audit the code themselves.
+
+---
 
 ## Features
 
-- **Privacy-First**: All data stays local. No cloud, no APIs, no tracking.
-- **OFX Import**: Import transactions from Canadian banks (TD, RBC, CIBC) via OFX files
-- **Smart Categorization**: Pattern-based auto-categorization with manual override support
-- **Insights Dashboard**: Monthly spending analysis and trend visualization
-- **Multi-Account Support**: Track multiple bank accounts and credit cards
-- **Single Binary**: No dependencies, no installation required
+- **Privacy-First by Design**  
+  All data stays local. No cloud storage, no APIs, no telemetry.
+
+- **OFX / QFX Import**  
+  Seamlessly import transaction history from multiple banks and credit card providers using standard OFX/QFX files, which are supported by the majority of banks in the US, Canada, and the UK.
+
+- **Multi-Account Consolidation**  
+  Combine transactions from multiple chequing accounts, savings accounts, and credit cards.
+
+- **Smart Categorization**  
+  Automatically categorizes transactions using pattern-based logic, with the flexibility for manual overrides and custom rules.
+
+- **Insights Dashboard**  
+  Monthly spending breakdowns, category trends, and expenditure analysis.
+
+- **Local Web Application**  
+  Runs entirely on your machine via a local web UI.
+
+- **Simple Distribution**  
+  Single binary, no external dependencies, no installation hassles.
 
 ## Quick Start
 
@@ -70,14 +96,6 @@ Edit `config.json` to customize settings:
 - `auto_open_browser`: Automatically open browser on startup
 - `start_of_month`: Day of month when your "month" starts (1-28, useful for aligning with pay cycles)
 
-## Usage
-
-1. **Create Accounts**: Add your bank accounts and credit cards
-2. **Set Up Categories**: Define spending categories and matching patterns
-3. **Import Transactions**: Upload OFX files from your bank
-4. **Review & Categorize**: Review auto-categorized transactions, adjust as needed
-5. **Analyze Spending**: View insights and trends on the dashboard
-
 ## Project Structure
 
 See [DESIGN.md](DESIGN.md) for detailed architecture and design decisions.
@@ -97,7 +115,7 @@ make clean
 - **Go** - Backend and CLI
 - **Gin** - Web framework
 - **SQLite** (modernc.org/sqlite) - Database (pure Go, no CGO)
-- **ofxgo** - OFX file parser
+- **ofxgo** - OFX/QFX file parser
 - **Bootstrap 5 + HTMX** - Frontend
 
 ## License
