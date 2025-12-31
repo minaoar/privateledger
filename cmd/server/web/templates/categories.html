@@ -22,10 +22,14 @@
                         <h2 class="accordion-header">
                             <button class="accordion-button {{if ne $index 0}}collapsed{{end}}" type="button"
                                     data-bs-toggle="collapse" data-bs-target="#cat{{.CategoryID}}">
+                                {{if .Icon}}
+                                <i class="bi bi-{{.Icon}} me-2" style="color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};"></i>
+                                {{else}}
                                 <span class="badge rounded-pill me-2"
                                       style="background-color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};">
                                     &nbsp;&nbsp;&nbsp;
                                 </span>
+                                {{end}}
                                 {{.Name}}
                                 <span class="badge bg-secondary ms-2">{{len .Patterns}} patterns</span>
                             </button>
@@ -113,6 +117,14 @@
                         <input type="color" class="form-control form-control-color" id="categoryColor" value="#6b7280">
                     </div>
                     <div class="mb-3">
+                        <label for="categoryIcon" class="form-label">Icon (optional)</label>
+                        <input type="text" class="form-control" id="categoryIcon" placeholder="e.g., cart, cup-straw, bag">
+                        <div class="form-text">
+                            Bootstrap icon name without "bi-" prefix.
+                            <a href="https://icons.getbootstrap.com/" target="_blank">Browse icons</a>
+                        </div>
+                    </div>
+                    <div class="mb-3">
                         <label for="categoryPatterns" class="form-label">Initial Patterns (optional)</label>
                         <input type="text" class="form-control" id="categoryPatterns"
                                placeholder="e.g., WALMART, LOBLAWS (comma-separated)">
@@ -161,6 +173,8 @@ document.getElementById('addCategoryForm').addEventListener('submit', async func
     const name = document.getElementById('categoryName').value;
     const category_type = document.getElementById('categoryType').value;
     const color = document.getElementById('categoryColor').value;
+    const iconInput = document.getElementById('categoryIcon').value.trim();
+    const icon = iconInput ? iconInput : null;
     const patternsStr = document.getElementById('categoryPatterns').value;
     const patterns = patternsStr ? patternsStr.split(',').map(p => p.trim()).filter(p => p) : [];
 
@@ -168,7 +182,7 @@ document.getElementById('addCategoryForm').addEventListener('submit', async func
         const response = await fetch('/api/categories', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, category_type, color, patterns })
+            body: JSON.stringify({ name, category_type, color, icon, patterns })
         });
 
         if (response.ok) {

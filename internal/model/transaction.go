@@ -44,8 +44,10 @@ type Transaction struct {
 	CategorySource CategorySource `json:"category_source" db:"category_source"`
 
 	// Display fields (populated via JOIN, not stored in DB)
-	AccountName  *string `json:"account_name,omitempty" db:"account_name"`
-	CategoryName *string `json:"category_name,omitempty" db:"category_name"`
+	AccountName   *string `json:"account_name,omitempty" db:"account_name"`
+	CategoryName  *string `json:"category_name,omitempty" db:"category_name"`
+	CategoryColor *string `json:"category_color,omitempty" db:"category_color"`
+	CategoryIcon  *string `json:"category_icon,omitempty" db:"category_icon"`
 }
 
 // NewTransaction creates a new Transaction from OFX data

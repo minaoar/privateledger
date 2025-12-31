@@ -85,6 +85,7 @@ type CreateCategoryRequest struct {
 	Name         string   `json:"name" binding:"required"`
 	CategoryType string   `json:"category_type"`
 	Color        *string  `json:"color"`
+	Icon         *string  `json:"icon"`     // Bootstrap icon name (optional)
 	Patterns     []string `json:"patterns"` // Initial patterns (optional)
 }
 
@@ -115,7 +116,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 	}
 
 	// Create category
-	category := model.NewCategory(req.Name, categoryType, req.Color)
+	category := model.NewCategory(req.Name, categoryType, req.Color, req.Icon)
 	err = h.categoryRepo.Create(category)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -170,6 +171,7 @@ type UpdateCategoryRequest struct {
 	Name         string  `json:"name" binding:"required"`
 	CategoryType string  `json:"category_type"`
 	Color        *string `json:"color"`
+	Icon         *string `json:"icon"` // Bootstrap icon name (optional)
 }
 
 // UpdateCategory updates an existing category
@@ -218,6 +220,7 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 	category.Name = req.Name
 	category.CategoryType = categoryType
 	category.Color = req.Color
+	category.Icon = req.Icon
 	err = h.categoryRepo.Update(category)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

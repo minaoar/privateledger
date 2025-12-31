@@ -97,6 +97,9 @@
                                 <td>
                                     {{if .CategoryID}}
                                     <span class="category-badge {{if eq .CategorySource 2}}category-source-manual{{else}}category-source-rule{{end}}">
+                                        {{if .CategoryIcon}}
+                                        <i class="bi bi-{{.CategoryIcon}} me-1" style="{{if .CategoryColor}}color: {{.CategoryColor}};{{end}}"></i>
+                                        {{end}}
                                         {{if .CategoryName}}{{.CategoryName}}{{else}}Category {{.CategoryID}}{{end}}
                                     </span>
                                     {{else}}

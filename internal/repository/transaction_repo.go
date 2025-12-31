@@ -140,7 +140,9 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 			t.transaction_id, t.account_id, t.import_batch_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
 			t.transaction_details, t.transaction_type, t.category_id, t.category_source, t.created_at,
 			a.name as account_name,
-			c.name as category_name
+			c.name as category_name,
+			c.color as category_color,
+			c.icon as category_icon
 		FROM ledger_transaction t
 		LEFT JOIN account a ON t.account_id = a.account_id
 		LEFT JOIN category c ON t.category_id = c.category_id
@@ -216,6 +218,8 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 			&txn.CreatedAt,
 			&txn.AccountName,
 			&txn.CategoryName,
+			&txn.CategoryColor,
+			&txn.CategoryIcon,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)

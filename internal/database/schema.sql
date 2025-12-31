@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS category (
     name            TEXT NOT NULL UNIQUE,
     category_type   TEXT NOT NULL DEFAULT 'General',  -- General/Expense/Income
     color           TEXT,
+    icon  TEXT,
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
