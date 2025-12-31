@@ -176,7 +176,7 @@ document.getElementById('importForm').addEventListener('submit', async function(
                         <li><strong>${result.categorized_count}</strong> auto-categorized</li>
                         ${result.error_count > 0 ? `<li class="text-danger"><strong>${result.error_count}</strong> errors</li>` : ''}
                     </ul>
-                    <a href="/transactions" class="btn btn-primary mt-3">View Transactions</a>
+                    <a href="/transactions?batch_id=${batchId}" class="btn btn-primary mt-3">View Transactions</a>
                 </div>
             `;
             this.reset();

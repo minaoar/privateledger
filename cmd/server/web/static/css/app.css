@@ -67,7 +67,7 @@ body {
     color: #6b7280;
 }
 
-.category-source-rule {
+.category-source {
     opacity: 0.7;
 }
 
@@ -138,6 +138,42 @@ footer {
 
 .cursor-pointer {
     cursor: pointer;
+}
+
+/* Kebab Menu Modern Styling */
+.kebab-menu-btn:hover {
+    background-color: #e9ecef !important;
+    transform: scale(1.1);
+}
+
+.kebab-menu-btn:active {
+    background-color: #dee2e6 !important;
+    transform: scale(0.95);
+}
+
+.kebab-menu-btn:focus {
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15) !important;
+}
+
+/* Dropdown menu modern styling */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+.dropdown-item {
+    padding: 0.6rem 1rem;
+    transition: all 0.15s ease;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    padding-left: 1.2rem;
+}
+
+.dropdown-item i {
+    width: 20px;
 }
 
 /* Responsive */

@@ -2,7 +2,7 @@
 <div class="row mb-4">
     <div class="col">
         <h1 class="h3 mb-0">Transactions</h1>
-        <p class="text-muted">View and manage your transactions</p>
+        <p class="text-muted">View and manage transactions</p>
     </div>
 </div>
 
@@ -83,20 +83,21 @@
                                 <th>Account</th>
                                 <th>Category</th>
                                 <th class="text-end">Amount</th>
+                                <th class="text-end" style="width: 10px;"></th>
                             </tr>
                         </thead>
                         <tbody id="transactionsTable">
                             {{if gt (len .Transactions) 0}}
                             {{range .Transactions}}
-                            <tr>
+                            <tr id="txn-{{.TransactionID}}">
                                 <td>{{.DatePosted.Format "Jan 2, 2006"}}</td>
                                 <td>{{.TransactionDetails}}</td>
                                 <td>
                                     <small class="text-muted">{{if .AccountName}}{{.AccountName}}{{else}}Unknown{{end}}</small>
                                 </td>
-                                <td>
+                                <td id="txn-category-{{.TransactionID}}">
                                     {{if .CategoryID}}
-                                    <span class="category-badge {{if eq .CategorySource 2}}category-source-manual{{else}}category-source-rule{{end}}">
+                                    <span class="category-badge category-source">
                                         {{if .CategoryIcon}}
                                         <i class="bi bi-{{.CategoryIcon}} me-1" style="{{if .CategoryColor}}color: {{.CategoryColor}};{{end}}"></i>
                                         {{end}}
@@ -109,11 +110,37 @@
                                 <td class="text-end {{if eq .TransactionType 2}}transaction-amount-credit{{else}}transaction-amount-debit{{end}}">
                                     ${{printf "%.2f" .Amount}}
                                 </td>
+                                <td class="text-end">
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm p-0 kebab-menu-btn" type="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false"
+                                                style="width: 32px; height: 32px; border-radius: 50%; background-color: #f1f3f5; border: none; transition: all 0.2s ease;">
+                                            <i class="bi bi-three-dots-vertical" style="color: #495057;"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            {{$txnID := .TransactionID}}
+                                            {{$txnDetails := .TransactionDetails}}
+                                            {{$txnCategoryID := .CategoryID}}
+                                            <li>
+                                                <a class="dropdown-item" href="#"
+                                                   onclick="openChangeCategoryModal({{$txnID}}, {{if $txnCategoryID}}{{$txnCategoryID}}{{else}}null{{end}}); return false;">
+                                                    <i class="bi bi-tag me-1"></i>Change Category
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#"
+                                                   onclick="openPatternModal({{$txnID}}, '{{$txnDetails}}', {{if $txnCategoryID}}{{$txnCategoryID}}{{else}}null{{end}}); return false;">
+                                                    <i class="bi bi-magic me-1"></i>Auto-categorize Similar
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </td>
                             </tr>
                             {{end}}
                             {{else}}
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">
+                                <td colspan="6" class="text-center text-muted py-4">
                                     No transactions found. Import your first OFX file to get started!
                                 </td>
                             </tr>
@@ -122,6 +149,99 @@
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Category Modal -->
+<div class="modal fade" id="changeCategoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-tag me-2"></i>Change Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="changeCategoryForm">
+                <input type="hidden" id="changeCategoryTransactionId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="changeCategorySelect" class="form-label fw-semibold">
+                            Select Category <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select form-select-lg" id="changeCategorySelect" required>
+                            <option value="">Choose a category...</option>
+                            {{range .Categories}}
+                            <option value="{{.CategoryID}}"
+                                    data-icon="{{if .Icon}}{{.Icon}}{{end}}"
+                                    data-color="{{if .Color}}{{.Color}}{{end}}"
+                                    data-name="{{.Name}}">
+                                {{.Name}}
+                            </option>
+                            {{end}}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Update Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Pattern Modal -->
+<div class="modal fade" id="createPatternModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-magic me-2"></i>Create Categorization Pattern</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createPatternForm">
+                <input type="hidden" id="patternTransactionId">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Transaction:</label>
+                        <div class="form-control bg-light" id="patternTransactionDetails" style="cursor: not-allowed;" readonly></div>
+                        <small class="text-muted">Original transaction description for reference</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="patternText" class="form-label fw-semibold">
+                            Pattern to Match <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="patternText" required>
+                        <div class="alert alert-info mt-2 p-2 small">
+                            <i class="bi bi-lightbulb me-1"></i>
+                            <strong>Tip:</strong> Use generic keywords (e.g., "WALMART" not "WALMART #1234").
+                            Pattern matching is case-insensitive.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="patternCategorySelect" class="form-label fw-semibold">
+                            Assign to Category <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="patternCategorySelect" required>
+                            <option value="">Select a category...</option>
+                            {{range .Categories}}
+                            <option value="{{.CategoryID}}" data-icon="{{if .Icon}}{{.Icon}}{{end}}" data-color="{{if .Color}}{{.Color}}{{end}}">
+                                {{.Name}}
+                            </option>
+                            {{end}}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-1"></i>Create Pattern
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -148,5 +268,185 @@ document.getElementById('filterForm').addEventListener('submit', function(e) {
 function clearFilters() {
     window.location.href = '/transactions';
 }
+
+async function updateCategory(transactionId, categoryId, categoryName, categoryIcon, categoryColor) {
+    try {
+        const response = await fetch(`/api/transactions/${transactionId}/category`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category_id: categoryId })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            showToast(error.error || 'Failed to update category', 'danger');
+            return;
+        }
+
+        // Update the UI without page reload
+        const categoryCell = document.getElementById(`txn-category-${transactionId}`);
+
+        if (categoryId === null) {
+            // Uncategorized
+            categoryCell.innerHTML = '<span class="category-badge category-badge-uncategorized">Uncategorized</span>';
+        } else {
+            // Build icon HTML if present
+            let iconHtml = '';
+            if (categoryIcon) {
+                const colorStyle = categoryColor ? `color: ${categoryColor};` : '';
+                iconHtml = `<i class="bi bi-${categoryIcon} me-1" style="${colorStyle}"></i>`;
+            }
+
+            // Manual source since user just set it
+            categoryCell.innerHTML = `<span class="category-badge category-source-manual">${iconHtml}${categoryName}</span>`;
+        }
+
+        showToast('Category updated successfully', 'success');
+    } catch (error) {
+        showToast('An error occurred', 'danger');
+    }
+}
+
+// Smart pattern extraction - removes numbers, locations, and other unique identifiers
+function extractSmartPattern(transactionDetails) {
+    let pattern = transactionDetails.trim();
+
+    // Remove common patterns that make transactions unique:
+    // - Remove # followed by numbers: "WALMART #1234" -> "WALMART"
+    pattern = pattern.replace(/#\s*\d+/g, '');
+
+    // - Remove STORE followed by numbers: "STARBUCKS STORE 5678" -> "STARBUCKS"
+    pattern = pattern.replace(/\bSTORE\s*\d+/gi, '');
+
+    // - Remove standalone numbers at the end: "AMAZON 123456789" -> "AMAZON"
+    pattern = pattern.replace(/\s+\d+$/g, '');
+
+    // - Remove dates in various formats
+    pattern = pattern.replace(/\d{2}[-/]\d{2}[-/]\d{2,4}/g, '');
+
+    // - Remove common location indicators: "123 MAIN ST" -> remove the "123"
+    pattern = pattern.replace(/^\d+\s+/g, '');
+
+    // - Remove trailing dashes/spaces and multiple spaces
+    pattern = pattern.replace(/\s*-\s*$/g, '').replace(/\s+/g, ' ').trim();
+
+    // - Extract the first significant word(s) - take up to first 2-3 words
+    const words = pattern.split(/\s+/);
+    if (words.length > 3) {
+        // If it's long, take first 2-3 meaningful words
+        pattern = words.slice(0, 2).join(' ');
+    }
+
+    return pattern.toUpperCase();
+}
+
+function openChangeCategoryModal(transactionId, currentCategoryId) {
+    // Store transaction ID
+    document.getElementById('changeCategoryTransactionId').value = transactionId;
+
+    // Pre-select current category if exists
+    const categorySelect = document.getElementById('changeCategorySelect');
+    if (currentCategoryId) {
+        categorySelect.value = currentCategoryId;
+    } else {
+        categorySelect.value = '';
+    }
+
+    // Open modal
+    new bootstrap.Modal(document.getElementById('changeCategoryModal')).show();
+}
+
+function openPatternModal(transactionId, transactionDetails, currentCategoryId) {
+    // Store transaction ID
+    document.getElementById('patternTransactionId').value = transactionId;
+
+    // Show original transaction details
+    document.getElementById('patternTransactionDetails').textContent = transactionDetails;
+
+    // Generate smart pattern suggestion
+    const suggestedPattern = extractSmartPattern(transactionDetails);
+    document.getElementById('patternText').value = suggestedPattern;
+
+    // Pre-select category if transaction is already categorized
+    const categorySelect = document.getElementById('patternCategorySelect');
+    if (currentCategoryId) {
+        categorySelect.value = currentCategoryId;
+    } else {
+        categorySelect.value = '';
+    }
+
+    // Open modal
+    new bootstrap.Modal(document.getElementById('createPatternModal')).show();
+}
+
+document.getElementById('changeCategoryForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const transactionId = document.getElementById('changeCategoryTransactionId').value;
+    const categorySelect = document.getElementById('changeCategorySelect');
+    const categoryIdStr = categorySelect.value;
+
+    if (!categoryIdStr) {
+        showToast('Please select a category', 'warning');
+        return;
+    }
+
+    // Parse to integer for API
+    const categoryId = parseInt(categoryIdStr, 10);
+
+    // Get selected option details
+    const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+    const categoryName = selectedOption.dataset.name;
+    const categoryIcon = selectedOption.dataset.icon;
+    const categoryColor = selectedOption.dataset.color;
+
+    // Close modal first
+    bootstrap.Modal.getInstance(document.getElementById('changeCategoryModal')).hide();
+
+    // Update category
+    await updateCategory(transactionId, categoryId, categoryName, categoryIcon, categoryColor);
+});
+
+document.getElementById('createPatternForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const transactionId = document.getElementById('patternTransactionId').value;
+    const patternText = document.getElementById('patternText').value.trim();
+    const categoryId = document.getElementById('patternCategorySelect').value;
+
+    if (!patternText || !categoryId) {
+        showToast('Please fill in all required fields', 'warning');
+        return;
+    }
+
+    try {
+        // Create the pattern
+        const response = await fetch(`/api/categories/${categoryId}/patterns`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pattern_name: patternText })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            showToast(error.error || 'Failed to create pattern', 'danger');
+            return;
+        }
+
+        // Close modal
+        bootstrap.Modal.getInstance(document.getElementById('createPatternModal')).hide();
+
+        // Show success message
+        showToast('Pattern created! Auto-categorizing transactions...', 'success');
+
+        // Reload page after a short delay to show updated categorizations
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+
+    } catch (error) {
+        showToast('An error occurred', 'danger');
+    }
+});
 </script>
 {{end}}

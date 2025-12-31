@@ -171,7 +171,7 @@
             <div id="step3" class="onboarding-step" style="display: none;">
                 <div class="card shadow-lg">
                     <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-funnel"></i> Step 2: Add Matching Patterns (Optional)</h5>
+                        <h5 class="mb-0"><i class="bi bi-funnel"></i> Step 2: Add Matching Patterns for Automatic Categorization (Optional)</h5>
                     </div>
                     <div class="card-body p-4">
                         <p class="text-muted mb-4">
@@ -543,7 +543,7 @@ function initPatternsUI() {
     container.innerHTML = addedCategories.map((cat, catIdx) => `
         <div class="mb-4 border rounded p-3">
             <div class="d-flex align-items-center mb-3">
-                <div class="category-badge-preview me-3" style="background-color: ${cat.color}">
+                <div class="category-badge-preview me-3" style="background-color: #6610f2">
                     ${cat.name}
                 </div>
                 <small class="text-muted">(${cat.patterns.length} pattern${cat.patterns.length !== 1 ? 's' : ''})</small>
@@ -551,7 +551,7 @@ function initPatternsUI() {
 
             <div class="input-group mb-2">
                 <input type="text" class="form-control" id="pattern-${catIdx}"
-                       placeholder="e.g., Walmart, Loblaws, Superstore">
+                       placeholder="type keywords to match with transaction">
                 <button class="btn btn-success" onclick="addPattern(${catIdx})">
                     <i class="bi bi-plus-lg"></i> Add
                 </button>
