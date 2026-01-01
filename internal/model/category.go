@@ -4,16 +4,16 @@ import "time"
 
 // Category represents a spending category
 type Category struct {
-	CategoryID   int       `json:"category_id" db:"category_id"`
-	Name         string    `json:"name" db:"name"`
-	CategoryType string    `json:"category_type" db:"category_type"` // General, Expense, or Income
-	Color        *string   `json:"color" db:"color"`                 // Nullable, hex color code (e.g., "#FF5733")
-	Icon         *string   `json:"icon" db:"icon"`                   // Nullable, Bootstrap icon name (e.g., "cart")
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	CategoryID   int          `json:"category_id" db:"category_id"`
+	Name         string       `json:"name" db:"name"`
+	CategoryType CategoryType `json:"category_type" db:"category_type"`
+	Color        *string      `json:"color" db:"color"` // Nullable, hex color code (e.g., "#FF5733")
+	Icon         *string      `json:"icon" db:"icon"`   // Nullable, Bootstrap icon name (e.g., "cart")
+	CreatedAt    time.Time    `json:"created_at" db:"created_at"`
 }
 
 // NewCategory creates a new Category with the given name, type, optional color, and optional icon
-func NewCategory(name string, categoryType string, color *string, icon *string) *Category {
+func NewCategory(name string, categoryType CategoryType, color *string, icon *string) *Category {
 	return &Category{
 		Name:         name,
 		CategoryType: categoryType,

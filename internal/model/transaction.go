@@ -13,15 +13,6 @@ const (
 	TransactionTypeCredit TransactionType = 2 // Money in
 )
 
-// CategorySource indicates how a transaction was categorized
-type CategorySource int
-
-const (
-	CategorySourceNone   CategorySource = 0 // Uncategorized
-	CategorySourceRule   CategorySource = 1 // Auto-categorized by pattern
-	CategorySourceManual CategorySource = 2 // Manually assigned by user
-)
-
 // Transaction represents a bank transaction
 type Transaction struct {
 	TransactionID  int       `json:"transaction_id" db:"transaction_id"`

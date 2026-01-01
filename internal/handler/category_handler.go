@@ -83,7 +83,7 @@ func (h *CategoryHandler) GetCategory(c *gin.Context) {
 // CreateCategoryRequest represents the request body for creating a category
 type CreateCategoryRequest struct {
 	Name         string   `json:"name" binding:"required"`
-	CategoryType string   `json:"category_type"`
+	CategoryType int      `json:"category_type"` // 1=General, 2=Expense, 3=Income, 4=Investment
 	Color        *string  `json:"color"`
 	Icon         *string  `json:"icon"`     // Bootstrap icon name (optional)
 	Patterns     []string `json:"patterns"` // Initial patterns (optional)
@@ -109,10 +109,10 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	// Default to "General" if category_type is not provided
-	categoryType := req.CategoryType
-	if categoryType == "" {
-		categoryType = "General"
+	// Default to General (1) if category_type is not provided
+	categoryType := model.CategoryType(req.CategoryType)
+	if req.CategoryType == 0 {
+		categoryType = model.CategoryTypeGeneral
 	}
 
 	// Create category
@@ -169,7 +169,7 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 // UpdateCategoryRequest represents the request body for updating a category
 type UpdateCategoryRequest struct {
 	Name         string  `json:"name" binding:"required"`
-	CategoryType string  `json:"category_type"`
+	CategoryType int     `json:"category_type"` // 1=General, 2=Expense, 3=Income, 4=Investment
 	Color        *string `json:"color"`
 	Icon         *string `json:"icon"` // Bootstrap icon name (optional)
 }
@@ -211,10 +211,10 @@ func (h *CategoryHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	// Default to "General" if category_type is not provided
-	categoryType := req.CategoryType
-	if categoryType == "" {
-		categoryType = "General"
+	// Default to General (1) if category_type is not provided
+	categoryType := model.CategoryType(req.CategoryType)
+	if req.CategoryType == 0 {
+		categoryType = model.CategoryTypeGeneral
 	}
 
 	category.Name = req.Name

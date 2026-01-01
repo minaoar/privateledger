@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS ledger_transaction (
 
     -- Categorization
     category_id     INTEGER REFERENCES category(category_id) ON DELETE SET NULL,
-    category_source INTEGER DEFAULT 0,     -- 0=none, 1=rule, 2=manual
+    category_source INTEGER NOT NULL DEFAULT 0 CHECK (category_source IN (0, 1, 2)),  -- 0=none, 1=rule, 2=manual
 
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
 
@@ -48,9 +48,9 @@ CREATE TABLE IF NOT EXISTS ledger_transaction (
 CREATE TABLE IF NOT EXISTS category (
     category_id     INTEGER PRIMARY KEY,
     name            TEXT NOT NULL UNIQUE,
-    category_type   TEXT NOT NULL DEFAULT 'General',  -- General/Expense/Income
+    category_type   INTEGER NOT NULL DEFAULT 1 CHECK (category_type IN (1, 2, 3, 4)),  -- 1=General, 2=Expense, 3=Income, 4=Investment
     color           TEXT,
-    icon  TEXT,
+    icon            TEXT,
     created_at      DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

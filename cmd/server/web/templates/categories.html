@@ -106,9 +106,10 @@
                     <div class="mb-3">
                         <label for="categoryType" class="form-label">Category Type</label>
                         <select class="form-select" id="categoryType" required>
-                            <option value="General" selected>General</option>
-                            <option value="Expense">Expense</option>
-                            <option value="Income">Income</option>
+                            <option value="1" selected>General</option>
+                            <option value="2">Expense</option>
+                            <option value="3">Income</option>
+                            <option value="4">Investment</option>
                         </select>
                         <div class="form-text">Used for dashboard analytics and filtering</div>
                     </div>
@@ -171,7 +172,7 @@ document.getElementById('addCategoryForm').addEventListener('submit', async func
     e.preventDefault();
 
     const name = document.getElementById('categoryName').value;
-    const category_type = document.getElementById('categoryType').value;
+    const category_type = parseInt(document.getElementById('categoryType').value, 10);
     const color = document.getElementById('categoryColor').value;
     const iconInput = document.getElementById('categoryIcon').value.trim();
     const icon = iconInput ? iconInput : null;
