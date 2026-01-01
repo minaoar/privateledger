@@ -21,6 +21,13 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label text-white small mb-1">
+                            <i class="bi bi-search me-1"></i>Search
+                        </label>
+                        <input type="text" class="form-control form-control-sm shadow-sm" id="searchBox"
+                               placeholder="Search description...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label text-white small mb-1">
                             <i class="bi bi-wallet2 me-1"></i>Account
                         </label>
                         <select class="form-select form-select-sm shadow-sm" name="account_id">
@@ -55,13 +62,8 @@
                         <input type="date" class="form-control form-control-sm shadow-sm" name="end_date" value="{{.Filter.EndDate}}">
                     </div>
                     <div class="col-auto">
-                        <button type="submit" class="btn btn-light btn-sm fw-semibold shadow-sm">
-                            <i class="bi bi-search me-1"></i>Apply
-                        </button>
-                    </div>
-                    <div class="col-auto">
                         <button type="button" class="btn btn-outline-light btn-sm shadow-sm" onclick="clearFilters()" title="Clear all filters">
-                            <i class="bi bi-x-circle"></i>
+                            <i class="bi bi-x-circle"></i> Clear
                         </button>
                     </div>
                 </form>
@@ -247,9 +249,9 @@
 </div>
 
 <script>
-document.getElementById('filterForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
+function applyFilters() {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
     const params = new URLSearchParams();
 
     for (const [key, value] of formData.entries()) {
@@ -263,9 +265,55 @@ document.getElementById('filterForm').addEventListener('submit', function(e) {
     }
 
     window.location.href = '/transactions?' + params.toString();
+}
+
+// Auto-submit on any filter change
+document.getElementById('filterForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    applyFilters();
 });
 
+// Auto-filter on select and date input change
+document.querySelectorAll('#filterForm select, #filterForm input[type="date"]').forEach(input => {
+    input.addEventListener('change', function() {
+        applyFilters();
+    });
+});
+
+// Client-side search filtering (instant, no server request)
+const searchBox = document.getElementById('searchBox');
+const transactionRows = document.querySelectorAll('#transactionsTable tr[id^="txn-"]');
+
+if (searchBox && transactionRows.length > 0) {
+    searchBox.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+
+        transactionRows.forEach(row => {
+            // Get the transaction details from the second column (index 1)
+            const detailsCell = row.cells[1];
+            if (detailsCell) {
+                const transactionText = detailsCell.textContent.toLowerCase();
+
+                if (searchTerm === '' || transactionText.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            }
+        });
+    });
+}
+
 function clearFilters() {
+    // Clear search box
+    if (searchBox) {
+        searchBox.value = '';
+        // Show all rows
+        transactionRows.forEach(row => {
+            row.style.display = '';
+        });
+    }
+    // Clear server-side filters
     window.location.href = '/transactions';
 }
 
