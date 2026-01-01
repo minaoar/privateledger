@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/oronno/privateledger/internal/model"
 	"github.com/oronno/privateledger/internal/repository"
@@ -30,6 +31,7 @@ func NewCategorizer(
 func (c *Categorizer) LoadPatterns() error {
 	patterns, err := c.patternRepo.GetAll()
 	if err != nil {
+		slog.Error("Error loading patterns", slog.String("error", err.Error()))
 		return fmt.Errorf("failed to load patterns: %w", err)
 	}
 	c.patterns = patterns
@@ -74,6 +76,7 @@ func (c *Categorizer) RecategorizeAll() (*RecategorizeResult, error) {
 	// Get all uncategorized transactions
 	transactions, err := c.txnRepo.GetUncategorized()
 	if err != nil {
+		slog.Error("Error getting uncategorized transactions in RecategorizeAll", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get uncategorized transactions: %w", err)
 	}
 
@@ -100,6 +103,7 @@ func (c *Categorizer) RecategorizeAll() (*RecategorizeResult, error) {
 	for categoryID, txnIDs := range categoryMap {
 		err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, txnIDs)
 		if err != nil {
+			slog.Error("Error in bulk update category", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
 			return nil, fmt.Errorf("failed to bulk update category %d: %w", categoryID, err)
 		}
 	}
@@ -118,12 +122,14 @@ func (c *Categorizer) RecategorizeByCategory(categoryID int) (*RecategorizeResul
 	// Get patterns for this category
 	patterns, err := c.patternRepo.GetByCategoryID(categoryID)
 	if err != nil {
+		slog.Error("Error getting patterns for category", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get patterns for category: %w", err)
 	}
 
 	// Get all uncategorized transactions
 	transactions, err := c.txnRepo.GetUncategorized()
 	if err != nil {
+		slog.Error("Error getting uncategorized transactions", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get uncategorized transactions: %w", err)
 	}
 
@@ -148,6 +154,7 @@ func (c *Categorizer) RecategorizeByCategory(categoryID int) (*RecategorizeResul
 	if len(matchedTxnIDs) > 0 {
 		err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, matchedTxnIDs)
 		if err != nil {
+			slog.Error("Error in bulk update transactions", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
 			return nil, fmt.Errorf("failed to bulk update transactions: %w", err)
 		}
 	}
@@ -165,6 +172,7 @@ func (c *Categorizer) ClearCategory(categoryID int) error {
 
 	transactions, err := c.txnRepo.List(filter)
 	if err != nil {
+		slog.Error("Error getting transactions for category", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
 		return fmt.Errorf("failed to get transactions for category: %w", err)
 	}
 
@@ -172,6 +180,7 @@ func (c *Categorizer) ClearCategory(categoryID int) error {
 	for _, txn := range transactions {
 		err := c.txnRepo.UpdateCategory(txn.TransactionID, nil, model.CategorySourceNone)
 		if err != nil {
+			slog.Error("Error clearing category for transaction", slog.Int("transaction_id", txn.TransactionID), slog.String("error", err.Error()))
 			return fmt.Errorf("failed to clear category for transaction %d: %w", txn.TransactionID, err)
 		}
 	}

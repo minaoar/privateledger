@@ -52,9 +52,11 @@ func (s *ImportService) ImportOFX(reader io.Reader, accountID int, batchID *int)
 	// Verify account exists
 	account, err := s.accountRepo.GetByID(accountID)
 	if err != nil {
+		slog.Error("Error getting account", slog.Int("account_id", accountID), slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get account: %w", err)
 	}
 	if account == nil {
+		slog.Warn("Account not found", slog.Int("account_id", accountID))
 		return nil, fmt.Errorf("account not found: %d", accountID)
 	}
 
@@ -121,13 +123,16 @@ func (s *ImportService) ImportOFX(reader io.Reader, accountID int, batchID *int)
 	// Update batch record if batch ID was provided
 	if batchID != nil && s.batchRepo != nil {
 		batch, err := s.batchRepo.GetByID(*batchID)
-		if err == nil && batch != nil {
+		if err != nil {
+			slog.Error("Error getting batch record", slog.Int("batch_id", *batchID), slog.String("error", err.Error()))
+		} else if batch != nil {
 			batch.ImportedTransactions = &result.ImportedCount
 			batch.DuplicateTransactions = &result.DuplicateCount
 			batch.TotalAutoCategorized = &result.CategorizedCount
-			s.batchRepo.Update(batch)
-		} else {
-			slog.Error("Error in update batch record", slog.String("error", err.Error()))
+			err = s.batchRepo.Update(batch)
+			if err != nil {
+				slog.Error("Error updating batch record", slog.Int("batch_id", *batchID), slog.String("error", err.Error()))
+			}
 		}
 	}
 

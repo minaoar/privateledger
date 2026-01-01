@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/oronno/privateledger/internal/config"
@@ -109,6 +110,7 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 
 	transactions, err := s.txnRepo.List(filter)
 	if err != nil {
+		slog.Error("Error getting transactions for monthly summary", slog.Int("year", year), slog.Int("month", month), slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get transactions: %w", err)
 	}
 
@@ -155,6 +157,7 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 	// Load category names and colors
 	categories, err := s.categoryRepo.GetAll()
 	if err != nil {
+		slog.Error("Error getting categories for monthly summary", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get categories: %w", err)
 	}
 
@@ -225,6 +228,7 @@ func (s *InsightsService) GetTrends(months int) ([]TrendDataPoint, error) {
 
 		transactions, err := s.txnRepo.List(filter)
 		if err != nil {
+			slog.Error("Error getting transactions for trends", slog.String("period", period.Label), slog.String("error", err.Error()))
 			return nil, fmt.Errorf("failed to get transactions for %s: %w", period.Label, err)
 		}
 
@@ -265,24 +269,28 @@ func (s *InsightsService) GetDashboardStats(accountRepo *repository.AccountRepos
 
 	summary, err := s.GetMonthlySummary(year, month)
 	if err != nil {
+		slog.Error("Error getting monthly summary for dashboard", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get monthly summary: %w", err)
 	}
 
 	// Get account count
 	accountCount, err := accountRepo.Count()
 	if err != nil {
+		slog.Error("Error getting account count for dashboard", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get account count: %w", err)
 	}
 
 	// Get category count
 	categoryCount, err := s.categoryRepo.Count()
 	if err != nil {
+		slog.Error("Error getting category count for dashboard", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get category count: %w", err)
 	}
 
 	// Get total uncategorized count (all time)
 	uncategorizedCount, err := s.txnRepo.CountUncategorized()
 	if err != nil {
+		slog.Error("Error getting uncategorized count for dashboard", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get uncategorized count: %w", err)
 	}
 
