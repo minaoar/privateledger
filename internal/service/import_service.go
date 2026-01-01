@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"io"
+	"log/slog"
 
 	"github.com/oronno/privateledger/internal/model"
 	"github.com/oronno/privateledger/internal/parser"
@@ -11,11 +12,11 @@ import (
 
 // ImportService handles OFX file imports with deduplication and categorization
 type ImportService struct {
-	parser       *parser.OFXParser
-	txnRepo      *repository.TransactionRepository
-	accountRepo  *repository.AccountRepository
-	categorizer  *Categorizer
-	batchRepo    *repository.ImportBatchRepository
+	parser      *parser.OFXParser
+	txnRepo     *repository.TransactionRepository
+	accountRepo *repository.AccountRepository
+	categorizer *Categorizer
+	batchRepo   *repository.ImportBatchRepository
 }
 
 // NewImportService creates a new ImportService
@@ -37,13 +38,13 @@ func NewImportService(
 
 // ImportResult contains the results of an OFX import operation
 type ImportResult struct {
-	TotalTransactions int                      `json:"total_transactions"`
-	ImportedCount     int                      `json:"imported_count"`
-	DuplicateCount    int                      `json:"duplicate_count"`
-	CategorizedCount  int                      `json:"categorized_count"`
-	ErrorCount        int                      `json:"error_count"`
-	Errors            []string                 `json:"errors,omitempty"`
-	Transactions      []*model.Transaction     `json:"transactions,omitempty"`
+	TotalTransactions int                  `json:"total_transactions"`
+	ImportedCount     int                  `json:"imported_count"`
+	DuplicateCount    int                  `json:"duplicate_count"`
+	CategorizedCount  int                  `json:"categorized_count"`
+	ErrorCount        int                  `json:"error_count"`
+	Errors            []string             `json:"errors,omitempty"`
+	Transactions      []*model.Transaction `json:"transactions,omitempty"`
 }
 
 // ImportOFX imports transactions from an OFX file
@@ -60,6 +61,7 @@ func (s *ImportService) ImportOFX(reader io.Reader, accountID int, batchID *int)
 	// Parse OFX file
 	parseResult, err := s.parser.ParseOFXFile(reader, accountID)
 	if err != nil {
+		slog.Warn("Error Parsing OFX file", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to parse OFX file: %w", err)
 	}
 
@@ -84,6 +86,7 @@ func (s *ImportService) ImportOFX(reader io.Reader, accountID int, batchID *int)
 			txn.DatePosted,
 		)
 		if err != nil {
+			slog.Error("Error in FindDuplicate", slog.String("error", err.Error()))
 			result.ErrorCount++
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("Error checking duplicate for %s: %v", txn.FitID, err))
@@ -104,6 +107,7 @@ func (s *ImportService) ImportOFX(reader io.Reader, accountID int, batchID *int)
 		// Insert transaction
 		err = s.txnRepo.Create(txn)
 		if err != nil {
+			slog.Error("Error in Inserting transaction", slog.String("error", err.Error()))
 			result.ErrorCount++
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("Error inserting transaction %s: %v", txn.FitID, err))
@@ -122,6 +126,8 @@ func (s *ImportService) ImportOFX(reader io.Reader, accountID int, batchID *int)
 			batch.DuplicateTransactions = &result.DuplicateCount
 			batch.TotalAutoCategorized = &result.CategorizedCount
 			s.batchRepo.Update(batch)
+		} else {
+			slog.Error("Error in update batch record", slog.String("error", err.Error()))
 		}
 	}
 

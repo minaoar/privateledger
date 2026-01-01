@@ -33,7 +33,7 @@ func (r *TransactionRepository) Create(txn *model.Transaction) error {
 		txn.ImportBatchID,
 		txn.TrnType,
 		txn.FitID,
-		txn.DatePosted,
+		formatDatePosted(txn.DatePosted),
 		txn.Amount,
 		txn.TransactionDetails,
 		txn.TransactionType,
@@ -53,6 +53,13 @@ func (r *TransactionRepository) Create(txn *model.Transaction) error {
 	return nil
 }
 
+// formatDatePosted parse datePosted as string in simplified format without timezone ("2006-01-02 15:04:05") while interacting with DB.
+// The modernc.org/sqlite driver would otherwise call time.Time.String() which includes timezone.
+// In some cases, OFX-parsed timestamps look like "2025-10-22 12:00:00 -0500 -0500" in sqlite DB, which can cause issues when parsing the value back. Stripping the timezone eliminates these problems.
+func formatDatePosted(datePosted time.Time) string {
+	return datePosted.Format(time.DateTime)
+}
+
 // FindDuplicate checks if a transaction already exists (for deduplication)
 func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID string, datePosted time.Time) (*model.Transaction, error) {
 	query := `
@@ -63,7 +70,7 @@ func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID stri
 	`
 
 	var txn model.Transaction
-	err := r.db.QueryRow(query, accountID, trnType, fitID, datePosted).Scan(
+	err := r.db.QueryRow(query, accountID, trnType, fitID, formatDatePosted(datePosted)).Scan(
 		&txn.TransactionID,
 		&txn.AccountID,
 		&txn.TrnType,
