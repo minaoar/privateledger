@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -29,6 +30,7 @@ func (h *TransactionHandler) ListTransactions(c *gin.Context) {
 	if accountIDStr := c.Query("account_id"); accountIDStr != "" {
 		accountID, err := strconv.Atoi(accountIDStr)
 		if err != nil {
+			slog.Error("Invalid account_id in ListTransactions", slog.String("account_id", accountIDStr), slog.String("error", err.Error()))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid account_id"})
 			return
 		}
@@ -39,6 +41,7 @@ func (h *TransactionHandler) ListTransactions(c *gin.Context) {
 	if categoryIDStr := c.Query("category_id"); categoryIDStr != "" {
 		categoryID, err := strconv.Atoi(categoryIDStr)
 		if err != nil {
+			slog.Error("Invalid category_id in ListTransactions", slog.String("category_id", categoryIDStr), slog.String("error", err.Error()))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category_id"})
 			return
 		}
@@ -54,6 +57,7 @@ func (h *TransactionHandler) ListTransactions(c *gin.Context) {
 	if startDateStr := c.Query("start_date"); startDateStr != "" {
 		startDate, err := time.Parse("2006-01-02", startDateStr)
 		if err != nil {
+			slog.Error("Invalid start_date in ListTransactions", slog.String("start_date", startDateStr), slog.String("error", err.Error()))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid start_date format (use YYYY-MM-DD)"})
 			return
 		}
@@ -64,6 +68,7 @@ func (h *TransactionHandler) ListTransactions(c *gin.Context) {
 	if endDateStr := c.Query("end_date"); endDateStr != "" {
 		endDate, err := time.Parse("2006-01-02", endDateStr)
 		if err != nil {
+			slog.Error("Invalid end_date in ListTransactions", slog.String("end_date", endDateStr), slog.String("error", err.Error()))
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid end_date format (use YYYY-MM-DD)"})
 			return
 		}
@@ -94,9 +99,11 @@ func (h *TransactionHandler) ListTransactions(c *gin.Context) {
 
 	transactions, err := h.repo.List(filter)
 	if err != nil {
+		slog.Error("Error listing transactions", slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	slog.Info("ListTransactions: returning transactions", slog.Int("total", len(transactions)))
 
 	c.JSON(http.StatusOK, transactions)
 }
@@ -112,11 +119,13 @@ func (h *TransactionHandler) GetTransaction(c *gin.Context) {
 
 	transaction, err := h.repo.GetByID(id)
 	if err != nil {
+		slog.Error("Error getting transaction by ID", slog.Int("transaction_id", id), slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	if transaction == nil {
+		slog.Warn("Transaction not found", slog.Int("transaction_id", id))
 		c.JSON(http.StatusNotFound, gin.H{"error": "Transaction not found"})
 		return
 	}
@@ -140,6 +149,7 @@ func (h *TransactionHandler) UpdateTransactionCategory(c *gin.Context) {
 
 	var req UpdateTransactionCategoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Error("Invalid JSON in UpdateTransactionCategory", slog.Int("transaction_id", id), slog.String("error", err.Error()))
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -147,10 +157,12 @@ func (h *TransactionHandler) UpdateTransactionCategory(c *gin.Context) {
 	// Check if transaction exists
 	transaction, err := h.repo.GetByID(id)
 	if err != nil {
+		slog.Error("Error getting transaction by ID in UpdateTransactionCategory", slog.Int("transaction_id", id), slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	if transaction == nil {
+		slog.Warn("Transaction not found in UpdateTransactionCategory", slog.Int("transaction_id", id))
 		c.JSON(http.StatusNotFound, gin.H{"error": "Transaction not found"})
 		return
 	}
@@ -164,6 +176,7 @@ func (h *TransactionHandler) UpdateTransactionCategory(c *gin.Context) {
 	// Update category
 	err = h.repo.UpdateCategory(id, req.CategoryID, source)
 	if err != nil {
+		slog.Error("Error updating transaction category", slog.Int("transaction_id", id), slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -171,6 +184,7 @@ func (h *TransactionHandler) UpdateTransactionCategory(c *gin.Context) {
 	// Fetch updated transaction
 	transaction, err = h.repo.GetByID(id)
 	if err != nil {
+		slog.Error("Error fetching updated transaction", slog.Int("transaction_id", id), slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -189,6 +203,7 @@ func (h *TransactionHandler) DeleteTransaction(c *gin.Context) {
 
 	err = h.repo.Delete(id)
 	if err != nil {
+		slog.Error("Error deleting transaction", slog.Int("transaction_id", id), slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

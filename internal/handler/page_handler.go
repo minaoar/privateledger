@@ -43,7 +43,29 @@ func NewPageHandler(
 
 // parseTemplate parses layout.html with a specific page template
 func (h *PageHandler) parseTemplate(pageName string) *template.Template {
-	return template.Must(template.ParseFS(h.files,
+	// Define custom template functions
+	funcMap := template.FuncMap{
+		"formatDate": func(dateStr string) string {
+			// Parse date string in format "2006-01-02 15:04:05"
+			t, err := time.Parse("2006-01-02 15:04:05", dateStr)
+			if err != nil {
+				// If parsing fails, try date-only format
+				t, err = time.Parse("2006-01-02", dateStr)
+				if err != nil {
+					return dateStr // Return as-is if parsing fails
+				}
+			}
+			return t.Format("Jan 2, 2006")
+		},
+		"abs": func(x float64) float64 {
+			if x < 0 {
+				return -x
+			}
+			return x
+		},
+	}
+
+	return template.Must(template.New("").Funcs(funcMap).ParseFS(h.files,
 		"web/templates/layout.html",
 		"web/templates/"+pageName+".html",
 	))
@@ -113,7 +135,7 @@ func (h *PageHandler) Categories(c *gin.Context) {
 // Transactions renders the transactions list page
 func (h *PageHandler) Transactions(c *gin.Context) {
 	filter := repository.TransactionFilter{
-		Limit: 100, // Default limit
+		Limit: 500, // Default limit
 	}
 
 	// Parse filters from query params

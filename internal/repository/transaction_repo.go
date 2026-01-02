@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -142,6 +143,7 @@ type TransactionFilter struct {
 
 // List retrieves transactions with optional filters
 func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transaction, error) {
+	slog.Info("fetching transactions in List()", "filter", filter)
 	query := `
 		SELECT
 			t.transaction_id, t.account_id, t.import_batch_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
@@ -237,6 +239,8 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating transactions: %w", err)
 	}
+
+	slog.Info("fetching transactions: returning result", "total-transaction", len(transactions), "filter", filter)
 
 	return transactions, nil
 }
@@ -360,4 +364,20 @@ func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.
 	}
 
 	return nil
+}
+
+// GetMostRecentTransactionDate returns the date of the most recent transaction
+func (r *TransactionRepository) GetMostRecentTransactionDate() (string, error) {
+	query := `SELECT date_posted FROM ledger_transaction ORDER BY date_posted DESC LIMIT 1`
+
+	var datePosted string
+	err := r.db.QueryRow(query).Scan(&datePosted)
+	if err == sql.ErrNoRows {
+		return "", nil // No transactions
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get most recent transaction date: %w", err)
+	}
+
+	return datePosted, nil
 }

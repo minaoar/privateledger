@@ -6,75 +6,143 @@
     </div>
 </div>
 
-<!-- Stats Cards -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="stat-icon bg-success bg-opacity-10 text-success me-3">
-                        <i class="bi bi-arrow-down-circle"></i>
+<!-- Summary Cards -->
+<div class="row g-4 mb-4">
+    <!-- Expenses Box -->
+    <div class="col-lg-4">
+        <div class="card summary-card h-100 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <div>
+                        <h6 class="text-muted text-uppercase mb-0" style="font-size: 0.75rem; letter-spacing: 0.5px;">Expenses</h6>
                     </div>
-                    <div class="flex-grow-1">
-                        <h6 class="text-muted mb-1 small">Income (This Month)</h6>
-                        <h4 class="mb-0 text-income">${{printf "%.2f" .Stats.CurrentMonth.TotalIncome}}</h4>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="stat-icon bg-danger bg-opacity-10 text-danger me-3">
+                    <div class="summary-icon bg-danger bg-opacity-10 text-danger">
                         <i class="bi bi-arrow-up-circle"></i>
                     </div>
-                    <div class="flex-grow-1">
-                        <h6 class="text-muted mb-1 small">Expenses (This Month)</h6>
-                        <h4 class="mb-0 text-expense">${{printf "%.2f" .Stats.CurrentMonth.TotalExpenses}}</h4>
+                </div>
+                <div class="mb-2">
+                    <h2 class="mb-0 fw-bold" style="font-size: 2.5rem;">${{printf "%.0f" .Stats.ExpenseSummary.TotalAmount}}</h2>
+                </div>
+                <div class="d-flex align-items-center justify-content-between">
+                    <small class="text-muted">{{.Stats.ExpenseSummary.CurrentPeriod}}</small>
+                    <div>
+                        {{if eq .Stats.ExpenseSummary.ChangeDirection "up"}}
+                        <span class="badge bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-arrow-up"></i> {{printf "%.1f" .Stats.ExpenseSummary.ChangePercent}}%
+                        </span>
+                        {{else if eq .Stats.ExpenseSummary.ChangeDirection "down"}}
+                        <span class="badge bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-arrow-down"></i> {{printf "%.1f" (abs .Stats.ExpenseSummary.ChangePercent)}}%
+                        </span>
+                        {{else}}
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                            <i class="bi bi-dash"></i> 0%
+                        </span>
+                        {{end}}
                     </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">vs last month</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="stat-icon bg-primary bg-opacity-10 text-primary me-3">
-                        <i class="bi bi-piggy-bank"></i>
+    <!-- Income Box -->
+    <div class="col-lg-4">
+        <div class="card summary-card h-100 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <div>
+                        <h6 class="text-muted text-uppercase mb-0" style="font-size: 0.75rem; letter-spacing: 0.5px;">Income</h6>
                     </div>
-                    <div class="flex-grow-1">
-                        <h6 class="text-muted mb-1 small">Net (This Month)</h6>
-                        <h4 class="mb-0 {{if ge .Stats.CurrentMonth.NetAmount 0}}text-income{{else}}text-expense{{end}}">
-                            ${{printf "%.2f" .Stats.CurrentMonth.NetAmount}}
-                        </h4>
+                    <div class="summary-icon bg-success bg-opacity-10 text-success">
+                        <i class="bi bi-arrow-down-circle"></i>
                     </div>
+                </div>
+                <div class="mb-2">
+                    <h2 class="mb-0 fw-bold" style="font-size: 2.5rem;">${{printf "%.0f" .Stats.IncomeSummary.TotalAmount}}</h2>
+                </div>
+                <div class="d-flex align-items-center justify-content-between">
+                    <small class="text-muted">{{.Stats.IncomeSummary.CurrentPeriod}}</small>
+                    <div>
+                        {{if eq .Stats.IncomeSummary.ChangeDirection "up"}}
+                        <span class="badge bg-success bg-opacity-10 text-success">
+                            <i class="bi bi-arrow-up"></i> {{printf "%.1f" .Stats.IncomeSummary.ChangePercent}}%
+                        </span>
+                        {{else if eq .Stats.IncomeSummary.ChangeDirection "down"}}
+                        <span class="badge bg-danger bg-opacity-10 text-danger">
+                            <i class="bi bi-arrow-down"></i> {{printf "%.1f" (abs .Stats.IncomeSummary.ChangePercent)}}%
+                        </span>
+                        {{else}}
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                            <i class="bi bi-dash"></i> 0%
+                        </span>
+                        {{end}}
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">vs last month</small>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3">
-        <div class="card stat-card h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="stat-icon bg-warning bg-opacity-10 text-warning me-3">
-                        <i class="bi bi-question-circle"></i>
+    <!-- Investment Box -->
+    <div class="col-lg-4">
+        <div class="card summary-card h-100 border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-start justify-content-between mb-3">
+                    <div>
+                        <h6 class="text-muted text-uppercase mb-0" style="font-size: 0.75rem; letter-spacing: 0.5px;">Investment</h6>
                     </div>
-                    <div class="flex-grow-1">
-                        <h6 class="text-muted mb-1 small">Uncategorized</h6>
-                        <h4 class="mb-0">{{.Stats.UncategorizedCount}}</h4>
-                        <small class="text-muted">transactions</small>
+                    <div class="summary-icon bg-info bg-opacity-10 text-info">
+                        <i class="bi bi-graph-up-arrow"></i>
                     </div>
+                </div>
+                <div class="mb-2">
+                    <h2 class="mb-0 fw-bold" style="font-size: 2.5rem;">${{printf "%.0f" .Stats.InvestmentSummary.TotalAmount}}</h2>
+                </div>
+                <div class="d-flex align-items-center justify-content-between">
+                    <small class="text-muted">{{.Stats.InvestmentSummary.CurrentPeriod}}</small>
+                    <div>
+                        {{if eq .Stats.InvestmentSummary.ChangeDirection "up"}}
+                        <span class="badge bg-info bg-opacity-10 text-info">
+                            <i class="bi bi-arrow-up"></i> {{printf "%.1f" .Stats.InvestmentSummary.ChangePercent}}%
+                        </span>
+                        {{else if eq .Stats.InvestmentSummary.ChangeDirection "down"}}
+                        <span class="badge bg-warning bg-opacity-10 text-warning">
+                            <i class="bi bi-arrow-down"></i> {{printf "%.1f" (abs .Stats.InvestmentSummary.ChangePercent)}}%
+                        </span>
+                        {{else}}
+                        <span class="badge bg-secondary bg-opacity-10 text-secondary">
+                            <i class="bi bi-dash"></i> 0%
+                        </span>
+                        {{end}}
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">vs last month</small>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Uncategorized Alert -->
+{{if gt .Stats.UncategorizedCount 0}}
+<div class="row mb-4">
+    <div class="col">
+        <div class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div class="flex-grow-1">
+                <strong>{{.Stats.UncategorizedCount}}</strong> transactions need categorization
+            </div>
+            <a href="/transactions?uncategorized=true" class="btn btn-sm btn-warning">Review Now →</a>
+        </div>
+    </div>
+</div>
+{{end}}
 
 <div class="row g-3">
     <!-- Category Breakdown -->
