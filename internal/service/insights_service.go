@@ -119,6 +119,12 @@ type MonthlySummary struct {
 func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummary, error) {
 	period := s.GetMonthPeriod(year, month)
 
+	slog.Info("GetMonthlySummary called",
+		slog.Int("year", year),
+		slog.Int("month", month),
+		slog.String("period_start", period.StartDate.Format("2006-01-02")),
+		slog.String("period_end", period.EndDate.Format("2006-01-02")))
+
 	// Get transactions for this period
 	filter := repository.TransactionFilter{
 		StartDate: &period.StartDate,
@@ -131,13 +137,17 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 		return nil, fmt.Errorf("failed to get transactions: %w", err)
 	}
 
+	slog.Info("Transactions retrieved for monthly summary", slog.Int("count", len(transactions)))
+
 	summary := &MonthlySummary{
 		Period:            *period,
 		CategoryBreakdown: make([]CategoryBreakdown, 0),
 	}
 
 	// Calculate totals and category breakdown
-	categoryMap := make(map[*int]*CategoryBreakdown) // Use pointer to int for nil support
+	categoryMap := make(map[int]*CategoryBreakdown)
+	categorizedCount := 0
+	uncategorizedCount := 0
 
 	for _, txn := range transactions {
 		summary.TransactionCount++
@@ -145,6 +155,9 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 		// Check if uncategorized
 		if txn.IsUncategorized() {
 			summary.UncategorizedCount++
+			uncategorizedCount++
+		} else {
+			categorizedCount++
 		}
 
 		// Add to income or expenses
@@ -154,19 +167,26 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 			summary.TotalExpenses += txn.Amount
 		}
 
-		// Group by category
-		categoryKey := txn.CategoryID
-		if breakdown, exists := categoryMap[categoryKey]; exists {
-			breakdown.TotalAmount += txn.Amount
-			breakdown.Count++
-		} else {
-			categoryMap[categoryKey] = &CategoryBreakdown{
-				CategoryID:  txn.CategoryID,
-				TotalAmount: txn.Amount,
-				Count:       1,
+		if txn.CategoryID != nil {
+			categoryKey := *txn.CategoryID
+			if breakdown, exists := categoryMap[categoryKey]; exists {
+				breakdown.TotalAmount += txn.Amount
+				breakdown.Count++
+			} else {
+				categoryMap[categoryKey] = &CategoryBreakdown{
+					CategoryID:  txn.CategoryID,
+					TotalAmount: txn.Amount,
+					Count:       1,
+				}
 			}
 		}
 	}
+
+	slog.Info("Transaction processing complete",
+		slog.Int("total_transactions", summary.TransactionCount),
+		slog.Int("categorized", categorizedCount),
+		slog.Int("uncategorized", uncategorizedCount),
+		slog.Int("unique_categories", len(categoryMap)))
 
 	// Calculate net amount
 	summary.NetAmount = summary.TotalIncome - summary.TotalExpenses
@@ -183,20 +203,72 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 		categoryLookup[cat.CategoryID] = cat
 	}
 
-	// Build category breakdown with names
+	// Build category breakdown with names (only Expense categories for pie chart)
+	expenseBreakdowns := make([]CategoryBreakdown, 0)
 	for categoryID, breakdown := range categoryMap {
-		if categoryID != nil {
-			if cat, exists := categoryLookup[*categoryID]; exists {
+		// Only include categorized transactions in the breakdown
+		if cat, exists := categoryLookup[categoryID]; exists {
+			// Only include Expense categories (category_type = 2)
+			if cat.CategoryType == model.CategoryTypeExpense {
 				breakdown.CategoryName = cat.Name
 				breakdown.CategoryColor = cat.Color
-			} else {
-				breakdown.CategoryName = "Unknown"
+				expenseBreakdowns = append(expenseBreakdowns, *breakdown)
 			}
 		} else {
-			breakdown.CategoryName = "Uncategorized"
+			slog.Warn("Category ID not found in lookup",
+				slog.Int("category_id", categoryID))
 		}
-		summary.CategoryBreakdown = append(summary.CategoryBreakdown, *breakdown)
 	}
+
+	// Sort by absolute amount (descending) and limit to top 5
+	// Sort expense breakdowns by absolute total amount
+	for i := 0; i < len(expenseBreakdowns); i++ {
+		for j := i + 1; j < len(expenseBreakdowns); j++ {
+			absI := expenseBreakdowns[i].TotalAmount
+			if absI < 0 {
+				absI = -absI
+			}
+			absJ := expenseBreakdowns[j].TotalAmount
+			if absJ < 0 {
+				absJ = -absJ
+			}
+			if absJ > absI {
+				expenseBreakdowns[i], expenseBreakdowns[j] = expenseBreakdowns[j], expenseBreakdowns[i]
+			}
+		}
+	}
+
+	// Limit to top 5, combine rest as "Others"
+	if len(expenseBreakdowns) > 5 {
+		top5 := expenseBreakdowns[:5]
+		others := expenseBreakdowns[5:]
+
+		// Sum up the "Others"
+		var othersTotal float64
+		var othersCount int
+		for _, other := range others {
+			othersTotal += other.TotalAmount
+			othersCount += other.Count
+		}
+
+		// Add "Others" category
+		othersBreakdown := CategoryBreakdown{
+			CategoryID:    nil,
+			CategoryName:  "Others",
+			CategoryColor: nil,
+			TotalAmount:   othersTotal,
+			Count:         othersCount,
+		}
+
+		summary.CategoryBreakdown = append(top5, othersBreakdown)
+		slog.Info("Combined remaining categories as 'Others'",
+			slog.Int("others_count", len(others)),
+			slog.Float64("others_total", othersTotal))
+	} else {
+		summary.CategoryBreakdown = expenseBreakdowns
+	}
+
+	slog.Info("Category breakdown built", "breakdown_count", len(summary.CategoryBreakdown), "CategoryBreakdown", summary.CategoryBreakdown)
 
 	return summary, nil
 }
@@ -432,11 +504,23 @@ func (s *InsightsService) GetDashboardStats(accountRepo *repository.AccountRepos
 	var year, month int
 	fmt.Sscanf(currentPeriod.Label, "%d-%d", &year, &month)
 
+	slog.Info("Dashboard showing period",
+		slog.Int("year", year),
+		slog.Int("month", month),
+		slog.String("period_label", currentPeriod.Label))
+
 	summary, err := s.GetMonthlySummary(year, month)
 	if err != nil {
 		slog.Error("Error getting monthly summary for dashboard", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get monthly summary: %w", err)
 	}
+
+	slog.Info("Dashboard monthly summary retrieved",
+		slog.Int("transaction_count", summary.TransactionCount),
+		slog.Int("uncategorized_count", summary.UncategorizedCount),
+		slog.Int("category_breakdown_count", len(summary.CategoryBreakdown)),
+		slog.Float64("total_income", summary.TotalIncome),
+		slog.Float64("total_expenses", summary.TotalExpenses))
 
 	// Get category type summaries
 	expenseSummary, err := s.getCategoryTypeSummary(model.CategoryTypeExpense, year, month)

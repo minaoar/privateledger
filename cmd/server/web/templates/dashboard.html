@@ -149,8 +149,8 @@
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header bg-white">
-                <h5 class="card-title mb-0">Spending by Category</h5>
-                <small class="text-muted">Current month breakdown</small>
+                <h5 class="card-title mb-0">Top Expense Categories</h5>
+                <small class="text-muted">Top 5 spending categories this period</small>
             </div>
             <div class="card-body">
                 {{if gt (len .Stats.CurrentMonth.CategoryBreakdown) 0}}
@@ -160,7 +160,8 @@
                 {{else}}
                 <div class="text-center py-5 text-muted">
                     <i class="bi bi-pie-chart display-4"></i>
-                    <p class="mt-3">No categorized transactions yet</p>
+                    <p class="mt-3">No expense categories yet</p>
+                    <small>Import transactions and assign expense categories</small>
                 </div>
                 {{end}}
             </div>
@@ -207,88 +208,114 @@
 
 {{if gt (len .Stats.CurrentMonth.CategoryBreakdown) 0}}
 <script>
-// Category Pie Chart
-const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-const categoryData = {
-    labels: [
-        {{range .Stats.CurrentMonth.CategoryBreakdown}}
-        '{{.CategoryName}}',
-        {{end}}
-    ],
-    datasets: [{
-        data: [
+// Category Pie Chart - Wait for Chart.js to load
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const categoryData = {
+        labels: [
             {{range .Stats.CurrentMonth.CategoryBreakdown}}
-            {{.TotalAmount}},
+            '{{.CategoryName}}',
             {{end}}
         ],
-        backgroundColor: [
-            {{range .Stats.CurrentMonth.CategoryBreakdown}}
-            {{if .CategoryColor}}'{{.CategoryColor}}'{{else}}'#6b7280'{{end}},
-            {{end}}
-        ]
-    }]
-};
+        datasets: [{
+            data: [
+                {{range .Stats.CurrentMonth.CategoryBreakdown}}
+                {{abs .TotalAmount}},
+                {{end}}
+            ],
+            backgroundColor: [
+                {{range .Stats.CurrentMonth.CategoryBreakdown}}
+                {{if .CategoryName}}{{if eq .CategoryName "Others"}}'#9ca3af'{{else}}{{if .CategoryColor}}'{{.CategoryColor}}'{{else}}'#6b7280'{{end}}{{end}}{{else}}'#6b7280'{{end}},
+                {{end}}
+            ]
+        }]
+    };
 
-new Chart(categoryCtx, {
-    type: 'doughnut',
-    data: categoryData,
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom'
+    new Chart(categoryCtx, {
+        type: 'pie',
+        data: categoryData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return label + ': $' + value.toFixed(2) + ' (' + percentage + '%)';
+                        }
+                    }
+                },
+                datalabels: {
+                    formatter: (value, ctx) => {
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return percentage + '%';
+                    },
+                    color: '#fff',
+                    font: {
+                        weight: 'bold',
+                        size: 14
+                    }
+                }
             }
         }
-    }
+    });
 });
 </script>
 {{end}}
 
 <script>
-// Trends Line Chart
-const trendsCtx = document.getElementById('trendsChart').getContext('2d');
-fetch('/api/insights/trends?months=6')
-    .then(response => response.json())
-    .then(trends => {
-        const trendsData = {
-            labels: trends.map(t => t.period.label),
-            datasets: [
-                {
-                    label: 'Income',
-                    data: trends.map(t => t.total_income),
-                    borderColor: '#16a34a',
-                    backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                    tension: 0.4
-                },
-                {
-                    label: 'Expenses',
-                    data: trends.map(t => t.total_expenses),
-                    borderColor: '#dc2626',
-                    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                    tension: 0.4
-                }
-            ]
-        };
+// Trends Line Chart - Wait for Chart.js to load
+document.addEventListener('DOMContentLoaded', function() {
+    const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+    fetch('/api/insights/trends?months=6')
+        .then(response => response.json())
+        .then(trends => {
+            const trendsData = {
+                labels: trends.map(t => t.period.label),
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: trends.map(t => t.total_income),
+                        borderColor: '#16a34a',
+                        backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Expenses',
+                        data: trends.map(t => t.total_expenses),
+                        borderColor: '#dc2626',
+                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                        tension: 0.4
+                    }
+                ]
+            };
 
-        new Chart(trendsCtx, {
-            type: 'line',
-            data: trendsData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
+            new Chart(trendsCtx, {
+                type: 'line',
+                data: trendsData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
                     }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
+                }});
         });
-    });
+});
 </script>
 {{end}}
