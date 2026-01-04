@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PrivateLedger is a local-only personal finance application built in Go. It imports bank transactions from OFX/QFX files, provides pattern-based categorization, and generates spending insights—all while keeping data private on the user's machine.
+PrivateLedger is a local-only personal finance application built in Go. It works with exported bank transactions in standard OFX (Microsoft Money) or QFX (Intuit Quicken) formats, provides pattern-based automatic categorization, and generates spending insights - all while keeping all financial data private on the user's machine.
 
 **Core Philosophy**: Privacy-first, single binary, no cloud dependencies.
 

@@ -96,9 +96,10 @@ Edit `config.json` to customize settings:
 - `auto_open_browser`: Automatically open browser on startup
 - `start_of_month`: Day of month when your "month" starts (1-28, useful for aligning with pay cycles)
 
-## Project Structure
+## Project Architecture & Design Decisions
 
-See [DESIGN.md](DESIGN.md) for detailed architecture and design decisions.
+This project has been developed heavily with Claude Code.  
+For architectural decisions, trade-offs, and design rationale, see: [CLAUDE.md](CLAUDE.md#architecture)
 
 ## Development
 
@@ -120,8 +121,20 @@ make clean
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for full license text.
 
 ## Contributing
 
-[Add contribution guidelines here]
+Contributions are welcome and appreciated 🎉
+
+To keep development focused and aligned with the project goals:
+
+- Please open an issue first to discuss:
+  - New features
+  - Significant behavior changes
+  - Architectural or data model changes
+- For small fixes (typos, minor UI tweaks, bug fixes), feel free to open a pull request directly.
+
+When submitting a pull request, please keep changes focused and well-scoped. Include context in the description (what & why).
+
+If you're unsure whether something fits, opening an issue to discuss it first is always the best approach.
