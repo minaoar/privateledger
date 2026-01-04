@@ -86,29 +86,6 @@ func (h *InsightsHandler) GetMonthlySummary(c *gin.Context) {
 	c.JSON(http.StatusOK, summary)
 }
 
-// GetTrends returns financial trends over multiple months
-// GET /api/insights/trends?months=6
-func (h *InsightsHandler) GetTrends(c *gin.Context) {
-	// Parse months parameter (default: 6)
-	months := 6
-	if monthsStr := c.Query("months"); monthsStr != "" {
-		m, err := strconv.Atoi(monthsStr)
-		if err != nil || m < 1 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid months parameter"})
-			return
-		}
-		months = m
-	}
-
-	trends, err := h.insightsService.GetTrends(months)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, trends)
-}
-
 // GetCurrentPeriod returns the current month period based on config
 // GET /api/insights/current-period
 func (h *InsightsHandler) GetCurrentPeriod(c *gin.Context) {

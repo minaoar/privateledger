@@ -404,43 +404,6 @@ GET /api/insights/monthly?year=2025&month=1
 
 **Response:** Same as `current_month` in dashboard response.
 
-### GET /api/insights/trends
-Get financial trends over multiple months.
-
-**Query Parameters:**
-- `months` (int) - Number of months to include (default: 6)
-
-**Example:**
-```
-GET /api/insights/trends?months=6
-```
-
-**Response:**
-```json
-[
-  {
-    "period": {
-      "label": "2024-08",
-      "start_date": "2024-08-19T00:00:00Z",
-      "end_date": "2024-09-18T23:59:59Z"
-    },
-    "total_income": 3200.00,
-    "total_expenses": 2100.00,
-    "net_amount": 1100.00
-  },
-  {
-    "period": {
-      "label": "2024-09",
-      "start_date": "2024-09-19T00:00:00Z",
-      "end_date": "2024-10-18T23:59:59Z"
-    },
-    "total_income": 3500.00,
-    "total_expenses": 2300.00,
-    "net_amount": 1200.00
-  }
-]
-```
-
 ### GET /api/insights/current-period
 Get the current month period based on config.
 

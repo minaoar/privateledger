@@ -154,7 +154,6 @@ func main() {
 		// Insights routes
 		api.GET("/insights/dashboard", insightsHandler.GetDashboard)
 		api.GET("/insights/monthly", insightsHandler.GetMonthlySummary)
-		api.GET("/insights/trends", insightsHandler.GetTrends)
 		api.GET("/insights/current-period", insightsHandler.GetCurrentPeriod)
 	}
 

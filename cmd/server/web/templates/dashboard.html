@@ -184,27 +184,69 @@
     </div>
 </div>
 
-<!-- Quick Actions -->
+<!-- Expense Category Breakdown Table -->
+{{if gt (len .Stats.ExpenseBreakdown.Categories) 0}}
 <div class="row mt-4">
     <div class="col">
         <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Quick Actions</h5>
-                <div class="d-flex gap-2">
-                    <a href="/import" class="btn btn-primary">
-                        <i class="bi bi-upload"></i> Import Transactions
-                    </a>
-                    <a href="/categories" class="btn btn-outline-primary">
-                        <i class="bi bi-tags"></i> Manage Categories
-                    </a>
-                    <a href="/transactions?uncategorized=true" class="btn btn-outline-warning">
-                        <i class="bi bi-question-circle"></i> View Uncategorized
-                    </a>
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">📊 Expense Breakdown</h5>
+                <small class="text-muted">Last 6 months spending by category</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Category</th>
+                                {{range .Stats.ExpenseBreakdown.Periods}}
+                                <th class="text-end">{{formatDate .StartDate}}</th>
+                                {{end}}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range $category := .Stats.ExpenseBreakdown.Categories}}
+                            <tr>
+                                <td class="ps-3">
+                                    {{if $category.CategoryIcon}}<i class="bi bi-{{$category.CategoryIcon}} me-2"></i>{{end}}
+                                    {{$category.CategoryName}}
+                                </td>
+                                {{range $.Stats.ExpenseBreakdown.Periods}}
+                                <td class="text-end">
+                                    {{$value := index $category.MonthlyTotals .Label}}
+                                    {{if ne $value 0.0}}
+                                        ${{printf "%.0f" (abs $value)}}
+                                    {{else}}
+                                        <span class="text-muted">-</span>
+                                    {{end}}
+                                </td>
+                                {{end}}
+                            </tr>
+                            {{end}}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td class="ps-3">TOTAL</td>
+                                {{range .Stats.ExpenseBreakdown.Periods}}
+                                <td class="text-end">
+                                    {{$total := index $.Stats.ExpenseBreakdown.MonthlyTotals .Label}}
+                                    {{if ne $total 0.0}}
+                                        ${{printf "%.0f" (abs $total)}}
+                                    {{else}}
+                                        <span class="text-muted">-</span>
+                                    {{end}}
+                                </td>
+                                {{end}}
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{{end}}
+
 
 {{if gt (len .Stats.CurrentMonth.CategoryBreakdown) 0}}
 <script>
@@ -271,68 +313,77 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 {{end}}
 
+{{if gt (len .Stats.ExpenseBreakdown.Periods) 0}}
 <script>
-// Expense Trends Bar Chart - Wait for Chart.js to load
+// Expense Trends Bar Chart - Use data from ExpenseBreakdownTable
 document.addEventListener('DOMContentLoaded', function() {
     const trendsCtx = document.getElementById('trendsChart').getContext('2d');
-    fetch('/api/insights/trends?months=6')
-        .then(response => response.json())
-        .then(trends => {
-            const trendsData = {
-                labels: trends.map(t => {
-                    // Format label as "MMM YY" (e.g., "Dec 24")
-                    const [year, month] = t.period.label.split('-');
-                    const date = new Date(year, month - 1);
-                    return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-                }),
-                datasets: [
-                    {
-                        label: 'Expenses',
-                        data: trends.map(t => Math.abs(t.total_expenses)), // Use absolute values
-                        backgroundColor: '#dc2626',
-                        borderColor: '#b91c1c',
-                        borderWidth: 1,
-                        borderRadius: 6,
-                        hoverBackgroundColor: '#b91c1c'
-                    }
-                ]
-            };
 
-            new Chart(trendsCtx, {
-                type: 'bar',
-                data: trendsData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false // Hide legend since we only have one dataset
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return 'Expenses: $' + context.parsed.y.toFixed(2);
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return '$' + value.toFixed(0);
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
+    // Use expense breakdown monthly totals (already calculated correctly)
+    const labels = [
+        {{range .Stats.ExpenseBreakdown.Periods}}
+        '{{formatDate .StartDate}}',
+        {{end}}
+    ];
+
+    const expenseData = [
+        {{range .Stats.ExpenseBreakdown.Periods}}
+        {{$total := index $.Stats.ExpenseBreakdown.MonthlyTotals .Label}}
+        {{abs $total}},
+        {{end}}
+    ];
+
+    const trendsData = {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Expenses',
+                data: expenseData,
+                backgroundColor: '#dc2626',
+                borderColor: '#b91c1c',
+                borderWidth: 1,
+                borderRadius: 6,
+                hoverBackgroundColor: '#b91c1c'
+            }
+        ]
+    };
+
+    new Chart(trendsCtx, {
+        type: 'bar',
+        data: trendsData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false // Hide legend since we only have one dataset
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'Expenses: $' + context.parsed.y.toFixed(2);
                         }
                     }
-                }});
-        });
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toFixed(0);
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
 });
 </script>
+{{end}}
 {{end}}

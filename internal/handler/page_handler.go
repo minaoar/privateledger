@@ -2,6 +2,7 @@ package handler
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -45,17 +46,27 @@ func NewPageHandler(
 func (h *PageHandler) parseTemplate(pageName string) *template.Template {
 	// Define custom template functions
 	funcMap := template.FuncMap{
-		"formatDate": func(dateStr string) string {
-			// Parse date string in format "2006-01-02 15:04:05"
-			t, err := time.Parse("2006-01-02 15:04:05", dateStr)
-			if err != nil {
-				// If parsing fails, try date-only format
-				t, err = time.Parse("2006-01-02", dateStr)
+		"formatDate": func(date interface{}) string {
+			var t time.Time
+			switch v := date.(type) {
+			case string:
+				// Parse date string in format "2006-01-02 15:04:05"
+				var err error
+				t, err = time.Parse("2006-01-02 15:04:05", v)
 				if err != nil {
-					return dateStr // Return as-is if parsing fails
+					// If parsing fails, try date-only format
+					t, err = time.Parse("2006-01-02", v)
+					if err != nil {
+						return v // Return as-is if parsing fails
+					}
 				}
+			case time.Time:
+				t = v
+			default:
+				return fmt.Sprintf("%v", date)
 			}
-			return t.Format("Jan 2, 2006")
+			// Format as "Jan '26"
+			return t.Format("Jan '06")
 		},
 		"abs": func(x float64) float64 {
 			if x < 0 {

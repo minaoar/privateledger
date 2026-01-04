@@ -273,74 +273,6 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 	return summary, nil
 }
 
-// TrendDataPoint represents a single point in a trend chart
-type TrendDataPoint struct {
-	Period        MonthPeriod `json:"period"`
-	TotalIncome   float64     `json:"total_income"`
-	TotalExpenses float64     `json:"total_expenses"`
-	NetAmount     float64     `json:"net_amount"`
-}
-
-// GetTrends calculates financial trends over multiple months
-// Returns data for the last N months (including current month)
-func (s *InsightsService) GetTrends(months int) ([]TrendDataPoint, error) {
-	if months < 1 {
-		months = 6 // Default to 6 months
-	}
-
-	trends := make([]TrendDataPoint, 0, months)
-	currentPeriod := s.GetCurrentMonthPeriod()
-
-	// Parse current period label to get year/month
-	var year, month int
-	fmt.Sscanf(currentPeriod.Label, "%d-%d", &year, &month)
-
-	// Go back N months and calculate each
-	for i := months - 1; i >= 0; i-- {
-		// Calculate month offset
-		targetMonth := month - i
-		targetYear := year
-
-		// Handle year boundary
-		for targetMonth < 1 {
-			targetMonth += 12
-			targetYear--
-		}
-
-		period := s.GetMonthPeriod(targetYear, targetMonth)
-
-		// Get transactions for this period
-		filter := repository.TransactionFilter{
-			StartDate: &period.StartDate,
-			EndDate:   &period.EndDate,
-		}
-
-		transactions, err := s.txnRepo.List(filter)
-		if err != nil {
-			slog.Error("Error getting transactions for trends", slog.String("period", period.Label), slog.String("error", err.Error()))
-			return nil, fmt.Errorf("failed to get transactions for %s: %w", period.Label, err)
-		}
-
-		dataPoint := TrendDataPoint{
-			Period: *period,
-		}
-
-		// Calculate totals
-		for _, txn := range transactions {
-			if txn.TransactionType == model.TransactionTypeCredit {
-				dataPoint.TotalIncome += txn.Amount
-			} else {
-				dataPoint.TotalExpenses += txn.Amount
-			}
-		}
-
-		dataPoint.NetAmount = dataPoint.TotalIncome - dataPoint.TotalExpenses
-		trends = append(trends, dataPoint)
-	}
-
-	return trends, nil
-}
-
 // CategoryTypeSummary contains financial summary for a specific category type
 type CategoryTypeSummary struct {
 	TotalAmount      float64 `json:"total_amount"`
@@ -351,15 +283,125 @@ type CategoryTypeSummary struct {
 	TransactionCount int     `json:"transaction_count"`
 }
 
+// ExpenseCategoryByMonth represents a category's expenses across multiple months
+type ExpenseCategoryByMonth struct {
+	CategoryID    int                `json:"category_id"`
+	CategoryName  string             `json:"category_name"`
+	CategoryIcon  *string            `json:"category_icon"`
+	CategoryColor *string            `json:"category_color"`
+	MonthlyTotals map[string]float64 `json:"monthly_totals"` // key is period label like "2026-01"
+}
+
+// ExpenseBreakdownTable contains expense breakdown by category across months
+type ExpenseBreakdownTable struct {
+	Periods       []MonthPeriod            `json:"periods"`        // Last 6 months
+	Categories    []ExpenseCategoryByMonth `json:"categories"`     // Expense categories
+	MonthlyTotals map[string]float64       `json:"monthly_totals"` // Column totals by period
+}
+
 // DashboardStats contains quick statistics for the dashboard
 type DashboardStats struct {
-	CurrentMonth       MonthlySummary      `json:"current_month"`
-	ExpenseSummary     CategoryTypeSummary `json:"expense_summary"`
-	IncomeSummary      CategoryTypeSummary `json:"income_summary"`
-	InvestmentSummary  CategoryTypeSummary `json:"investment_summary"`
-	AccountCount       int                 `json:"account_count"`
-	CategoryCount      int                 `json:"category_count"`
-	UncategorizedCount int                 `json:"uncategorized_count"`
+	CurrentMonth       MonthlySummary        `json:"current_month"`
+	ExpenseSummary     CategoryTypeSummary   `json:"expense_summary"`
+	IncomeSummary      CategoryTypeSummary   `json:"income_summary"`
+	InvestmentSummary  CategoryTypeSummary   `json:"investment_summary"`
+	ExpenseBreakdown   ExpenseBreakdownTable `json:"expense_breakdown"`
+	AccountCount       int                   `json:"account_count"`
+	CategoryCount      int                   `json:"category_count"`
+	UncategorizedCount int                   `json:"uncategorized_count"`
+}
+
+// GetExpenseBreakdownTable builds a table of expense categories across the last N months
+// Starting from the specified year/month and going back
+func (s *InsightsService) GetExpenseBreakdownTable(year, month, months int) (*ExpenseBreakdownTable, error) {
+	if months < 1 {
+		months = 6 // Default to 6 months
+	}
+
+	slog.Info("GetExpenseBreakdownTable called",
+		slog.Int("year", year),
+		slog.Int("month", month),
+		slog.Int("months", months))
+
+	// Build list of periods (last N months)
+	periods := make([]MonthPeriod, 0, months)
+	for i := months - 1; i >= 0; i-- {
+		targetMonth := month - i
+		targetYear := year
+		for targetMonth < 1 {
+			targetMonth += 12
+			targetYear--
+		}
+		period := s.GetMonthPeriod(targetYear, targetMonth)
+		periods = append(periods, *period)
+	}
+
+	// Get all expense categories
+	allCategories, err := s.categoryRepo.GetAll()
+	if err != nil {
+		slog.Error("Error getting categories for expense breakdown", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("failed to get categories: %w", err)
+	}
+
+	expenseCategories := make([]*model.Category, 0)
+	for _, cat := range allCategories {
+		if cat.CategoryType == model.CategoryTypeExpense {
+			expenseCategories = append(expenseCategories, cat)
+		}
+	}
+
+	// Build category breakdown for each month
+	categoryBreakdown := make([]ExpenseCategoryByMonth, 0)
+	monthlyTotals := make(map[string]float64)
+
+	for _, cat := range expenseCategories {
+		categoryMonthly := ExpenseCategoryByMonth{
+			CategoryID:    cat.CategoryID,
+			CategoryName:  cat.Name,
+			CategoryIcon:  cat.Icon,
+			CategoryColor: cat.Color,
+			MonthlyTotals: make(map[string]float64),
+		}
+
+		// For each period, get transactions for this category
+		for _, period := range periods {
+			filter := repository.TransactionFilter{
+				CategoryID: &cat.CategoryID,
+				StartDate:  &period.StartDate,
+				EndDate:    &period.EndDate,
+			}
+
+			transactions, err := s.txnRepo.List(filter)
+			if err != nil {
+				slog.Error("Error getting transactions for expense breakdown",
+					slog.String("category", cat.Name),
+					slog.String("period", period.Label),
+					slog.String("error", err.Error()))
+				continue
+			}
+
+			// Sum up expenses for this category in this period
+			var total float64
+			for _, txn := range transactions {
+				total += txn.Amount
+			}
+
+			categoryMonthly.MonthlyTotals[period.Label] = total
+			monthlyTotals[period.Label] += total
+		}
+
+		categoryBreakdown = append(categoryBreakdown, categoryMonthly)
+	}
+
+	slog.Info("Expense breakdown table built",
+		slog.Int("categories", len(categoryBreakdown)),
+		slog.Int("periods", len(periods)))
+
+	return &ExpenseBreakdownTable{
+		Periods:       periods,
+		Categories:    categoryBreakdown,
+		MonthlyTotals: monthlyTotals,
+	}, nil
 }
 
 // getCategoryTypeSummary calculates summary for a specific category type (Expense/Income/Investment)
@@ -562,11 +604,19 @@ func (s *InsightsService) GetDashboardStats(accountRepo *repository.AccountRepos
 		return nil, fmt.Errorf("failed to get uncategorized count: %w", err)
 	}
 
+	// Get expense breakdown table (last 6 months from the same period as dashboard)
+	expenseBreakdown, err := s.GetExpenseBreakdownTable(year, month, 6)
+	if err != nil {
+		slog.Error("Error getting expense breakdown for dashboard", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("failed to get expense breakdown: %w", err)
+	}
+
 	return &DashboardStats{
 		CurrentMonth:       *summary,
 		ExpenseSummary:     *expenseSummary,
 		IncomeSummary:      *incomeSummary,
 		InvestmentSummary:  *investmentSummary,
+		ExpenseBreakdown:   *expenseBreakdown,
 		AccountCount:       accountCount,
 		CategoryCount:      categoryCount,
 		UncategorizedCount: uncategorizedCount,

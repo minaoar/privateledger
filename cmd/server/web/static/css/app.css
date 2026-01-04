@@ -197,6 +197,21 @@ footer {
     width: 20px;
 }
 
+/* Expense Breakdown Table */
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.table thead th {
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.table tfoot {
+    border-top: 2px solid #dee2e6;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .stat-card {
@@ -205,5 +220,9 @@ footer {
 
     .chart-container {
         height: 250px;
+    }
+
+    .table-responsive {
+        font-size: 0.875rem;
     }
 }
