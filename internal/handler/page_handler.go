@@ -146,7 +146,7 @@ func (h *PageHandler) Categories(c *gin.Context) {
 // Transactions renders the transactions list page
 func (h *PageHandler) Transactions(c *gin.Context) {
 	filter := repository.TransactionFilter{
-		Limit: 500, // Default limit
+		// No limit - return all transactions for client-side pagination
 	}
 
 	// Parse filters from query params

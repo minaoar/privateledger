@@ -150,6 +150,17 @@
                         </tbody>
                     </table>
                 </div>
+                <!-- Pagination Controls -->
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        <small class="text-muted" id="paginationInfo">Showing 0-0 of 0 transactions</small>
+                    </div>
+                    <nav aria-label="Transaction pagination">
+                        <ul class="pagination pagination-sm mb-0" id="pagination">
+                            <!-- Pagination buttons will be dynamically generated -->
+                        </ul>
+                    </nav>
+                </div>
             </div>
         </div>
     </div>
@@ -249,6 +260,167 @@
 </div>
 
 <script>
+// Client-side Pagination
+const ITEMS_PER_PAGE = 300;
+let currentPage = 1;
+let allRows = [];
+let visibleRows = []; // Rows after search filter
+
+// Initialize pagination on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initPagination();
+});
+
+function initPagination() {
+    // Get all transaction rows
+    allRows = Array.from(document.querySelectorAll('#transactionsTable tr[id^="txn-"]'));
+    visibleRows = [...allRows]; // Initially all rows are visible
+
+    if (allRows.length > 0) {
+        currentPage = 1;
+        renderPagination();
+        showPage(currentPage);
+
+        // Initialize client-side search after rows are loaded
+        initSearch();
+    } else {
+        document.getElementById('paginationInfo').textContent = 'No transactions found';
+    }
+}
+
+function initSearch() {
+    const searchBox = document.getElementById('searchBox');
+
+    if (searchBox) {
+        searchBox.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+
+            if (searchTerm === '') {
+                // Show all rows
+                visibleRows = [...allRows];
+            } else {
+                // Filter rows based on search term
+                visibleRows = allRows.filter(row => {
+                    const detailsCell = row.cells[1];
+                    if (detailsCell) {
+                        const transactionText = detailsCell.textContent.toLowerCase();
+                        return transactionText.includes(searchTerm);
+                    }
+                    return false;
+                });
+            }
+
+            // Reset to page 1 and update pagination
+            currentPage = 1;
+            showPage(1);
+        });
+    }
+}
+
+function showPage(page) {
+    currentPage = page;
+
+    // Hide all rows first
+    allRows.forEach(row => row.style.display = 'none');
+
+    // Calculate range for current page
+    const startIndex = (page - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+
+    // Show only rows for current page from visible rows
+    const pageRows = visibleRows.slice(startIndex, endIndex);
+    pageRows.forEach(row => row.style.display = '');
+
+    // Update info text
+    const totalVisible = visibleRows.length;
+    const showingStart = totalVisible > 0 ? startIndex + 1 : 0;
+    const showingEnd = Math.min(endIndex, totalVisible);
+    document.getElementById('paginationInfo').textContent =
+        `Showing ${showingStart}-${showingEnd} of ${totalVisible} transactions`;
+
+    // Update pagination buttons
+    renderPagination();
+}
+
+function renderPagination() {
+    const totalPages = Math.ceil(visibleRows.length / ITEMS_PER_PAGE);
+    const paginationContainer = document.getElementById('pagination');
+    paginationContainer.innerHTML = '';
+
+    if (totalPages <= 1) {
+        return; // No pagination needed
+    }
+
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">Previous</a>`;
+    paginationContainer.appendChild(prevLi);
+
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    // Adjust startPage if we're near the end
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    // First page
+    if (startPage > 1) {
+        const firstLi = document.createElement('li');
+        firstLi.className = 'page-item';
+        firstLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(1); return false;">1</a>`;
+        paginationContainer.appendChild(firstLi);
+
+        if (startPage > 2) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            paginationContainer.appendChild(ellipsisLi);
+        }
+    }
+
+    // Page number buttons
+    for (let i = startPage; i <= endPage; i++) {
+        const li = document.createElement('li');
+        li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+        li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>`;
+        paginationContainer.appendChild(li);
+    }
+
+    // Last page
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = '<span class="page-link">...</span>';
+            paginationContainer.appendChild(ellipsisLi);
+        }
+
+        const lastLi = document.createElement('li');
+        lastLi.className = 'page-item';
+        lastLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${totalPages}); return false;">${totalPages}</a>`;
+        paginationContainer.appendChild(lastLi);
+    }
+
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">Next</a>`;
+    paginationContainer.appendChild(nextLi);
+}
+
+function changePage(page) {
+    const totalPages = Math.ceil(visibleRows.length / ITEMS_PER_PAGE);
+    if (page < 1 || page > totalPages) return;
+    showPage(page);
+
+    // Scroll to top of transactions table
+    document.querySelector('.table-responsive').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function applyFilters() {
     const form = document.getElementById('filterForm');
     const formData = new FormData(form);
@@ -280,38 +452,15 @@ document.querySelectorAll('#filterForm select, #filterForm input[type="date"]').
     });
 });
 
-// Client-side search filtering (instant, no server request)
-const searchBox = document.getElementById('searchBox');
-const transactionRows = document.querySelectorAll('#transactionsTable tr[id^="txn-"]');
-
-if (searchBox && transactionRows.length > 0) {
-    searchBox.addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase().trim();
-
-        transactionRows.forEach(row => {
-            // Get the transaction details from the second column (index 1)
-            const detailsCell = row.cells[1];
-            if (detailsCell) {
-                const transactionText = detailsCell.textContent.toLowerCase();
-
-                if (searchTerm === '' || transactionText.includes(searchTerm)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            }
-        });
-    });
-}
-
 function clearFilters() {
     // Clear search box
+    const searchBox = document.getElementById('searchBox');
     if (searchBox) {
         searchBox.value = '';
-        // Show all rows
-        transactionRows.forEach(row => {
-            row.style.display = '';
-        });
+        // Reset visible rows
+        visibleRows = [...allRows];
+        currentPage = 1;
+        showPage(1);
     }
     // Clear server-side filters
     window.location.href = '/transactions';
