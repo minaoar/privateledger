@@ -152,10 +152,8 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 
 	// Trigger re-categorization if patterns were added
 	if len(patterns) > 0 {
-		go func() {
-			h.categorizer.LoadPatterns()
-			h.categorizer.RecategorizeByCategory(category.CategoryID)
-		}()
+		h.categorizer.LoadPatterns()
+		h.categorizer.RecategorizeByCategory(category.CategoryID)
 	}
 
 	result := &model.CategoryWithPatterns{
@@ -307,10 +305,8 @@ func (h *CategoryHandler) AddPattern(c *gin.Context) {
 	}
 
 	// Trigger re-categorization for this category
-	go func() {
-		h.categorizer.LoadPatterns()
-		h.categorizer.RecategorizeByCategory(categoryID)
-	}()
+	h.categorizer.LoadPatterns()
+	h.categorizer.RecategorizeByCategory(categoryID)
 
 	c.JSON(http.StatusCreated, pattern)
 }

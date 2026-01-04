@@ -1,6 +1,7 @@
 package model
 
 import (
+	"regexp"
 	"strings"
 	"time"
 )
@@ -22,10 +23,17 @@ func NewCategoryPattern(patternName string, categoryID int) *CategoryPattern {
 	}
 }
 
+var spaceNormalizer = regexp.MustCompile(`[\s\x{00A0}]+`) // includes &nbsp;
+
+// Remove multiple space, \t, &nbsp from string to match
+func normalizeSpaces(s string) string {
+	return spaceNormalizer.ReplaceAllString(strings.TrimSpace(s), " ")
+}
+
 // Matches checks if the pattern matches the given text (case-insensitive contains)
 func (cp *CategoryPattern) Matches(text string) bool {
 	return strings.Contains(
-		strings.ToLower(text),
-		strings.ToLower(cp.PatternName),
+		strings.ToLower(normalizeSpaces(text)),
+		strings.ToLower(normalizeSpaces(cp.PatternName)),
 	)
 }
