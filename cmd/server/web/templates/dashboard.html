@@ -172,8 +172,8 @@
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-header bg-white">
-                <h5 class="card-title mb-0">6-Month Trends</h5>
-                <small class="text-muted">Income vs Expenses</small>
+                <h5 class="card-title mb-0">Expense Trends</h5>
+                <small class="text-muted">Last 6 months spending</small>
             </div>
             <div class="card-body">
                 <div class="chart-container">
@@ -272,46 +272,63 @@ document.addEventListener('DOMContentLoaded', function() {
 {{end}}
 
 <script>
-// Trends Line Chart - Wait for Chart.js to load
+// Expense Trends Bar Chart - Wait for Chart.js to load
 document.addEventListener('DOMContentLoaded', function() {
     const trendsCtx = document.getElementById('trendsChart').getContext('2d');
     fetch('/api/insights/trends?months=6')
         .then(response => response.json())
         .then(trends => {
             const trendsData = {
-                labels: trends.map(t => t.period.label),
+                labels: trends.map(t => {
+                    // Format label as "MMM YY" (e.g., "Dec 24")
+                    const [year, month] = t.period.label.split('-');
+                    const date = new Date(year, month - 1);
+                    return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                }),
                 datasets: [
                     {
-                        label: 'Income',
-                        data: trends.map(t => t.total_income),
-                        borderColor: '#16a34a',
-                        backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                        tension: 0.4
-                    },
-                    {
                         label: 'Expenses',
-                        data: trends.map(t => t.total_expenses),
-                        borderColor: '#dc2626',
-                        backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                        tension: 0.4
+                        data: trends.map(t => Math.abs(t.total_expenses)), // Use absolute values
+                        backgroundColor: '#dc2626',
+                        borderColor: '#b91c1c',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        hoverBackgroundColor: '#b91c1c'
                     }
                 ]
             };
 
             new Chart(trendsCtx, {
-                type: 'line',
+                type: 'bar',
                 data: trendsData,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            position: 'bottom'
+                            display: false // Hide legend since we only have one dataset
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Expenses: $' + context.parsed.y.toFixed(2);
+                                }
+                            }
                         }
                     },
                     scales: {
                         y: {
-                            beginAtZero: true
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toFixed(0);
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
                         }
                     }
                 }});
