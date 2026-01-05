@@ -48,6 +48,18 @@ func (h *TransactionHandler) ListTransactions(c *gin.Context) {
 		filter.CategoryID = &categoryID
 	}
 
+	// Parse category_type filter
+	if categoryTypeStr := c.Query("category_type"); categoryTypeStr != "" {
+		categoryType, err := strconv.Atoi(categoryTypeStr)
+		if err != nil {
+			slog.Error("Invalid category_type in ListTransactions", slog.String("category_type", categoryTypeStr), slog.String("error", err.Error()))
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category_type"})
+			return
+		}
+		ct := model.CategoryType(categoryType)
+		filter.CategoryType = &ct
+	}
+
 	// Parse uncategorized filter
 	if uncategorizedStr := c.Query("uncategorized"); uncategorizedStr == "true" {
 		filter.Uncategorized = true

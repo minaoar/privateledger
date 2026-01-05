@@ -215,7 +215,11 @@
                                 <td class="text-end">
                                     {{$value := index $category.MonthlyTotals .Label}}
                                     {{if ne $value 0.0}}
-                                        ${{printf "%.0f" (abs $value)}}
+                                        <a href="/transactions?category_id={{$category.CategoryID}}&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
+                                           class="expense-breakdown-link"
+                                           title="View transactions for {{$category.CategoryName}} in this period">
+                                            ${{printf "%.0f" (abs $value)}}
+                                        </a>
                                     {{else}}
                                         <span class="text-muted">-</span>
                                     {{end}}
@@ -231,7 +235,11 @@
                                 <td class="text-end">
                                     {{$total := index $.Stats.ExpenseBreakdown.MonthlyTotals .Label}}
                                     {{if ne $total 0.0}}
-                                        ${{printf "%.0f" (abs $total)}}
+                                        <a href="/transactions?category_type=2&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
+                                           class="expense-breakdown-link"
+                                           title="View all expense transactions in this period">
+                                            ${{printf "%.0f" (abs $total)}}
+                                        </a>
                                     {{else}}
                                         <span class="text-muted">-</span>
                                     {{end}}

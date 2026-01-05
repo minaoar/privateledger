@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/oronno/privateledger/internal/model"
 	"github.com/oronno/privateledger/internal/repository"
 	"github.com/oronno/privateledger/internal/service"
 )
@@ -73,6 +74,9 @@ func (h *PageHandler) parseTemplate(pageName string) *template.Template {
 				return -x
 			}
 			return x
+		},
+		"formatDateForURL": func(date time.Time) string {
+			return date.Format("2006-01-02")
 		},
 	}
 
@@ -159,6 +163,13 @@ func (h *PageHandler) Transactions(c *gin.Context) {
 	if categoryIDStr := c.Query("category_id"); categoryIDStr != "" {
 		if categoryID, err := strconv.Atoi(categoryIDStr); err == nil {
 			filter.CategoryID = &categoryID
+		}
+	}
+
+	if categoryTypeStr := c.Query("category_type"); categoryTypeStr != "" {
+		if categoryType, err := strconv.Atoi(categoryTypeStr); err == nil {
+			ct := model.CategoryType(categoryType)
+			filter.CategoryType = &ct
 		}
 	}
 

@@ -131,14 +131,15 @@ func (r *TransactionRepository) GetByID(transactionID int) (*model.Transaction, 
 
 // TransactionFilter holds filter criteria for listing transactions
 type TransactionFilter struct {
-	AccountID     *int       // Filter by account
-	CategoryID    *int       // Filter by category
-	BatchID       *int       // Filter by import batch
-	Uncategorized bool       // Only uncategorized transactions
-	StartDate     *time.Time // Date range start (inclusive)
-	EndDate       *time.Time // Date range end (inclusive)
-	Limit         int        // Max results (0 = no limit)
-	Offset        int        // Pagination offset
+	AccountID     *int                  // Filter by account
+	CategoryID    *int                  // Filter by category
+	CategoryType  *model.CategoryType   // Filter by category type (Expense/Income/Investment)
+	BatchID       *int                  // Filter by import batch
+	Uncategorized bool                  // Only uncategorized transactions
+	StartDate     *time.Time            // Date range start (inclusive)
+	EndDate       *time.Time            // Date range end (inclusive)
+	Limit         int                   // Max results (0 = no limit)
+	Offset        int                   // Pagination offset
 }
 
 // List retrieves transactions with optional filters
@@ -168,6 +169,11 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 	if filter.CategoryID != nil {
 		query += " AND t.category_id = ?"
 		args = append(args, *filter.CategoryID)
+	}
+
+	if filter.CategoryType != nil {
+		query += " AND c.category_type = ?"
+		args = append(args, *filter.CategoryType)
 	}
 
 	if filter.BatchID != nil {
