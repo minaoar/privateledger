@@ -278,3 +278,14 @@ func (h *PageHandler) HowToDownload(c *gin.Context) {
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	h.parseTemplate("how-to-download-transaction").ExecuteTemplate(c.Writer, "layout.html", data)
 }
+
+// About renders the about page
+func (h *PageHandler) About(c *gin.Context) {
+	data := gin.H{
+		"Title":      "About",
+		"ActivePage": "",
+	}
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	h.parseTemplate("about").ExecuteTemplate(c.Writer, "layout.html", data)
+}
