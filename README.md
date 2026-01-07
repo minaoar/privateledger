@@ -36,8 +36,50 @@ PrivateLedger is designed for users who want **full ownership of their financial
 - **Local Web Application**  
   Runs entirely on your machine via a local web UI.
 
-- **Simple Distribution**  
+- **Simple Distribution**
   Single binary, no external dependencies, no installation hassles.
+
+## Smart Categorization That Improves Over Time
+
+PrivateLedger ships with a set of suggested preset categories (e.g., Groceries & Household, Shopping & Retail, Housing, etc.), but users are always in control:
+
+- You can use the preset categories or define your own
+- Each category can have patterns / keywords (e.g., COSTCO, AMAZON, NETFLIX)
+- Transactions are automatically categorized using these patterns
+- You can manually reassign any transaction at any time
+- Adding a new pattern automatically applies to similar past and future transactions
+
+The goal is simple:
+
+As patterns accumulate over time, categorization becomes automatic and your dashboard becomes increasingly accurate.
+
+## Categories as the Core Financial Model
+
+At the heart of PrivateLedger is a flexible category system designed to reflect how people actually think about money.
+
+Each transaction belongs to a Category, and every category has one of four types:
+
+**1. Expense**
+
+Examples: Groceries, Shopping, Housing, Dining
+These represent real spending and are typically debit transactions that reduce net worth.
+
+**2. Income**
+
+Examples: Payroll, Side Income, Government Benefits
+These represent money coming in and increase overall income.
+
+**3. Investment**
+
+Examples: 401(k)/RRSP Contributions, Brokerage Transfers
+These may appear as debits in bank statements, but they are not expenses - they are transfers into investments. This category prevents investment activity from inflating expense numbers.
+
+**4. General**
+
+Examples: Internal Transfers, Credit Card Payments
+Some transactions are neither income nor expense. A credit card payment may show as a debit from a chequing account, but the actual spending already occurred elsewhere. The General category prevents double-counting.
+
+Dashboard insights are calculated based on category type, ensuring expenses, income, and investments are correctly represented.
 
 ## Quick Start
 

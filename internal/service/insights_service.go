@@ -478,12 +478,21 @@ func (s *InsightsService) getCategoryTypeSummary(categoryType model.CategoryType
 		}
 	}
 
-	// Calculate change
+	// Calculate change using absolute values (expenses/investments are negative)
+	absPrevious := previousTotal
+	if absPrevious < 0 {
+		absPrevious = -absPrevious
+	}
+	absCurrent := currentTotal
+	if absCurrent < 0 {
+		absCurrent = -absCurrent
+	}
+
 	var changePercent float64
 	var changeDirection string
-	if previousTotal > 0 {
-		changePercent = ((currentTotal - previousTotal) / previousTotal) * 100
-	} else if currentTotal > 0 {
+	if absPrevious > 0 {
+		changePercent = ((absCurrent - absPrevious) / absPrevious) * 100
+	} else if absCurrent > 0 {
 		changePercent = 100
 	}
 
@@ -500,8 +509,22 @@ func (s *InsightsService) getCategoryTypeSummary(categoryType model.CategoryType
 		currentPeriod.StartDate.Format("Jan 2"),
 		currentPeriod.EndDate.Format("Jan 2"))
 
+	// For display purposes, show absolute value of total (investments/expenses are negative but should display positive)
+	displayTotal := currentTotal
+	if displayTotal < 0 {
+		displayTotal = -displayTotal
+	}
+
+	slog.Info("Category type summary calculated",
+		slog.String("category_type", fmt.Sprintf("%d", categoryType)),
+		slog.Float64("current_total", currentTotal),
+		slog.Float64("previous_total", previousTotal),
+		slog.Float64("display_total", displayTotal),
+		slog.Float64("change_percent", changePercent),
+		slog.String("change_direction", changeDirection))
+
 	return &CategoryTypeSummary{
-		TotalAmount:      currentTotal,
+		TotalAmount:      displayTotal,
 		PreviousAmount:   previousTotal,
 		ChangePercent:    changePercent,
 		ChangeDirection:  changeDirection,
