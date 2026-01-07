@@ -27,6 +27,13 @@ const (
 	defaultDBFile     = "privateledger.db"
 )
 
+var (
+	// Version is the application version (injected at build time)
+	Version = "dev"
+	// BuildTime is the build timestamp (injected at build time)
+	BuildTime = "unknown"
+)
+
 func main() {
 	// Determine config and database paths (relative to executable)
 	execPath, err := os.Executable()
@@ -53,7 +60,8 @@ func main() {
 	}
 
 	slog.Info("PrivateLedger starting",
-		slog.String("version", "0.1.0"),
+		slog.String("version", Version),
+		slog.String("build_time", BuildTime),
 		slog.String("config_path", configPath),
 		slog.String("database_path", dbPath),
 		slog.Bool("file_logging", cfg.Logging.EnableFileLogging),
@@ -95,7 +103,7 @@ func main() {
 	importHandler := handler.NewImportHandler(importService)
 	importBatchHandler := handler.NewImportBatchHandler(importBatchRepo)
 	insightsHandler := handler.NewInsightsHandler(insightsService, accountRepo)
-	pageHandler := handler.NewPageHandler(embeddedFiles, accountRepo, transactionRepo, categoryRepo, patternRepo, insightsService)
+	pageHandler := handler.NewPageHandler(embeddedFiles, accountRepo, transactionRepo, categoryRepo, patternRepo, insightsService, Version)
 
 	// Initialize Gin router
 	if cfg.DebugMode {

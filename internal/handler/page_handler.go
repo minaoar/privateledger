@@ -22,6 +22,7 @@ type PageHandler struct {
 	categoryRepo    *repository.CategoryRepository
 	patternRepo     *repository.CategoryPatternRepository
 	insightsService *service.InsightsService
+	version         string
 }
 
 // NewPageHandler creates a new PageHandler
@@ -32,6 +33,7 @@ func NewPageHandler(
 	categoryRepo *repository.CategoryRepository,
 	patternRepo *repository.CategoryPatternRepository,
 	insightsService *service.InsightsService,
+	version string,
 ) *PageHandler {
 	return &PageHandler{
 		files:           files,
@@ -40,6 +42,7 @@ func NewPageHandler(
 		categoryRepo:    categoryRepo,
 		patternRepo:     patternRepo,
 		insightsService: insightsService,
+		version:         version,
 	}
 }
 
@@ -105,6 +108,7 @@ func (h *PageHandler) Dashboard(c *gin.Context) {
 		"Title":      "Dashboard",
 		"ActivePage": "dashboard",
 		"Stats":      stats,
+		"Version":    h.version,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -123,6 +127,7 @@ func (h *PageHandler) Accounts(c *gin.Context) {
 		"Title":      "Accounts",
 		"ActivePage": "accounts",
 		"Accounts":   accounts,
+		"Version":    h.version,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -141,6 +146,7 @@ func (h *PageHandler) Categories(c *gin.Context) {
 		"Title":      "Categories",
 		"ActivePage": "categories",
 		"Categories": categories,
+		"Version":    h.version,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -226,6 +232,7 @@ func (h *PageHandler) Transactions(c *gin.Context) {
 		"Accounts":     accounts,
 		"Categories":   categories,
 		"Filter":       filterValues,
+		"Version":      h.version,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -244,6 +251,7 @@ func (h *PageHandler) Import(c *gin.Context) {
 		"Title":      "Import",
 		"ActivePage": "import",
 		"Accounts":   accounts,
+		"Version":    h.version,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -260,7 +268,8 @@ func (h *PageHandler) Onboarding(c *gin.Context) {
 	}
 
 	data := gin.H{
-		"Title": "Welcome to PrivateLedger",
+		"Title":   "Welcome to PrivateLedger",
+		"Version": h.version,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -273,6 +282,7 @@ func (h *PageHandler) HowToDownload(c *gin.Context) {
 	data := gin.H{
 		"Title":      "How to Download Transactions",
 		"ActivePage": "import",
+		"Version":    h.version,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -284,6 +294,7 @@ func (h *PageHandler) About(c *gin.Context) {
 	data := gin.H{
 		"Title":      "About",
 		"ActivePage": "",
+		"Version":    h.version,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")

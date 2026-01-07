@@ -101,11 +101,8 @@ If you don't already have Go installed:
 git clone https://github.com/oronno/PrivateLedger.git
 cd PrivateLedger
 
-# Download dependencies
-go mod tidy
-
 # Build the binary
-go build -o privateledger ./cmd/server
+make build
 ```
 
 ### Running
