@@ -83,7 +83,7 @@
                             <i class="bi bi-wallet2 display-1 text-primary"></i>
                         </div>
                         <h3 class="mb-3">Your Privacy-First Finance Manager</h3>
-                        <p class="text-muted mb-4">PrivateLedger keeps all your financial data on your computer. No cloud sync, no third parties, just you and your data.</p>
+                        <p class="text-muted mb-4">PrivateLedger is a local-only personal finance application that helps you understand your monthly spending across multiple bank accounts and credit cards - without giving any third party access to your financial data. PrivateLedger keeps all your financial data on your computer. No cloud sync, no third parties, just you and your data.</p>
 
                         <div class="row g-3 mb-4">
                             <div class="col-md-4">
@@ -96,7 +96,7 @@
                             </div>
                             <div class="col-md-4">
                                 <i class="bi bi-file-earmark-arrow-up text-info fs-3"></i>
-                                <p class="small mb-0 mt-2">OFX/QFX Import</p>
+                                <p class="small mb-0 mt-2">Bank Statement Files</p>
                             </div>
                         </div>
 
@@ -251,7 +251,7 @@
                             <i class="bi bi-check-circle-fill display-1 text-success"></i>
                         </div>
                         <h3 class="mb-3">You're All Set!</h3>
-                        <p class="text-muted mb-4">Your PrivateLedger is ready. Start by importing your first OFX or QFX file.</p>
+                        <p class="text-muted mb-4">Your PrivateLedger is ready. Start by importing your downloaded bank transaction history.</p>
 
                         <div class="d-flex gap-3 justify-content-center">
                             <a href="/import" class="btn btn-lg btn-primary">
@@ -292,7 +292,7 @@ const presetCategories = [
     { name: 'Food & Dining', type: 2, color: '#fd7e14', icon: 'cup-straw', category_pattern: 'TIM HORTONS, STARBUCKS, A&W, MCDONALD, MCDONALDS, THAI EXPRESS, SUBWAY, KFC, SWISS CHALET, UBER EATS, DOORDASH, PIZZA PIZZA' },
     { name: 'Shopping & Retail', type: 2, color: '#6f42c1', icon: 'bag', category_pattern: 'WINNERS, BATH AND BODY, SEPHORA, TEMU, OLD NAVY, Tommy Hilfiger, THE CHILDREN, Uniqlo, SUZY SHIER, URBAN KIDS, HOMESENSE, SPORT CHEK, SHEIN, MARSHALLS, CARTERS, AMZN Mktp, Amazon' },
     { name: 'Housing & Utilities', type: 2, color: '#20c997', icon: 'house-door', category_pattern: 'HYDRO, ENBRIDGE, MORTGAGE, PROPERTY TAX' },
-    { name: 'Car Related', type: 2, color: '#6610f2', icon: 'car-front', category_pattern: 'SHELL, PETRO-CANADA, ESSO, CANADIAN TIRE GAS, COSTCO GAS' },
+    { name: 'Gas & Fuel', type: 2, color: '#6610f2', icon: 'fuel-pump', category_pattern: 'SHELL, PETRO-CANADA, ESSO' },
     { name: 'Kids Activities', type: 2, color: '#ff6b9d', icon: 'puzzle', category_pattern: 'YMCA, KUMON' },
     { name: 'Insurance', type: 2, color: '#0d6efd', icon: 'shield-check', category_pattern: 'MANULIFE, SUNLIFE, GREAT-WEST LIFE, DESJARDINS, INSURANCE' },
     { name: 'Fitness & Wellness', type: 2, color: '#198754', icon: 'heart-pulse', category_pattern: 'ORANGETHEORY, GOODLIFE, PLANET FITNESS, ANYTIME FITNESS' },
@@ -300,8 +300,8 @@ const presetCategories = [
     { name: 'Entertainment', type: 2, color: '#e83e8c', icon: 'film', category_pattern: 'NETFLIX, SPOTIFY, DISNEY, CINEPLEX' },
     { name: 'Gifts & Social', type: 2, color: '#ffc107', icon: 'gift' },
     { name: 'Healthcare', type: 2, color: '#dc3545', icon: 'hospital', category_pattern: 'PHARMACY, MEDICAL, DENTAL, HOSPITAL, CLINIC, PHYSIO, CHIROPRACTOR, OPTOMETRIST' },
-    { name: 'Investments', type: 1, color: '#0dcaf0', icon: 'graph-up-arrow', category_pattern: 'WEALTHSIMPLE, QUESTRADE, TD DIRECT, RBC DIRECT, BMO INVESTORLINE' },
-    { name: 'Income', type: 3, color: '#198754', icon: 'cash-coin', category_pattern: 'PAYROLL' },
+    { name: 'Investment', type: 4, color: '#0dcaf0', icon: 'graph-up-arrow', category_pattern: 'WEALTHSIMPLE, QUESTRADE' },
+    { name: 'Salary', type: 3, color: '#198754', icon: 'cash-coin', category_pattern: 'PAYROLL' },
     { name: 'Credit Card Payment', type: 1, color: '#adb5bd', icon: 'arrow-left-right', category_pattern: 'CC PAYMENT' },
     { name: 'Skip / Ignore', type: 1, color: '#6c757d', icon: 'slash-circle'}
 ];

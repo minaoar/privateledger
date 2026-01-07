@@ -168,6 +168,7 @@ func main() {
 	router.GET("/categories", pageHandler.Categories)
 	router.GET("/transactions", pageHandler.Transactions)
 	router.GET("/import", pageHandler.Import)
+	router.GET("/how-to-download", pageHandler.HowToDownload)
 
 	// Start server
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)

@@ -85,33 +85,34 @@ Dashboard insights are calculated based on category type, ensuring expenses, inc
 
 ### Prerequisites
 
+- Git
 - Go 1.23 or later (for building from source)
+
+If you don't already have Go installed:
+
+- macOS user: install Go with Homebrew `brew install go`
+- Windows user: installo Go from: https://go.dev/dl/
+- Ubuntu & Debian user: install with apt package manager `sudo apt install golang-go`
 
 ### Building
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/oronno/PrivateLedger.git
 cd PrivateLedger
 
 # Download dependencies
 go mod tidy
 
 # Build the binary
-make build
-
-# Or build for all platforms
-make build-all
+go build -o privateledger ./cmd/server
 ```
 
 ### Running
 
 ```bash
-# Run directly
+# Run the built binary directly
 ./privateledger
-
-# Or use make
-make run
 ```
 
 On first run, the application will:
@@ -121,7 +122,7 @@ On first run, the application will:
 
 ## Configuration
 
-Edit `config.json` to customize settings:
+You may edit `config.json` to customize settings (optional):
 
 ```json
 {
@@ -143,21 +144,11 @@ Edit `config.json` to customize settings:
 This project has been developed heavily with Claude Code.  
 For architectural decisions, trade-offs, and design rationale, see: [CLAUDE.md](CLAUDE.md#architecture)
 
-## Development
-
-```bash
-# Run tests
-make test
-
-# Clean build artifacts
-make clean
-```
-
 ## Tech Stack
 
 - **Go** - Backend and CLI
 - **Gin** - Web framework
-- **SQLite** (modernc.org/sqlite) - Database (pure Go, no CGO)
+- **SQLite** (modernc.org/sqlite) - SQLite Database
 - **ofxgo** - OFX/QFX file parser
 - **Bootstrap 5 + HTMX** - Frontend
 

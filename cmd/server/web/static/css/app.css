@@ -262,6 +262,24 @@ footer {
     border-color: #dee2e6;
 }
 
+/* A vibrant, electric blue */
+.bg-lively-blue {
+    background-color: #007bff !important;
+    color: white;
+}
+
+/* A bright, "lively" spring green */
+.bg-lively-green {
+    background-color: #2ecc71 !important; 
+    color: white;
+}
+
+/* A sharp, distinct red */
+.bg-distinct-red {
+    background-color: #e74c3c !important;
+    color: white;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .stat-card {

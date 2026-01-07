@@ -601,6 +601,7 @@ func (s *InsightsService) GetDashboardStats(accountRepo *repository.AccountRepos
 	}
 
 	investmentSummary, err := s.getCategoryTypeSummary(model.CategoryTypeInvestment, year, month)
+	slog.Info("investmentSummary by getCategoryTypeSummary", "investmentSummary", investmentSummary)
 	if err != nil {
 		slog.Error("Error getting investment summary", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get investment summary: %w", err)

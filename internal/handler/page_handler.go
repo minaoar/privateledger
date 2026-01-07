@@ -267,3 +267,14 @@ func (h *PageHandler) Onboarding(c *gin.Context) {
 	tmpl := template.Must(template.ParseFS(h.files, "web/templates/onboarding.html"))
 	tmpl.Execute(c.Writer, data)
 }
+
+// HowToDownload renders the how-to guide page for downloading transactions
+func (h *PageHandler) HowToDownload(c *gin.Context) {
+	data := gin.H{
+		"Title":      "How to Download Transactions",
+		"ActivePage": "import",
+	}
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	h.parseTemplate("how-to-download-transaction").ExecuteTemplate(c.Writer, "layout.html", data)
+}
