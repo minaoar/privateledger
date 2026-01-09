@@ -255,6 +255,147 @@
 </div>
 {{end}}
 
+<!-- Income Breakdown Table -->
+{{if gt (len .Stats.IncomeBreakdown.Categories) 0}}
+<div class="row mt-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Income Breakdown</h5>
+                <small class="text-muted">Last 6 months income by category</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Category</th>
+                                {{range .Stats.IncomeBreakdown.Periods}}
+                                <th class="text-end">{{formatDate .StartDate}}</th>
+                                {{end}}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range $category := .Stats.IncomeBreakdown.Categories}}
+                            <tr>
+                                <td class="ps-3">
+                                    {{if $category.CategoryIcon}}<i class="bi bi-{{$category.CategoryIcon}} me-2"></i>{{end}}
+                                    {{$category.CategoryName}}
+                                </td>
+                                {{range $.Stats.IncomeBreakdown.Periods}}
+                                <td class="text-end">
+                                    {{$value := index $category.MonthlyTotals .Label}}
+                                    {{if ne $value 0.0}}
+                                        <a href="/transactions?category_id={{$category.CategoryID}}&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
+                                           class="text-success text-decoration-none"
+                                           title="View transactions for {{$category.CategoryName}} in this period">
+                                            ${{printf "%.0f" (abs $value)}}
+                                        </a>
+                                    {{else}}
+                                        <span class="text-muted">-</span>
+                                    {{end}}
+                                </td>
+                                {{end}}
+                            </tr>
+                            {{end}}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td class="ps-3">TOTAL</td>
+                                {{range .Stats.IncomeBreakdown.Periods}}
+                                <td class="text-end">
+                                    {{$total := index $.Stats.IncomeBreakdown.MonthlyTotals .Label}}
+                                    {{if ne $total 0.0}}
+                                        <a href="/transactions?category_type=3&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
+                                           class="text-success text-decoration-none"
+                                           title="View all income transactions in this period">
+                                            ${{printf "%.0f" (abs $total)}}
+                                        </a>
+                                    {{else}}
+                                        <span class="text-muted">-</span>
+                                    {{end}}
+                                </td>
+                                {{end}}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
+
+<!-- Investment Breakdown Table -->
+{{if gt (len .Stats.InvestmentBreakdown.Categories) 0}}
+<div class="row mt-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5 class="card-title mb-0">Investment Breakdown</h5>
+                <small class="text-muted">Last 6 months investment by category</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Category</th>
+                                {{range .Stats.InvestmentBreakdown.Periods}}
+                                <th class="text-end">{{formatDate .StartDate}}</th>
+                                {{end}}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{range $category := .Stats.InvestmentBreakdown.Categories}}
+                            <tr>
+                                <td class="ps-3">
+                                    {{if $category.CategoryIcon}}<i class="bi bi-{{$category.CategoryIcon}} me-2"></i>{{end}}
+                                    {{$category.CategoryName}}
+                                </td>
+                                {{range $.Stats.InvestmentBreakdown.Periods}}
+                                <td class="text-end">
+                                    {{$value := index $category.MonthlyTotals .Label}}
+                                    {{if ne $value 0.0}}
+                                        <a href="/transactions?category_id={{$category.CategoryID}}&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
+                                           class="text-info text-decoration-none"
+                                           title="View transactions for {{$category.CategoryName}} in this period">
+                                            ${{printf "%.0f" (abs $value)}}
+                                        </a>
+                                    {{else}}
+                                        <span class="text-muted">-</span>
+                                    {{end}}
+                                </td>
+                                {{end}}
+                            </tr>
+                            {{end}}
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td class="ps-3">TOTAL</td>
+                                {{range .Stats.InvestmentBreakdown.Periods}}
+                                <td class="text-end">
+                                    {{$total := index $.Stats.InvestmentBreakdown.MonthlyTotals .Label}}
+                                    {{if ne $total 0.0}}
+                                        <a href="/transactions?category_type=4&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
+                                           class="text-info text-decoration-none"
+                                           title="View all investment transactions in this period">
+                                            ${{printf "%.0f" (abs $total)}}
+                                        </a>
+                                    {{else}}
+                                        <span class="text-muted">-</span>
+                                    {{end}}
+                                </td>
+                                {{end}}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}
 
 {{if gt (len .Stats.CurrentMonth.CategoryBreakdown) 0}}
 <script>
