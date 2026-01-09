@@ -206,7 +206,7 @@ func TestGetCurrentMonthPeriod_BeforeStartDay(t *testing.T) {
 	// For demonstration, we'll test the logic manually
 	now := time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC)
 
-	year := now.Year()    // 2026
+	year := now.Year()        // 2026
 	month := int(now.Month()) // 1 (January)
 
 	// Since now.Day() (10) < start_of_month (19), we should be in previous month
