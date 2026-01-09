@@ -111,8 +111,7 @@ Dashboard insights are calculated based on category type, ensuring expenses, inc
 
 ### Prerequisites
 
-- Git
-- Go 1.23 or later (for building from source)
+- **Go 1.23 or later**
 
 If you don't already have Go installed:
 
@@ -120,28 +119,46 @@ If you don't already have Go installed:
 - Windows user: installo Go from: https://go.dev/dl/
 - Ubuntu & Debian user: install with apt package manager `sudo apt install golang-go`
 
-### Building
+### 🚀 Simplest Way to Run the Application
+
+The easiest way to run PrivateLedger without manually cloning or building the source—is to install it directly using the Go toolchain:
 
 ```bash
-# Clone the repository
-git clone https://github.com/oronno/PrivateLedger.git
-cd PrivateLedger
+# Install using the Go toolchain
+go install github.com/oronno/PrivateLedger/cmd/privateledger@latest
 
-# Build the binary
-make build
+# Run the application
+privateledger
 ```
 
-### Running
+Open your browser and navigate to:  
+👉 http://localhost:8844
+
+### 🛠️ Building from Source
+
+If you prefer to build from source:
 
 ```bash
-# Run the built binary directly
+# 1. Clone the repository
+git clone https://github.com/oronno/privateledger.git
+cd privateledger
+
+# 2. Build the binary
+# Build directly with Go
+go build -o privateledger ./cmd/privateledger
+# Or Build using the Makefile
+make build
+
+# 3. Run the compiled binary
 ./privateledger
 ```
 
-On first run, the application will:
+Then open your browser at:  
+👉 http://localhost:8844
+
+On first run, PrivateLedger will:  
 1. Create `config.json` with default settings
 2. Create `privateledger.db` SQLite database
-3. Open your browser to `http://localhost:8844`
 
 ## Configuration
 

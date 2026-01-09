@@ -297,9 +297,9 @@ type ExpenseCategoryByMonth = CategoryByMonth
 
 // CategoryBreakdownTable contains breakdown by category across months (generic for any category type)
 type CategoryBreakdownTable struct {
-	Periods       []MonthPeriod            `json:"periods"`        // Last N months
-	Categories    []CategoryByMonth        `json:"categories"`     // Categories of the specified type
-	MonthlyTotals map[string]float64       `json:"monthly_totals"` // Column totals by period
+	Periods       []MonthPeriod      `json:"periods"`        // Last N months
+	Categories    []CategoryByMonth  `json:"categories"`     // Categories of the specified type
+	MonthlyTotals map[string]float64 `json:"monthly_totals"` // Column totals by period
 }
 
 // ExpenseBreakdownTable is an alias for backwards compatibility
@@ -307,16 +307,16 @@ type ExpenseBreakdownTable = CategoryBreakdownTable
 
 // DashboardStats contains quick statistics for the dashboard
 type DashboardStats struct {
-	CurrentMonth         MonthlySummary         `json:"current_month"`
-	ExpenseSummary       CategoryTypeSummary    `json:"expense_summary"`
-	IncomeSummary        CategoryTypeSummary    `json:"income_summary"`
-	InvestmentSummary    CategoryTypeSummary    `json:"investment_summary"`
-	ExpenseBreakdown     CategoryBreakdownTable `json:"expense_breakdown"`
-	IncomeBreakdown      CategoryBreakdownTable `json:"income_breakdown"`
-	InvestmentBreakdown  CategoryBreakdownTable `json:"investment_breakdown"`
-	AccountCount         int                    `json:"account_count"`
-	CategoryCount        int                    `json:"category_count"`
-	UncategorizedCount   int                    `json:"uncategorized_count"`
+	CurrentMonth        MonthlySummary         `json:"current_month"`
+	ExpenseSummary      CategoryTypeSummary    `json:"expense_summary"`
+	IncomeSummary       CategoryTypeSummary    `json:"income_summary"`
+	InvestmentSummary   CategoryTypeSummary    `json:"investment_summary"`
+	ExpenseBreakdown    CategoryBreakdownTable `json:"expense_breakdown"`
+	IncomeBreakdown     CategoryBreakdownTable `json:"income_breakdown"`
+	InvestmentBreakdown CategoryBreakdownTable `json:"investment_breakdown"`
+	AccountCount        int                    `json:"account_count"`
+	CategoryCount       int                    `json:"category_count"`
+	UncategorizedCount  int                    `json:"uncategorized_count"`
 }
 
 // GetExpenseBreakdownTable builds a table of expense categories across the last N months
