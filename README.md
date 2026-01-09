@@ -125,7 +125,7 @@ The easiest way to run PrivateLedger without manually cloning or building the so
 
 ```bash
 # Install using the Go toolchain
-go install github.com/oronno/PrivateLedger/cmd/privateledger@latest
+go install github.com/oronno/privateledger/cmd/privateledger@latest
 
 # Run the application
 privateledger
