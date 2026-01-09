@@ -11,16 +11,25 @@
     </div>
 </div>
 
-<div class="row">
+{{if gt (len .Categories) 0}}
+<!-- Expense Categories (type=2) -->
+<div class="row mb-4">
     <div class="col">
         <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Expense</h5>
+                <small class="text-muted">Everyday spending that reduces net worth (e.g., Groceries, Dining, Housing)</small>
+            </div>
             <div class="card-body">
-                {{if gt (len .Categories) 0}}
-                <div class="accordion" id="categoriesAccordion">
-                    {{range $index, $cat := .Categories}}
+                {{$hasExpense := false}}
+                {{range .Categories}}{{if eq (printf "%d" .CategoryType) "2"}}{{$hasExpense = true}}{{end}}{{end}}
+                {{if $hasExpense}}
+                <div class="accordion" id="expenseAccordion">
+                    {{range $cat := .Categories}}
+                    {{if eq (printf "%d" .CategoryType) "2"}}
                     <div class="accordion-item">
                         <h2 class="accordion-header">
-                            <button class="accordion-button {{if ne $index 0}}collapsed{{end}}" type="button"
+                            <button class="accordion-button collapsed" type="button"
                                     data-bs-toggle="collapse" data-bs-target="#cat{{.CategoryID}}">
                                 {{if .Icon}}
                                 <i class="bi bi-{{.Icon}} me-2" style="color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};"></i>
@@ -34,8 +43,8 @@
                                 <span class="badge bg-secondary ms-2">{{len .Patterns}} patterns</span>
                             </button>
                         </h2>
-                        <div id="cat{{.CategoryID}}" class="accordion-collapse collapse {{if eq $index 0}}show{{end}}"
-                             data-bs-parent="#categoriesAccordion">
+                        <div id="cat{{.CategoryID}}" class="accordion-collapse collapse"
+                             data-bs-parent="#expenseAccordion">
                             <div class="accordion-body">
                                 <div class="mb-3">
                                     <strong>Patterns:</strong>
@@ -53,7 +62,6 @@
                                     <span class="text-muted">No patterns yet</span>
                                     {{end}}
                                 </div>
-
                                 <div class="d-flex gap-2">
                                     <button class="btn btn-sm btn-outline-primary"
                                             onclick="showAddPatternModal({{.CategoryID}}, '{{.Name}}')">
@@ -68,26 +76,260 @@
                         </div>
                     </div>
                     {{end}}
+                    {{end}}
                 </div>
                 {{else}}
+                <p class="text-muted mb-0">No expense categories yet.</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Income Categories (type=3) -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-wallet2 me-2"></i>Income</h5>
+                <small class="text-muted">Money coming in (e.g., Salary, Side Income, Government Benefits)</small>
+            </div>
+            <div class="card-body">
+                {{$hasIncome := false}}
+                {{range .Categories}}{{if eq (printf "%d" .CategoryType) "3"}}{{$hasIncome = true}}{{end}}{{end}}
+                {{if $hasIncome}}
+                <div class="accordion" id="incomeAccordion">
+                    {{range $cat := .Categories}}
+                    {{if eq (printf "%d" .CategoryType) "3"}}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#cat{{.CategoryID}}">
+                                {{if .Icon}}
+                                <i class="bi bi-{{.Icon}} me-2" style="color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};"></i>
+                                {{else}}
+                                <span class="badge rounded-pill me-2"
+                                      style="background-color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};">
+                                    &nbsp;&nbsp;&nbsp;
+                                </span>
+                                {{end}}
+                                {{.Name}}
+                                <span class="badge bg-secondary ms-2">{{len .Patterns}} patterns</span>
+                            </button>
+                        </h2>
+                        <div id="cat{{.CategoryID}}" class="accordion-collapse collapse"
+                             data-bs-parent="#incomeAccordion">
+                            <div class="accordion-body">
+                                <div class="mb-3">
+                                    <strong>Patterns:</strong>
+                                    {{if gt (len .Patterns) 0}}
+                                    <div class="mt-2">
+                                        {{range .Patterns}}
+                                        <span class="pattern-tag">
+                                            {{.PatternName}}
+                                            <button class="btn-close btn-close-sm ms-1" style="font-size: 0.6rem;"
+                                                    onclick="deletePattern({{.CategoryPatternID}}, '{{.PatternName}}')"></button>
+                                        </span>
+                                        {{end}}
+                                    </div>
+                                    {{else}}
+                                    <span class="text-muted">No patterns yet</span>
+                                    {{end}}
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            onclick="showAddPatternModal({{.CategoryID}}, '{{.Name}}')">
+                                        <i class="bi bi-plus"></i> Add Pattern
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteCategory({{.CategoryID}}, '{{.Name}}')">
+                                        <i class="bi bi-trash"></i> Delete Category
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+                    {{end}}
+                </div>
+                {{else}}
+                <p class="text-muted mb-0">No income categories yet.</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Investment Categories (type=4) -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Investment</h5>
+                <small class="text-muted">Transfers into investments, not spending (e.g., RRSP/401(k) contributions, brokerage transfers)</small>
+            </div>
+            <div class="card-body">
+                {{$hasInvestment := false}}
+                {{range .Categories}}{{if eq (printf "%d" .CategoryType) "4"}}{{$hasInvestment = true}}{{end}}{{end}}
+                {{if $hasInvestment}}
+                <div class="accordion" id="investmentAccordion">
+                    {{range $cat := .Categories}}
+                    {{if eq (printf "%d" .CategoryType) "4"}}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#cat{{.CategoryID}}">
+                                {{if .Icon}}
+                                <i class="bi bi-{{.Icon}} me-2" style="color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};"></i>
+                                {{else}}
+                                <span class="badge rounded-pill me-2"
+                                      style="background-color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};">
+                                    &nbsp;&nbsp;&nbsp;
+                                </span>
+                                {{end}}
+                                {{.Name}}
+                                <span class="badge bg-secondary ms-2">{{len .Patterns}} patterns</span>
+                            </button>
+                        </h2>
+                        <div id="cat{{.CategoryID}}" class="accordion-collapse collapse"
+                             data-bs-parent="#investmentAccordion">
+                            <div class="accordion-body">
+                                <div class="mb-3">
+                                    <strong>Patterns:</strong>
+                                    {{if gt (len .Patterns) 0}}
+                                    <div class="mt-2">
+                                        {{range .Patterns}}
+                                        <span class="pattern-tag">
+                                            {{.PatternName}}
+                                            <button class="btn-close btn-close-sm ms-1" style="font-size: 0.6rem;"
+                                                    onclick="deletePattern({{.CategoryPatternID}}, '{{.PatternName}}')"></button>
+                                        </span>
+                                        {{end}}
+                                    </div>
+                                    {{else}}
+                                    <span class="text-muted">No patterns yet</span>
+                                    {{end}}
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            onclick="showAddPatternModal({{.CategoryID}}, '{{.Name}}')">
+                                        <i class="bi bi-plus"></i> Add Pattern
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteCategory({{.CategoryID}}, '{{.Name}}')">
+                                        <i class="bi bi-trash"></i> Delete Category
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+                    {{end}}
+                </div>
+                {{else}}
+                <p class="text-muted mb-0">No investment categories yet.</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- General Categories (type=1) -->
+<div class="row mb-4">
+    <div class="col">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-tag me-2"></i>General</h5>
+                <small class="text-muted">Non-spending transactions used to avoid double-counting (e.g., Internal transfers, credit card payments)</small>
+            </div>
+            <div class="card-body">
+                {{$hasGeneral := false}}
+                {{range .Categories}}{{if eq (printf "%d" .CategoryType) "1"}}{{$hasGeneral = true}}{{end}}{{end}}
+                {{if $hasGeneral}}
+                <div class="accordion" id="generalAccordion">
+                    {{range $cat := .Categories}}
+                    {{if eq (printf "%d" .CategoryType) "1"}}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#cat{{.CategoryID}}">
+                                {{if .Icon}}
+                                <i class="bi bi-{{.Icon}} me-2" style="color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};"></i>
+                                {{else}}
+                                <span class="badge rounded-pill me-2"
+                                      style="background-color: {{if .Color}}{{.Color}}{{else}}#6b7280{{end}};">
+                                    &nbsp;&nbsp;&nbsp;
+                                </span>
+                                {{end}}
+                                {{.Name}}
+                                <span class="badge bg-secondary ms-2">{{len .Patterns}} patterns</span>
+                            </button>
+                        </h2>
+                        <div id="cat{{.CategoryID}}" class="accordion-collapse collapse"
+                             data-bs-parent="#generalAccordion">
+                            <div class="accordion-body">
+                                <div class="mb-3">
+                                    <strong>Patterns:</strong>
+                                    {{if gt (len .Patterns) 0}}
+                                    <div class="mt-2">
+                                        {{range .Patterns}}
+                                        <span class="pattern-tag">
+                                            {{.PatternName}}
+                                            <button class="btn-close btn-close-sm ms-1" style="font-size: 0.6rem;"
+                                                    onclick="deletePattern({{.CategoryPatternID}}, '{{.PatternName}}')"></button>
+                                        </span>
+                                        {{end}}
+                                    </div>
+                                    {{else}}
+                                    <span class="text-muted">No patterns yet</span>
+                                    {{end}}
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            onclick="showAddPatternModal({{.CategoryID}}, '{{.Name}}')">
+                                        <i class="bi bi-plus"></i> Add Pattern
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteCategory({{.CategoryID}}, '{{.Name}}')">
+                                        <i class="bi bi-trash"></i> Delete Category
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {{end}}
+                    {{end}}
+                </div>
+                {{else}}
+                <p class="text-muted mb-0">No general categories yet.</p>
+                {{end}}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col">
+        <button class="btn btn-success" onclick="recategorizeAll()">
+            <i class="bi bi-arrow-repeat"></i> Re-categorize All Transactions
+        </button>
+        <small class="text-muted ms-2">Apply current patterns to uncategorized transactions</small>
+    </div>
+</div>
+{{else}}
+<div class="row">
+    <div class="col">
+        <div class="card">
+            <div class="card-body">
                 <div class="text-center py-5 text-muted">
                     <i class="bi bi-tags display-4"></i>
                     <p class="mt-3">No categories yet. Add your first category to start auto-categorizing transactions!</p>
                 </div>
-                {{end}}
             </div>
         </div>
-
-        {{if gt (len .Categories) 0}}
-        <div class="mt-3">
-            <button class="btn btn-success" onclick="recategorizeAll()">
-                <i class="bi bi-arrow-repeat"></i> Re-categorize All Transactions
-            </button>
-            <small class="text-muted ms-2">Apply current patterns to uncategorized transactions</small>
-        </div>
-        {{end}}
     </div>
 </div>
+{{end}}
 
 <!-- Add Category Modal -->
 <div class="modal fade" id="addCategoryModal" tabindex="-1">
