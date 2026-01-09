@@ -5,7 +5,7 @@ Complete API documentation for PrivateLedger endpoints.
 ## Base URL
 
 ```
-http://localhost:8080
+http://localhost:8844
 ```
 
 ---
@@ -317,7 +317,7 @@ Import transactions from an OFX or QFX file.
 
 **Example (curl):**
 ```bash
-curl -X POST http://localhost:8080/api/import \
+curl -X POST http://localhost:8844/api/import \
   -F "file=@statement.ofx" \
   -F "account_id=1"
 ```

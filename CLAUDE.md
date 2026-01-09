@@ -32,7 +32,7 @@ make clean
 ### Development
 ```bash
 # Run from source (for development)
-go run ./cmd/server
+go run ./cmd/privateledger
 
 # Install dependencies
 go mod tidy
@@ -48,7 +48,7 @@ go test -v ./internal/service -run TestCategorizer
 The application follows a clean architecture pattern with clear separation of concerns:
 
 ```
-cmd/server/          → Entry point, dependency wiring, embedded assets
+cmd/privateledger/          → Entry point, dependency wiring, embedded assets
 internal/
 ├── config/          → Configuration management (config.json)
 ├── database/        → SQLite connection, schema migrations
@@ -72,7 +72,7 @@ internal/
    - `categorizer.go` - Pattern matching for auto-categorization
    - `insights_service.go` - Monthly aggregations, trend calculations
 
-4. **Embedded Assets**: HTML templates and static files are embedded using `go:embed` in `cmd/server/embed.go`. This enables single-binary distribution.
+4. **Embedded Assets**: HTML templates and static files are embedded using `go:embed` in `cmd/privateledger/embed.go`. This enables single-binary distribution.
 
 ### Database Schema
 
@@ -118,7 +118,7 @@ The application supports custom month boundaries via `start_of_month` config (1-
 
 **Tech Stack**: Bootstrap 5 + HTMX (no build step, no SPA)
 
-**Templates**: Located in `cmd/server/web/templates/`
+**Templates**: Located in `cmd/privateledger/web/templates/`
 - `layout.html` - Base template with navigation
 - Page templates: `dashboard.html`, `transactions.html`, `categories.html`, etc.
 - HTMX enables dynamic updates without full page reloads
@@ -166,7 +166,7 @@ func deriveTransactionType(trnType string, amount float64) int {
 File: `config.json` (created beside binary on first run)
 
 Key settings:
-- `server.port` - HTTP server port (default: 8080)
+- `server.port` - HTTP server port (default: 8844)
 - `server.auto_open_browser` - Open browser on startup
 - `start_of_month` - Custom month start day (1-28, default: 1)
 - `logging.enable_file_logging` - Write logs to `server.log`

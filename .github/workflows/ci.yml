@@ -35,7 +35,7 @@ jobs:
       run: go test -v ./...
 
     - name: Build
-      run: go build -v ./cmd/server
+      run: go build -v ./cmd/privateledger
 
   lint:
     name: Lint

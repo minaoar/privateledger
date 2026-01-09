@@ -34,7 +34,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Version: 1,
 		Server: ServerConfig{
-			Port:            8080,
+			Port:            8844,
 			AutoOpenBrowser: true,
 		},
 		Logging: LoggingConfig{

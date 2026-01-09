@@ -141,7 +141,7 @@ make build
 On first run, the application will:
 1. Create `config.json` with default settings
 2. Create `privateledger.db` SQLite database
-3. Open your browser to `http://localhost:8080`
+3. Open your browser to `http://localhost:8844`
 
 ## Configuration
 
@@ -151,7 +151,7 @@ You may edit `config.json` to customize settings (optional):
 {
   "version": 1,
   "server": {
-    "port": 8080,
+    "port": 8844,
     "auto_open_browser": true
   },
   "start_of_month": 1
