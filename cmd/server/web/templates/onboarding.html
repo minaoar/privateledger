@@ -64,6 +64,86 @@
         border-width: 2px;
         border-color: #0d6efd !important;
     }
+
+    /* Accordion Pattern Editor */
+    .pattern-accordion-item {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+    }
+
+    .pattern-accordion-header {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: #f8f9fa;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s;
+    }
+
+    .pattern-accordion-header:hover {
+        background: #e9ecef;
+    }
+
+    .pattern-accordion-header .chevron {
+        transition: transform 0.2s;
+        margin-right: 0.75rem;
+        color: #6c757d;
+    }
+
+    .pattern-accordion-item.expanded .chevron {
+        transform: rotate(90deg);
+    }
+
+    .pattern-accordion-header .category-name {
+        flex: 1;
+        font-weight: 500;
+    }
+
+    .pattern-accordion-header .pattern-count {
+        color: #6c757d;
+        font-size: 0.875rem;
+        margin-right: 0.5rem;
+    }
+
+    .pattern-accordion-header .quick-add-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .pattern-accordion-body {
+        display: none;
+        padding: 1rem;
+        border-top: 1px solid #dee2e6;
+        background: white;
+    }
+
+    .pattern-accordion-item.expanded .pattern-accordion-body {
+        display: block;
+    }
+
+    .pattern-chip {
+        display: inline-flex;
+        align-items: center;
+        background: #e9ecef;
+        border-radius: 1rem;
+        padding: 0.25rem 0.75rem;
+        margin: 0.25rem;
+        font-size: 0.875rem;
+    }
+
+    .pattern-chip .remove-btn {
+        margin-left: 0.5rem;
+        cursor: pointer;
+        opacity: 0.6;
+        font-size: 0.75rem;
+    }
+
+    .pattern-chip .remove-btn:hover {
+        opacity: 1;
+    }
     </style>
 </head>
 <body>
@@ -95,8 +175,8 @@
                                 <p class="small mb-0 mt-2">Local Storage</p>
                             </div>
                             <div class="col-md-4">
-                                <i class="bi bi-file-earmark-arrow-up text-info fs-3"></i>
-                                <p class="small mb-0 mt-2">Bank Statement Files</p>
+                                <i class="bi bi-wifi-off text-info fs-3"></i>
+                                <p class="small mb-0 mt-2">Fully Offline</p>
                             </div>
                         </div>
 
@@ -292,8 +372,8 @@ const presetCategories = [
     { name: 'Food & Dining', type: 2, color: '#fd7e14', icon: 'cup-straw', category_pattern: 'TIM HORTONS, STARBUCKS, A&W, MCDONALD, MCDONALDS, THAI EXPRESS, SUBWAY, KFC, SWISS CHALET, UBER EATS, DOORDASH, PIZZA PIZZA' },
     { name: 'Shopping & Retail', type: 2, color: '#6f42c1', icon: 'bag', category_pattern: 'WINNERS, BATH AND BODY, SEPHORA, TEMU, OLD NAVY, Tommy Hilfiger, THE CHILDREN, Uniqlo, SUZY SHIER, URBAN KIDS, HOMESENSE, SPORT CHEK, SHEIN, MARSHALLS, CARTERS, AMZN Mktp, Amazon' },
     { name: 'Housing & Utilities', type: 2, color: '#20c997', icon: 'house-door', category_pattern: 'HYDRO, ENBRIDGE, MORTGAGE, PROPERTY TAX' },
+    { name: 'Auto & Maintenance', type: 2, color: '#ff6b9d', icon: 'car-front', category_pattern: '' },
     { name: 'Gas & Fuel', type: 2, color: '#6610f2', icon: 'fuel-pump', category_pattern: 'SHELL, PETRO-CANADA, ESSO' },
-    { name: 'Kids Activities', type: 2, color: '#ff6b9d', icon: 'puzzle', category_pattern: 'YMCA, KUMON' },
     { name: 'Insurance', type: 2, color: '#0d6efd', icon: 'shield-check', category_pattern: 'MANULIFE, SUNLIFE, GREAT-WEST LIFE, DESJARDINS, INSURANCE' },
     { name: 'Fitness & Wellness', type: 2, color: '#198754', icon: 'heart-pulse', category_pattern: 'ORANGETHEORY, GOODLIFE, PLANET FITNESS, ANYTIME FITNESS' },
     { name: 'Phone & Internet', type: 2, color: '#17a2b8', icon: 'phone', category_pattern: 'ROGERS, BELL, TELUS, FIDO, FREEDOM MOBILE, CHATR, PUBLIC MOBILE, VIRGIN MOBILE' },
@@ -516,7 +596,17 @@ async function proceedToPatterns() {
                 })
             });
 
-            if (!response.ok) throw new Error('Failed to create category');
+            if (!response.ok) {
+                let errorMessage = 'Failed to create category';
+                try {
+                    const errorData = await response.json();
+                    if (errorData && errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch (parseError) {
+                }
+                throw new Error(errorMessage);
+            }
 
             const result = await response.json();
             cat.category_id = result.category_id;
@@ -543,36 +633,65 @@ function initPatternsUI() {
     }
 
     container.innerHTML = addedCategories.map((cat, catIdx) => `
-        <div class="mb-4 border rounded p-3">
-            <div class="d-flex align-items-center mb-3">
-                <div class="category-badge-preview me-3" style="background-color: #6610f2">
-                    ${cat.name}
-                </div>
-                <small class="text-muted">(${cat.patterns.length} pattern${cat.patterns.length !== 1 ? 's' : ''})</small>
-            </div>
-
-            <div class="input-group mb-2">
-                <input type="text" class="form-control" id="pattern-${catIdx}"
-                       placeholder="type keywords to match with transaction">
-                <button class="btn btn-success" onclick="addPattern(${catIdx})">
-                    <i class="bi bi-plus-lg"></i> Add
+        <div class="pattern-accordion-item" data-cat-idx="${catIdx}">
+            <div class="pattern-accordion-header" onclick="toggleAccordion(${catIdx})">
+                <i class="bi bi-chevron-right chevron"></i>
+                <span class="category-name">${cat.name}</span>
+                <span class="pattern-count" id="count-${catIdx}">${cat.patterns.length} pattern${cat.patterns.length !== 1 ? 's' : ''}</span>
+                <button class="btn btn-outline-secondary quick-add-btn" onclick="event.stopPropagation(); quickAddPattern(${catIdx})" title="Quick add pattern">
+                    <i class="bi bi-plus"></i>
                 </button>
             </div>
-
-            <div id="patterns-list-${catIdx}" class="d-flex flex-wrap gap-2 mt-2">
-                ${cat.patterns.length === 0
-                    ? '<small class="text-muted">No patterns yet</small>'
-                    : cat.patterns.map((pattern, pIdx) => `
-                        <span class="badge bg-secondary">
-                            ${pattern}
-                            <button type="button" class="btn-close btn-close-white btn-sm ms-1"
-                                    onclick="removePattern(${catIdx}, ${pIdx})" style="font-size: 0.6rem;"></button>
-                        </span>
-                    `).join('')
-                }
+            <div class="pattern-accordion-body">
+                <div id="patterns-list-${catIdx}" class="mb-3" style="min-height: 2rem;">
+                    ${renderPatternChips(cat.patterns, catIdx)}
+                </div>
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control" id="pattern-${catIdx}"
+                           placeholder="Add pattern (e.g., WALMART, COSTCO)"
+                           onkeypress="if(event.key==='Enter'){addPattern(${catIdx});event.preventDefault();}">
+                    <button class="btn btn-outline-secondary" onclick="addPattern(${catIdx})">
+                        Add
+                    </button>
+                </div>
             </div>
         </div>
     `).join('');
+}
+
+function renderPatternChips(patterns, catIdx) {
+    if (patterns.length === 0) {
+        return '<span class="text-muted small">No patterns yet - click to expand and add</span>';
+    }
+    return patterns.map((pattern, pIdx) => `
+        <span class="pattern-chip">
+            ${pattern}
+            <span class="remove-btn" onclick="removePattern(${catIdx}, ${pIdx})">
+                <i class="bi bi-x"></i>
+            </span>
+        </span>
+    `).join('');
+}
+
+function toggleAccordion(catIdx) {
+    const item = document.querySelector(`.pattern-accordion-item[data-cat-idx="${catIdx}"]`);
+    item.classList.toggle('expanded');
+}
+
+function quickAddPattern(catIdx) {
+    const pattern = prompt('Enter pattern to add:');
+    if (pattern && pattern.trim()) {
+        const cat = addedCategories[catIdx];
+        const trimmed = pattern.trim();
+
+        if (cat.patterns.some(p => p.toLowerCase() === trimmed.toLowerCase())) {
+            alert('Pattern already exists');
+            return;
+        }
+
+        cat.patterns.push(trimmed);
+        updatePatternsList(catIdx);
+    }
 }
 
 function addPattern(catIdx) {
@@ -599,24 +718,10 @@ function addPattern(catIdx) {
 function updatePatternsList(catIdx) {
     const cat = addedCategories[catIdx];
     const listEl = document.getElementById(`patterns-list-${catIdx}`);
+    const countEl = document.getElementById(`count-${catIdx}`);
 
-    if (cat.patterns.length === 0) {
-        listEl.innerHTML = '<small class="text-muted">No patterns yet</small>';
-        return;
-    }
-
-    listEl.innerHTML = cat.patterns.map((pattern, pIdx) => `
-        <span class="badge bg-secondary">
-            ${pattern}
-            <button type="button" class="btn-close btn-close-white btn-sm ms-1"
-                    onclick="removePattern(${catIdx}, ${pIdx})" style="font-size: 0.6rem;"></button>
-        </span>
-    `).join('');
-
-    // Update count badge
-    const parentDiv = listEl.closest('.mb-4');
-    const countBadge = parentDiv.querySelector('.text-muted');
-    countBadge.textContent = `(${cat.patterns.length} pattern${cat.patterns.length !== 1 ? 's' : ''})`;
+    listEl.innerHTML = renderPatternChips(cat.patterns, catIdx);
+    countEl.textContent = `${cat.patterns.length} pattern${cat.patterns.length !== 1 ? 's' : ''}`;
 }
 
 function removePattern(catIdx, pIdx) {
