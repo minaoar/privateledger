@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/oronno/privateledger/internal/model"
@@ -130,14 +131,10 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 			continue
 		}
 
-		// Check if pattern already exists
-		existingPattern, err := h.patternRepo.GetByPatternName(patternName)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		if existingPattern != nil {
-			c.JSON(http.StatusConflict, gin.H{"error": "Pattern '" + patternName + "' already exists"})
+		// Check for conflicting patterns
+		conflictingPattern := h.findConflictingPattern(patternName)
+		if conflictingPattern != "" {
+			c.JSON(http.StatusConflict, gin.H{"error": "Pattern '" + patternName + "' conflicts with \"" + conflictingPattern + "\""})
 			return
 		}
 
@@ -285,14 +282,10 @@ func (h *CategoryHandler) AddPattern(c *gin.Context) {
 		return
 	}
 
-	// Check if pattern already exists
-	existingPattern, err := h.patternRepo.GetByPatternName(req.PatternName)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if existingPattern != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "Pattern already exists"})
+	// Check for conflicting patterns
+	conflictingPattern := h.findConflictingPattern(req.PatternName)
+	if conflictingPattern != "" {
+		c.JSON(http.StatusConflict, gin.H{"error": "Pattern conflicts with \"" + conflictingPattern + "\""})
 		return
 	}
 
@@ -309,6 +302,25 @@ func (h *CategoryHandler) AddPattern(c *gin.Context) {
 	h.categorizer.RecategorizeByCategory(categoryID)
 
 	c.JSON(http.StatusCreated, pattern)
+}
+
+// findConflictingPattern checks if the new pattern conflicts with any existing pattern
+// Returns the conflicting pattern name, or empty string if no conflict
+func (h *CategoryHandler) findConflictingPattern(newPattern string) string {
+	patterns, err := h.patternRepo.GetAll()
+	if err != nil {
+		return ""
+	}
+
+	newLower := strings.ToLower(newPattern)
+	for _, p := range patterns {
+		existingLower := strings.ToLower(p.PatternName)
+		// Check if new contains existing or existing contains new
+		if strings.Contains(newLower, existingLower) || strings.Contains(existingLower, newLower) {
+			return p.PatternName
+		}
+	}
+	return ""
 }
 
 // DeletePattern deletes a pattern

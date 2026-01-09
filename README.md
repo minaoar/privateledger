@@ -16,6 +16,20 @@ PrivateLedger is designed for users who want **full ownership of their financial
 
 ---
 
+## Screenshots
+
+### Onboarding
+<img src="docs/assets/onboarding-demo.gif" width="700" />
+
+### Import and Transactions Management
+<img src="docs/assets/import-and-transaction-management.gif" width="700" />
+
+### Dashboard and Monthly Breakdown
+<img src="docs/assets/dashboard-demo.gif" width="700" />
+
+
+---
+
 ## Features
 
 - **Privacy-First by Design**  
@@ -39,47 +53,59 @@ PrivateLedger is designed for users who want **full ownership of their financial
 - **Simple Distribution**
   Single binary, no external dependencies, no installation hassles.
 
-## Smart Categorization That Improves Over Time
+## Smart, Category-Based Financial Model
 
-PrivateLedger ships with a set of suggested preset categories (e.g., Groceries & Household, Shopping & Retail, Housing, etc.), but users are always in control:
+PrivateLedger is built around a flexible **category system** that reflects how people actually think about money.
 
-- You can use the preset categories or define your own
-- Each category can have patterns / keywords (e.g., COSTCO, AMAZON, NETFLIX)
-- Transactions are automatically categorized using these patterns
+### Smart Categorization
+- Comes with sensible default categories (e.g., Groceries & Household, Shopping & Retail, Housing)
+- You can rename categories or create your own
+- Categories support **keyword-based patterns** (e.g., `COSTCO`, `AMAZON`, `NETFLIX`)
+- Transactions are categorized automatically using these patterns
 - You can manually reassign any transaction at any time
-- Adding a new pattern automatically applies to similar past and future transactions
+- New patterns can be applied to past and future matching transactions
 
-The goal is simple:
+As you refine patterns over time, categorization becomes increasingly automatic and accurate.
 
-As patterns accumulate over time, categorization becomes automatic and your dashboard becomes increasingly accurate.
+### Category Types
+Every category belongs to one of four types, which determines how it affects insights and reports:
 
-## Categories as the Core Financial Model
+- **Expense**  
+  Everyday spending that reduces net worth  
+  _Examples: Groceries, Dining, Housing_
 
-At the heart of PrivateLedger is a flexible category system designed to reflect how people actually think about money.
+- **Income**  
+  Money coming in  
+  _Examples: Salary, Side Income, Government Benefits_
 
-Each transaction belongs to a Category, and every category has one of four types:
+- **Investment**  
+  Transfers into investments, not spending  
+  _Examples: RRSP/401(k) contributions, brokerage transfers_
 
-**1. Expense**
+- **General**  
+  Non-spending transactions used to avoid double-counting  
+  _Examples: Internal transfers, credit card payments_
 
-Examples: Groceries, Shopping, Housing, Dining
-These represent real spending and are typically debit transactions that reduce net worth.
+Dashboard insights are calculated based on category type, ensuring expenses, income, and investments are represented correctly.
 
-**2. Income**
 
-Examples: Payroll, Side Income, Government Benefits
-These represent money coming in and increase overall income.
+## How it works
 
-**3. Investment**
+1) **Download transactions from your bank**
+   - Export your account or credit card transactions as **OFX** or **QFX**.
+   - These formats are commonly available in the US, Canada, and the UK.
 
-Examples: 401(k)/RRSP Contributions, Brokerage Transfers
-These may appear as debits in bank statements, but they are not expenses - they are transfers into investments. This category prevents investment activity from inflating expense numbers.
+2) **Import into PrivateLedger**
+   - You import the downloaded file through the local web UI.
+   - PrivateLedger parses the file and stores transactions into a local **SQLite** database.
 
-**4. General**
+3) **Categorize transactions**
+   - Transactions are categorized automatically using **pattern rules** (keywords like `COSTCO`, `AMAZON`, `NETFLIX`).
+   - You can override categories manually at any time.
+   - When you add a new pattern, it can apply to past and future matching transactions.
 
-Examples: Internal Transfers, Credit Card Payments
-Some transactions are neither income nor expense. A credit card payment may show as a debit from a chequing account, but the actual spending already occurred elsewhere. The General category prevents double-counting.
-
-Dashboard insights are calculated based on category type, ensuring expenses, income, and investments are correctly represented.
+4) **View insights**
+   - The dashboard summarizes monthly spending, category breakdowns, and trends.
 
 ## Quick Start
 

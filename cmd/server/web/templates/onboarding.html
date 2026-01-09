@@ -732,16 +732,35 @@ function removePattern(catIdx, pIdx) {
 async function completeOnboarding() {
     // Create all patterns for each category
     try {
+        const errors = [];
         for (const cat of addedCategories) {
             for (const patternName of cat.patterns) {
-                await fetch(`/api/categories/${cat.category_id}/patterns`, {
+                const response = await fetch(`/api/categories/${cat.category_id}/patterns`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         pattern_name: patternName
                     })
                 });
+
+                if (!response.ok) {
+                    try {
+                        const errorData = await response.json();
+                        if (errorData && errorData.error) {
+                            // Skip conflict errors silently during onboarding (patterns are from presets)
+                            if (response.status !== 409) {
+                                errors.push(`${patternName}: ${errorData.error}`);
+                            }
+                        }
+                    } catch (parseError) {
+                        errors.push(`${patternName}: Failed to create pattern`);
+                    }
+                }
             }
+        }
+
+        if (errors.length > 0) {
+            console.warn('Some patterns had issues:', errors);
         }
 
         showStep(5);

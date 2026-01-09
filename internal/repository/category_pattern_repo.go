@@ -211,3 +211,4 @@ func (r *CategoryPatternRepository) Count() (int, error) {
 
 	return count, nil
 }
+
