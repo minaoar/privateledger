@@ -135,11 +135,20 @@ type TransactionFilter struct {
 	CategoryID    *int                // Filter by category
 	CategoryType  *model.CategoryType // Filter by category type (Expense/Income/Investment)
 	BatchID       *int                // Filter by import batch
-	Uncategorized bool                // Only uncategorized transactions
+	Uncategorized bool                // Only uncategorized transactions (category_id IS NULL OR category_source = 0)
 	StartDate     *time.Time          // Date range start (inclusive)
 	EndDate       *time.Time          // Date range end (inclusive)
 	Limit         int                 // Max results (0 = no limit)
 	Offset        int                 // Pagination offset
+
+	// CategoryIsNull matches only transactions with no category_id at all. This is
+	// strictly narrower than Uncategorized, which also matches rows that have a
+	// category_id but category_source = 0. Use this filter when the result is summed
+	// alongside per-category totals, so a row cannot be counted in both.
+	CategoryIsNull bool
+
+	// TransactionType filters by debit (1) or credit (2).
+	TransactionType *model.TransactionType
 }
 
 // List retrieves transactions with optional filters
@@ -183,6 +192,15 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 
 	if filter.Uncategorized {
 		query += " AND (t.category_id IS NULL OR t.category_source = 0)"
+	}
+
+	if filter.CategoryIsNull {
+		query += " AND t.category_id IS NULL"
+	}
+
+	if filter.TransactionType != nil {
+		query += " AND t.transaction_type = ?"
+		args = append(args, *filter.TransactionType)
 	}
 
 	if filter.StartDate != nil {

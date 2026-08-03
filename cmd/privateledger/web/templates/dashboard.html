@@ -208,18 +208,31 @@
                             {{range $category := .Stats.ExpenseBreakdown.Categories}}
                             <tr>
                                 <td class="ps-3">
-                                    {{if $category.CategoryIcon}}<i class="bi bi-{{$category.CategoryIcon}} me-2"></i>{{end}}
-                                    {{$category.CategoryName}}
+                                    {{if eq $category.CategoryID 0}}
+                                        <span class="text-muted fst-italic">{{$category.CategoryName}}</span>
+                                    {{else}}
+                                        {{if $category.CategoryIcon}}<i class="bi bi-{{$category.CategoryIcon}} me-2"></i>{{end}}
+                                        {{$category.CategoryName}}
+                                    {{end}}
                                 </td>
                                 {{range $.Stats.ExpenseBreakdown.Periods}}
                                 <td class="text-end">
                                     {{$value := index $category.MonthlyTotals .Label}}
                                     {{if ne $value 0.0}}
+                                        {{if eq $category.CategoryID 0}}
+                                        <a href="/transactions?uncategorized=true&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
+                                           class="text-muted text-decoration-none"
+                                           data-testid="uncategorized-expense-link"
+                                           title="View uncategorized expenses in this period">
+                                            ${{printf "%.0f" (abs $value)}}
+                                        </a>
+                                        {{else}}
                                         <a href="/transactions?category_id={{$category.CategoryID}}&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
                                            class="expense-breakdown-link"
                                            title="View transactions for {{$category.CategoryName}} in this period">
                                             ${{printf "%.0f" (abs $value)}}
                                         </a>
+                                        {{end}}
                                     {{else}}
                                         <span class="text-muted">-</span>
                                     {{end}}
@@ -279,18 +292,31 @@
                             {{range $category := .Stats.IncomeBreakdown.Categories}}
                             <tr>
                                 <td class="ps-3">
-                                    {{if $category.CategoryIcon}}<i class="bi bi-{{$category.CategoryIcon}} me-2"></i>{{end}}
-                                    {{$category.CategoryName}}
+                                    {{if eq $category.CategoryID 0}}
+                                        <span class="text-muted fst-italic">{{$category.CategoryName}}</span>
+                                    {{else}}
+                                        {{if $category.CategoryIcon}}<i class="bi bi-{{$category.CategoryIcon}} me-2"></i>{{end}}
+                                        {{$category.CategoryName}}
+                                    {{end}}
                                 </td>
                                 {{range $.Stats.IncomeBreakdown.Periods}}
                                 <td class="text-end">
                                     {{$value := index $category.MonthlyTotals .Label}}
                                     {{if ne $value 0.0}}
+                                        {{if eq $category.CategoryID 0}}
+                                        <a href="/transactions?uncategorized=true&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
+                                           class="text-muted text-decoration-none"
+                                           data-testid="uncategorized-income-link"
+                                           title="View uncategorized income in this period">
+                                            ${{printf "%.0f" (abs $value)}}
+                                        </a>
+                                        {{else}}
                                         <a href="/transactions?category_id={{$category.CategoryID}}&start_date={{formatDateForURL .StartDate}}&end_date={{formatDateForURL .EndDate}}"
                                            class="text-success text-decoration-none"
                                            title="View transactions for {{$category.CategoryName}} in this period">
                                             ${{printf "%.0f" (abs $value)}}
                                         </a>
+                                        {{end}}
                                     {{else}}
                                         <span class="text-muted">-</span>
                                     {{end}}
