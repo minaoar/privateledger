@@ -1,95 +1,103 @@
-# Requirements — Import Revert Feature + Bug Fix
+# Requirements — Show Uncategorized Transactions on Dashboard
 
 ## Intent Analysis
 
 | Field | Value |
 |---|---|
-| **User Request** | Bug report: deleting an import history record does not revert the transactions. Feature request: ability to delete/revert all data belonging to a specific import file. |
-| **Request Type** | Bug Fix + Enhancement |
-| **Scope** | Multiple Components (repository, service, handler, frontend) |
+| **User Request** | Uncategorized transactions do not appear on the dashboard. Add them as "Uncategorized Expenses" and "Uncategorized Incomes" pseudo-categories visible in breakdown tables, pie chart, bar chart, and summary cards. |
+| **Request Type** | Enhancement |
+| **Scope** | Multiple Components (service, repository, handler, frontend) |
 | **Complexity** | Moderate |
 
 ---
 
-## Bug Confirmation
+## Classification Decision
 
-### BUG-001 (Critical): Delete import batch silently orphans transactions
+**Chosen approach (Q1: A)** — Two pseudo-categories only:
+- **"Uncategorized Expenses"**: all uncategorized debits (`transaction_type = 1`, `category_id IS NULL OR category_source = 0`)
+- **"Uncategorized Incomes"**: all uncategorized credits (`transaction_type = 2`, `category_id IS NULL OR category_source = 0`)
 
-`DELETE /api/import/history/:id` currently calls only `batchRepo.Delete()`, which issues:
-```sql
-DELETE FROM import_batch WHERE import_batch_id = ?
-```
-The FK constraint `ON DELETE SET NULL` then fires, setting `import_batch_id = NULL` on all associated transactions — but the **transactions are never deleted**. A user who imports a file and tries to undo it via the Import History UI loses the audit trail but retains all data. No API or UI path currently exists to delete transactions by import batch.
+Investment pseudo-category is omitted: there is no data signal to distinguish an uncategorized investment from an uncategorized expense — both are debits with no category assigned.
 
 ---
 
 ## Functional Requirements
 
-### FR1 — Transaction bulk delete by batch ID
-Add `TransactionRepository.DeleteByBatchID(batchID int) (int, error)` that deletes all `ledger_transaction` rows where `import_batch_id = ?` and returns the count of deleted rows.
+### FR1 — New repository query: uncategorized monthly totals
+Add a method to the insights repository that returns per-period totals for uncategorized transactions filtered by `transaction_type`. The query must:
+- Filter: `(category_id IS NULL OR category_source = 0) AND transaction_type = ?`
+- Group by custom-month period boundaries (respecting `start_of_month` config, matching the period logic used in `GetCategoryBreakdownTable`)
+- Accept a list of period date ranges and return `map[periodKey]float64`
 
-### FR2 — Manually-categorized count on import batch
-Extend `ImportBatch` model with a computed field `ManuallyCategCount int`. Extend `GetByID` and `GetAll` queries in `ImportBatchRepository` to include a subquery:
-```sql
-(SELECT COUNT(*) FROM ledger_transaction
- WHERE import_batch_id = ib.import_batch_id AND category_source = 2) AS manually_categ_count
+This method is used to build the uncategorized row in the breakdown table and to feed the bar chart via `MonthlyTotals`.
+
+### FR2 — New repository query: uncategorized total for a single period
+Add a method (or reuse FR1 with a single period) to retrieve the total absolute amount of uncategorized transactions of a given `transaction_type` within a start/end date range. Used by the summary card (FR5) and the pie chart entry (FR6).
+
+### FR3 — Use `CategoryID = 0` as uncategorized sentinel
+No new field is needed. Real categories always have `CategoryID >= 1` (SQLite auto-increment). The uncategorized pseudo-row is identified by `CategoryID = 0`. The dashboard template uses `{{if eq .CategoryID 0}}` to render it differently:
+- Without a color swatch
+- With muted/grey styling for the category label
+- With period cell links pointing to the transactions page (FR9) instead of a category filter
+
+### FR4 — Extend `CategoryBreakdownTable` model with `PeriodRanges`
+Add `PeriodRanges map[string][2]string` to `CategoryBreakdownTable`, where the key is the period key (e.g., `"2025-12"`) and the value is `[startDate, endDate]` in ISO date format (`"2006-01-02"`). This allows the template to generate date-ranged links without date arithmetic in Go templates.
+
+### FR5 — Extend `GetCategoryBreakdownTable` with uncategorized row
+After building categorized rows in `GetCategoryBreakdownTable`:
+- **If `categoryType == CategoryTypeExpense`**: append one `CategoryRow` with `IsUncategorized = true`, `CategoryName = "Uncategorized Expenses"`, and Monthly amounts from FR1 (`transaction_type = 1, debit`). Include these amounts in `MonthlyTotals`.
+- **If `categoryType == CategoryTypeIncome`**: append one `CategoryRow` with `IsUncategorized = true`, `CategoryName = "Uncategorized Incomes"`, and Monthly amounts from FR1 (`transaction_type = 2, credit`). Include these amounts in `MonthlyTotals`.
+- **If `categoryType == CategoryTypeInvestment`**: no change — skip.
+- The uncategorized row is always appended even when all period amounts are $0 (consistent visibility).
+
+Also populate `PeriodRanges` on the returned table (FR4).
+
+### FR6 — Extend summary cards to include uncategorized amounts (Q3: A)
+In the function computing `TotalExpenses` and `TotalIncome` for the summary cards:
+- Add uncategorized debit total (`transaction_type = 1`) for the current period to `TotalExpenses`.
+- Add uncategorized credit total (`transaction_type = 2`) for the current period to `TotalIncome`.
+- `TotalInvestment` is unchanged.
+
+### FR7 — Extend "Top Expense Categories" pie chart to include uncategorized (Q2: D)
+In `GetMonthlySummary`, after computing `CategoryBreakdown` (top 5 expense categories):
+- Query uncategorized expense total for the current month using FR2 (`transaction_type = 1`).
+- Append one `CategorySummary` entry: `Name = "Uncategorized"`, `Color = "#6c757d"` (Bootstrap secondary grey), no icon, amount from above query.
+- Append even if $0 (consistent pie chart slice).
+
+### FR8 — "Expense Trends" bar chart includes uncategorized (Q2: D — automatic via FR5)
+`ExpenseBreakdown.MonthlyTotals` is the sum across all expense rows per period. Because FR5 adds the uncategorized row and includes its amounts in `MonthlyTotals`, the bar chart automatically reflects uncategorized expenses without additional service changes.
+
+### FR9 — Clickable uncategorized row cells link to filtered transactions (Q4: A)
+In `dashboard.html`, period cells in the uncategorized row must be rendered as anchor links using `PeriodRanges` (FR4):
+```
+/transactions?uncategorized=true&start_date={period_start}&end_date={period_end}
 ```
 
-### FR3 — Import revert service method
-Add `ImportService.RevertImport(batchID int) (*RevertResult, error)` that:
-1. Verifies the batch exists; returns error if not found
-2. Calls `txnRepo.DeleteByBatchID(batchID)` and captures deleted count
-3. Calls `batchRepo.Delete(batchID)`
-4. Returns `RevertResult{BatchID, FileName, DeletedTransactions}`
+Existing categorized category rows may or may not be clickable today — the uncategorized row must be clickable regardless.
 
-Add `RevertResult` struct to `import_service.go`.
+### FR10 — Transactions page handles `uncategorized=true` query param
+In the transaction list handler, parse the `uncategorized` query parameter and set `filter.Uncategorized = true` when the value is `"true"`. The `TransactionRepository.List()` already applies this filter via `WHERE (category_id IS NULL OR category_source = 0)`.
 
-### FR4 — DELETE endpoint revert behavior (Q2: A)
-Modify `ImportBatchHandler.DeleteBatch()` to call `importService.RevertImport()` instead of `batchRepo.Delete()` directly. Response body changes to include `deleted_transactions` count.
-
-`ImportBatchHandler` constructor updated to accept `*ImportService` as a dependency.
-
-### FR5 — Dependency wiring in main.go
-Update `NewImportBatchHandler(...)` call in `main.go` to pass `importService` as the second argument.
-
-### FR6 — Import History UI: Revert button with confirmation (Q3: B, Q4: A)
-In `import.html`, Import History tab:
-- Add a Revert button (trash icon) to each row's Actions column alongside the existing View button
-- On click: show a confirmation modal containing:
-  - Batch file name
-  - Total imported transactions count (from `imported_transactions`)
-  - Warning if `manually_categ_count > 0` (e.g., "⚠️ X transactions were manually categorized")
-  - Statement: "This will permanently delete all [N] transactions from this import. This cannot be undone."
-  - Cancel / Confirm buttons
-- On confirm: call `DELETE /api/import/history/:id`, refresh the history list
-
-### FR7 — Transactions page: Revert banner when filtered by batch (Q3: B)
-In `transactions.html`, when the page URL contains `?batch_id=X`:
-- Client-side JS fetches `GET /api/import/history/:id` to retrieve batch details
-- Show a dismissible banner above the transaction list:
-  - "Viewing import: **filename.ofx**  [Revert this import ↩]"
-  - Clicking "Revert this import" triggers the same confirmation modal flow as FR6
-
-### FR8 — Fix missing batch_id in page handler filter values
-In `page_handler.go`, `Transactions()` handler: add `"BatchID": c.Query("batch_id")` to `filterValues`. Currently the batch_id filter is applied to the DB query but not surfaced to the template, making the revert banner impossible to render server-side.
+Also parse `start_date` and `end_date` query params (format `2006-01-02`) and set `filter.StartDate` / `filter.EndDate` to enable date-ranged filtering from the dashboard link.
 
 ---
 
 ## Non-Functional Requirements
 
-### NFR1 — Atomicity
-The revert operation (delete transactions + delete batch) should be treated as an atomic logical operation at the service level. If `DeleteByBatchID` fails, `batchRepo.Delete` should not be called (existing error-return pattern is sufficient; no DB transaction wrapper required since SQLite is single-writer).
+### NFR1 — Always visible (no $0 hiding)
+Uncategorized rows are always rendered even when all period amounts are $0. This gives a persistent visual reminder that uncategorized transactions may exist.
 
-### NFR2 — Irreversibility warning
-The UI must make clear that a revert cannot be undone (Q4: A). The confirmation modal must include explicit wording.
+### NFR2 — Neutral visual treatment
+The uncategorized row uses Bootstrap secondary grey (`#6c757d`), no icon, and muted label text to visually distinguish it from user-defined categories without competing for attention.
 
-### NFR3 — Redundant stats update (Q5: B — leave as-is)
-The frontend's redundant `PUT /api/import/history/:id` call after import is acknowledged and intentionally left unchanged.
+### NFR3 — No double-counting
+Uncategorized amounts are added to `MonthlyTotals` and summary card totals exactly once. The filter `(category_id IS NULL OR category_source = 0)` is the authoritative definition of "uncategorized" throughout.
 
 ---
 
 ## Out of Scope
 
-- Database schema FK change (`ON DELETE SET NULL` → `ON DELETE CASCADE`) — the service-level deletion makes this unnecessary
-- Partial revert (deleting only some transactions from a batch)
-- Security, property-based testing, and resiliency extensions — all opted out
+- "Uncategorized Investments" pseudo-category — no data signal exists to distinguish from uncategorized expenses
+- New API endpoints — all changes are within the existing dashboard data flow
+- Changing how existing categorized transactions are displayed
+- Security, resiliency, and property-based testing extensions — all opted out

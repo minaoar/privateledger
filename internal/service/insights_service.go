@@ -149,6 +149,11 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 	categorizedCount := 0
 	uncategorizedCount := 0
 
+	// Uncategorized debits, accumulated here so the pie chart slice is derived from
+	// the same pass that produces UncategorizedCount rather than a second query.
+	var uncatExpenseTotal float64
+	var uncatExpenseCount int
+
 	for _, txn := range transactions {
 		summary.TransactionCount++
 
@@ -158,6 +163,13 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 			uncategorizedCount++
 		} else {
 			categorizedCount++
+		}
+
+		// Matches the CategoryIsNull rule used by the breakdown tables, so the pie
+		// chart and the expense table report the same uncategorized amount.
+		if txn.CategoryID == nil && txn.TransactionType == model.TransactionTypeDebit {
+			uncatExpenseTotal += txn.Amount
+			uncatExpenseCount++
 		}
 
 		// Add to income or expenses
@@ -268,6 +280,23 @@ func (s *InsightsService) GetMonthlySummary(year int, month int) (*MonthlySummar
 		summary.CategoryBreakdown = expenseBreakdowns
 	}
 
+	// Appended after the top-5 cut, so uncategorized spending is always visible rather
+	// than competing for a ranked slot. Skipped at zero — an empty slice tells the
+	// reader nothing, unlike the breakdown tables where a stable row shape matters.
+	if uncatExpenseTotal != 0 {
+		uncatColor := uncategorizedSliceColor
+		summary.CategoryBreakdown = append(summary.CategoryBreakdown, CategoryBreakdown{
+			CategoryID:    nil,
+			CategoryName:  "Uncategorized",
+			CategoryColor: &uncatColor,
+			TotalAmount:   uncatExpenseTotal, // negative for debits; template applies abs()
+			Count:         uncatExpenseCount,
+		})
+		slog.Info("Added uncategorized expenses to pie chart",
+			slog.Float64("total", uncatExpenseTotal),
+			slog.Int("count", uncatExpenseCount))
+	}
+
 	slog.Info("Category breakdown built", "breakdown_count", len(summary.CategoryBreakdown), "CategoryBreakdown", summary.CategoryBreakdown)
 
 	return summary, nil
@@ -320,96 +349,12 @@ type DashboardStats struct {
 }
 
 // GetExpenseBreakdownTable builds a table of expense categories across the last N months
-// Starting from the specified year/month and going back
+// Starting from the specified year/month and going back.
+//
+// Retained for backwards compatibility; the generic GetCategoryBreakdownTable does
+// exactly this work for any category type.
 func (s *InsightsService) GetExpenseBreakdownTable(year, month, months int) (*ExpenseBreakdownTable, error) {
-	if months < 1 {
-		months = 6 // Default to 6 months
-	}
-
-	slog.Info("GetExpenseBreakdownTable called",
-		slog.Int("year", year),
-		slog.Int("month", month),
-		slog.Int("months", months))
-
-	// Build list of periods (last N months)
-	periods := make([]MonthPeriod, 0, months)
-	for i := months - 1; i >= 0; i-- {
-		targetMonth := month - i
-		targetYear := year
-		for targetMonth < 1 {
-			targetMonth += 12
-			targetYear--
-		}
-		period := s.GetMonthPeriod(targetYear, targetMonth)
-		periods = append(periods, *period)
-	}
-
-	// Get all expense categories
-	allCategories, err := s.categoryRepo.GetAll()
-	if err != nil {
-		slog.Error("Error getting categories for expense breakdown", slog.String("error", err.Error()))
-		return nil, fmt.Errorf("failed to get categories: %w", err)
-	}
-
-	expenseCategories := make([]*model.Category, 0)
-	for _, cat := range allCategories {
-		if cat.CategoryType == model.CategoryTypeExpense {
-			expenseCategories = append(expenseCategories, cat)
-		}
-	}
-
-	// Build category breakdown for each month
-	categoryBreakdown := make([]ExpenseCategoryByMonth, 0)
-	monthlyTotals := make(map[string]float64)
-
-	for _, cat := range expenseCategories {
-		categoryMonthly := ExpenseCategoryByMonth{
-			CategoryID:    cat.CategoryID,
-			CategoryName:  cat.Name,
-			CategoryIcon:  cat.Icon,
-			CategoryColor: cat.Color,
-			MonthlyTotals: make(map[string]float64),
-		}
-
-		// For each period, get transactions for this category
-		for _, period := range periods {
-			filter := repository.TransactionFilter{
-				CategoryID: &cat.CategoryID,
-				StartDate:  &period.StartDate,
-				EndDate:    &period.EndDate,
-			}
-
-			transactions, err := s.txnRepo.List(filter)
-			if err != nil {
-				slog.Error("Error getting transactions for expense breakdown",
-					slog.String("category", cat.Name),
-					slog.String("period", period.Label),
-					slog.String("error", err.Error()))
-				continue
-			}
-
-			// Sum up expenses for this category in this period
-			var total float64
-			for _, txn := range transactions {
-				total += txn.Amount
-			}
-
-			categoryMonthly.MonthlyTotals[period.Label] = total
-			monthlyTotals[period.Label] += total
-		}
-
-		categoryBreakdown = append(categoryBreakdown, categoryMonthly)
-	}
-
-	slog.Info("Expense breakdown table built",
-		slog.Int("categories", len(categoryBreakdown)),
-		slog.Int("periods", len(periods)))
-
-	return &ExpenseBreakdownTable{
-		Periods:       periods,
-		Categories:    categoryBreakdown,
-		MonthlyTotals: monthlyTotals,
-	}, nil
+	return s.GetCategoryBreakdownTable(model.CategoryTypeExpense, year, month, months)
 }
 
 // GetCategoryBreakdownTable builds a table of categories of a specific type across the last N months
@@ -506,6 +451,50 @@ func (s *InsightsService) GetCategoryBreakdownTable(categoryType model.CategoryT
 		categoryBreakdown = append(categoryBreakdown, categoryMonthly)
 	}
 
+	// Append a pseudo-category row carrying transactions that have no category at all.
+	// Expense tables collect uncategorized debits, income tables uncategorized credits.
+	// Investment and General tables get no such row.
+	if uncatName, uncatTxnType, ok := uncategorizedRowFor(categoryType); ok {
+		uncatRow := CategoryByMonth{
+			CategoryID:    uncategorizedCategoryID,
+			CategoryName:  uncatName,
+			CategoryIcon:  nil,
+			CategoryColor: nil,
+			MonthlyTotals: make(map[string]float64),
+		}
+
+		for _, period := range periods {
+			// CategoryIsNull (not Uncategorized) so these amounts cannot also appear
+			// in one of the per-category rows summed above.
+			filter := repository.TransactionFilter{
+				CategoryIsNull:  true,
+				TransactionType: &uncatTxnType,
+				StartDate:       &period.StartDate,
+				EndDate:         &period.EndDate,
+			}
+
+			transactions, err := s.txnRepo.List(filter)
+			if err != nil {
+				slog.Error("Error getting uncategorized transactions for category breakdown",
+					slog.String("type", typeName),
+					slog.String("period", period.Label),
+					slog.String("error", err.Error()))
+				continue
+			}
+
+			var total float64
+			for _, txn := range transactions {
+				total += txn.Amount
+			}
+
+			uncatRow.MonthlyTotals[period.Label] = total
+			monthlyTotals[period.Label] += total
+		}
+
+		// Appended even when every period is zero, so the table keeps a stable shape.
+		categoryBreakdown = append(categoryBreakdown, uncatRow)
+	}
+
 	slog.Info("Category breakdown table built",
 		slog.String("type", typeName),
 		slog.Int("categories", len(categoryBreakdown)),
@@ -516,6 +505,36 @@ func (s *InsightsService) GetCategoryBreakdownTable(categoryType model.CategoryT
 		Categories:    categoryBreakdown,
 		MonthlyTotals: monthlyTotals,
 	}, nil
+}
+
+// uncategorizedCategoryID is the sentinel CategoryID used on pseudo-category rows.
+// Real categories are SQLite auto-increment and always >= 1.
+const uncategorizedCategoryID = 0
+
+// uncategorizedSliceColor is the pie chart color for uncategorized spending. Dark
+// enough to stay clear of the "Others" grey (#9ca3af) and the uncolored-category
+// fallback (#6b7280), which are both mid-greys.
+const uncategorizedSliceColor = "#4b5563"
+
+// uncategorizedRowFor returns the display name and transaction type of the
+// uncategorized pseudo-category row for a category type, and whether that type
+// has one at all.
+func uncategorizedRowFor(categoryType model.CategoryType) (string, model.TransactionType, bool) {
+	switch categoryType {
+	case model.CategoryTypeExpense:
+		return "Uncategorized Expenses", model.TransactionTypeDebit, true
+	case model.CategoryTypeIncome:
+		return "Uncategorized Incomes", model.TransactionTypeCredit, true
+	default:
+		return "", 0, false
+	}
+}
+
+// isUncategorizedForType reports whether an uncategorized transaction of the given
+// debit/credit type belongs under the given category type's summary.
+func isUncategorizedForType(categoryType model.CategoryType, txnType model.TransactionType) bool {
+	_, wantType, ok := uncategorizedRowFor(categoryType)
+	return ok && txnType == wantType
 }
 
 // getCategoryTypeSummary calculates summary for a specific category type (Expense/Income/Investment)
@@ -565,7 +584,9 @@ func (s *InsightsService) getCategoryTypeSummary(categoryType model.CategoryType
 		return nil, err
 	}
 
-	// Calculate totals
+	// Calculate totals. Transactions with no category are folded into the expense or
+	// income summary by their debit/credit type, so the card matches the breakdown
+	// table below it. Both periods include them, keeping the % change comparable.
 	var currentTotal float64
 	var currentCount int
 	for _, txn := range currentTxns {
@@ -577,6 +598,9 @@ func (s *InsightsService) getCategoryTypeSummary(categoryType model.CategoryType
 					break
 				}
 			}
+		} else if isUncategorizedForType(categoryType, txn.TransactionType) {
+			currentTotal += txn.Amount
+			currentCount++
 		}
 	}
 
@@ -589,6 +613,8 @@ func (s *InsightsService) getCategoryTypeSummary(categoryType model.CategoryType
 					break
 				}
 			}
+		} else if isUncategorizedForType(categoryType, txn.TransactionType) {
+			previousTotal += txn.Amount
 		}
 	}
 

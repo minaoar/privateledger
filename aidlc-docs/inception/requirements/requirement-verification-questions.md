@@ -1,58 +1,19 @@
-# Requirement Verification Questions
+# Requirements Clarification Questions
+# Feature: Show Uncategorized Transactions on Dashboard
 
-**Project**: PrivateLedger — Import Revert Feature + Bug Fix  
-**Stage**: Requirements Analysis  
-**Date**: 2026-06-28
-
----
-
-## Bug Confirmed
-
-Before asking questions, here is what the code analysis found:
-
-### Critical Bug: Deleting an import batch does NOT delete its transactions
-
-When you click "delete" on an import history record (or call `DELETE /api/import/history/:id`), the app only removes the batch record. All associated transactions remain in the ledger — orphaned, with no batch linkage. This is because the database schema uses `ON DELETE SET NULL` on the foreign key:
-
-```sql
-import_batch_id INTEGER REFERENCES import_batch(import_batch_id) ON DELETE SET NULL
-```
-
-**Impact**: A user who imports a file by mistake and tries to "undo" it by deleting the history record will silently lose the audit trail but keep all the transactions. There is currently no way to remove a set of transactions by import batch.
+Please answer each question by filling in the letter choice after the `[Answer]:` tag.
+If none of the options match your needs, choose the last option (Other/X) and describe your preference.
 
 ---
 
-## Clarifying Questions
+## Question 1
+There is a key data constraint: transactions only record whether money went **out (debit)** or **in (credit)**. There is no signal in the data to distinguish an "uncategorized expense" from an "uncategorized investment" — both are debits. How should we classify uncategorized transactions?
 
-Please fill in the `[Answer]:` tag for each question.
+A) Two pseudo-categories only: **"Uncategorized Expenses"** (all uncategorized debits) and **"Uncategorized Incomes"** (all uncategorized credits). Skip "Uncategorized Investments" entirely since it cannot be derived.
 
----
+B) All three pseudo-categories: **"Uncategorized Expenses"** (debits), **"Uncategorized Incomes"** (credits), and **"Uncategorized Investments"** (always $0 — a visible placeholder until user categorizes those transactions).
 
-## Question 1: Revert Behavior for Manually Categorized Transactions
-
-When reverting an import, some transactions may have been manually categorized by the user after import (category_source = 2). What should happen to those?
-
-A) Delete them anyway — a revert means remove everything from that import, regardless of manual work done on them
-
-B) Preserve them — keep transactions that have been manually categorized; only delete auto-categorized or uncategorized ones from that batch
-
-C) Ask the user at revert time — show a warning and let the user decide (e.g., "X transactions have been manually categorized — still revert?")
-
-X) Other (please describe after [Answer]: tag below)
-
-[Answer]: C
-
----
-
-## Question 2: API Behavior — Replace or Add?
-
-Should the existing `DELETE /api/import/history/:id` endpoint behavior change to also delete the associated transactions? Or should a new separate endpoint be added for "revert"?
-
-A) Change the existing endpoint — `DELETE /api/import/history/:id` should now delete both the batch record AND all its transactions (breaking change to current API behavior)
-
-B) Add a new endpoint — keep the existing delete as-is (deletes only the batch record); add a new `POST /api/import/history/:id/revert` endpoint that deletes both transactions and the batch record
-
-C) Add a query parameter — keep existing endpoint but add `?revert=true` to make it also delete transactions
+C) One combined pseudo-category per section: show a single **"Uncategorized"** row in each of the three breakdown tables (Expense, Income, Investment), all showing the same total uncategorized amount for that period.
 
 X) Other (please describe after [Answer]: tag below)
 
@@ -60,29 +21,29 @@ X) Other (please describe after [Answer]: tag below)
 
 ---
 
-## Question 3: UI — Where Should the Revert Action Appear?
+## Question 2
+Where on the dashboard should the uncategorized pseudo-categories be visible?
 
-Where in the UI should the user be able to trigger the revert?
+A) Only in the **breakdown tables** (as extra rows in Expense Breakdown, Income Breakdown, Investment Breakdown).
 
-A) Import History tab only — add a "Revert" button (with confirmation dialog) in the Import History table row actions
+B) In the **breakdown tables AND the "Top Expense Categories" pie chart** (uncategorized expenses appear as a slice in the pie chart).
 
-B) Import History tab + Transactions page — add revert on Import History AND allow filtering transactions by batch then bulk-deleting
+C) In the **breakdown tables AND the "Expense Trends" bar chart** (uncategorized expenses added as a stacked bar segment).
 
-C) Import History tab only is sufficient for now
+D) In all three: breakdown tables, pie chart, AND trends bar chart.
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]: B
+[Answer]: D
 
 ---
 
-## Question 4: Revert Confirmation
+## Question 3
+Currently the **Expenses / Income / Investment summary cards** at the top of the dashboard only count categorized transactions. Should uncategorized amounts be included in those totals?
 
-Should there be a confirmation step before reverting an import?
+A) Yes — add uncategorized debit amounts into the Expenses card and uncategorized credit amounts into the Income card total (complete financial picture).
 
-A) Yes — show a confirmation modal with a summary ("This will delete X transactions from batch 'filename.ofx'. This cannot be undone. Continue?")
-
-B) No — just do it immediately (suitable since the app is local-only)
+B) No — keep the summary cards showing only categorized amounts (current behaviour, no change to cards).
 
 X) Other (please describe after [Answer]: tag below)
 
@@ -90,29 +51,21 @@ X) Other (please describe after [Answer]: tag below)
 
 ---
 
-## Question 5: Minor Bug — Redundant Stats Update
+## Question 4
+The breakdown tables show the last 6 months of data. Should the uncategorized rows be clickable links (navigating to the filtered Transactions page for that period)?
 
-The import UI JavaScript makes a redundant `PUT /api/import/history/:id` call after each import to update batch stats — but the import service already saves these stats internally. The JS code even has a comment acknowledging this (`// optional, service already does this`).
+A) Yes — clicking an uncategorized amount navigates to `/transactions?uncategorized=true&start_date=...&end_date=...`
 
-Should this redundant call be removed as part of this fix?
-
-A) Yes — remove the redundant PUT call from the JS
-
-B) No — leave it as-is to be safe (it's harmless, same values written twice)
+B) No — show the amounts as plain text (not clickable).
 
 X) Other (please describe after [Answer]: tag below)
 
-[Answer]: B
+[Answer]: A
 
 ---
 
-## Extension Questions
-
----
-
-## Question 6: Security Extension
-
-Should security extension rules be enforced for this project?
+## Question 5: Security Extension
+Should security extension rules be enforced for this feature?
 
 A) Yes — enforce all SECURITY rules as blocking constraints (recommended for production-grade applications)
 
@@ -124,15 +77,12 @@ X) Other (please describe after [Answer]: tag below)
 
 ---
 
-## Question 7: Property-Based Testing Extension
+## Question 6: Resiliency Extension
+Should the resiliency baseline be applied to this feature?
 
-Should property-based testing (PBT) rules be enforced for this project?
+A) Yes — apply the resiliency baseline as directional best practices
 
-A) Yes — enforce all PBT rules as blocking constraints (recommended for projects with business logic, data transformations, serialization, or stateful components)
-
-B) Partial — enforce PBT rules only for pure functions and serialization round-trips
-
-C) No — skip all PBT rules (suitable for simple CRUD applications or thin integration layers)
+B) No — skip the resiliency baseline
 
 X) Other (please describe after [Answer]: tag below)
 
@@ -140,13 +90,14 @@ X) Other (please describe after [Answer]: tag below)
 
 ---
 
-## Question 8: Resiliency Extension
+## Question 7: Property-Based Testing Extension
+Should property-based testing rules be enforced for this feature?
 
-Should the resiliency baseline be applied to this project?
+A) Yes — enforce all PBT rules as blocking constraints
 
-A) Yes — apply the resiliency baseline as directional best practices and design-time guidance
+B) Partial — enforce PBT rules only for pure functions and data transformations
 
-B) No — skip the resiliency baseline (suitable for local-only tools where HA and DR don't apply)
+C) No — skip all PBT rules
 
 X) Other (please describe after [Answer]: tag below)
 

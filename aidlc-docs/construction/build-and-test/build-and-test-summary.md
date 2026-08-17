@@ -1,4 +1,119 @@
-# Build and Test Instructions — import-revert
+# Build and Test Summary
+
+Covers all units built on this project. Newest first.
+
+---
+
+# Unit: uncategorized-dashboard
+
+**Branch**: `show-uncategorized-transactions` · **Date**: 2026-08-03
+
+Detailed instructions for this unit live in `build-instructions.md`, `unit-test-instructions.md`, `integration-test-instructions.md`, and `performance-test-instructions.md`.
+
+## Build Status
+
+| | |
+|---|---|
+| Build tool | Go + Make (`modernc.org/sqlite`, no CGO) |
+| `go build ./...` | **Success** |
+| `go vet ./...` | **Clean** |
+| `gofmt` | Clean |
+| Artifact | `./privateledger` (~33 MB, embedded web assets) |
+
+## Test Execution Summary
+
+### Unit Tests
+
+| | |
+|---|---|
+| Test file added | `internal/service/insights_uncategorized_test.go` |
+| Test functions | 12 (25 cases with subtests) |
+| Passed | **12** |
+| Failed | **0** |
+| Coverage, `internal/service` | **40.7%** (was 0.0%) |
+| Coverage, all other packages | **0.0%** (unchanged) |
+| Status | **Pass** |
+
+This is the **first test file in the repository**. Before it, `make test` reported success while executing nothing.
+
+Each test opens a real temporary SQLite database migrated with the production schema — repository SQL is exercised, not mocked.
+
+**Mutation-verified.** Four defects were injected; each was caught by the expected test, and the source was restored byte-identical afterwards:
+
+| Injected defect | Caught by |
+|---|---|
+| Previous period ignores uncategorized | `TestSummaryCards_PreviousAmountIncludesUncategorized` |
+| Broader `Uncategorized` filter for row sums | `TestBreakdown_NoDoubleCounting` |
+| Investment gains an uncategorized row | 3 tests |
+| Pie chart counts credits as expenses | `TestMonthlySummary_PieChartUncategorizedSlice` |
+
+### Integration Tests
+
+Five **manual** end-to-end scenarios, run against a copy of the production database on an isolated port. Not automated.
+
+| Scenario | Result |
+|---|---|
+| Dashboard renders (catches template panics) | Pass — HTTP 200 |
+| Uncategorized rows + `data-testid` reach the HTML | Pass |
+| No double-counting across all 3 tables | Pass |
+| Figures match raw SQL | Pass — expense 698.27, income 936.21 |
+| Uncategorized links filter correctly | Pass — 56 txns, 0 wrong-category, 0 out-of-range |
+
+### Performance Tests
+
+Not applicable in the load/stress sense — local, single-user application. Latency measured instead: **11 ms** median dashboard render (179 transactions, 16 categories). This unit adds 12 queries to an existing ~100-query N+1 pattern, and none to the summary cards or pie chart.
+
+### Additional Tests
+
+| | |
+|---|---|
+| Contract tests | N/A — no inter-service APIs (single binary) |
+| Security tests | N/A — all extensions opted out at Requirements Analysis; no auth, network, or input-handling changes |
+| E2E tests | Covered by the manual integration scenarios above |
+
+## Overall Status
+
+| | |
+|---|---|
+| Build | **Success** |
+| All tests | **Pass** |
+| Ready for Operations | **Yes**, with the gaps below understood |
+
+## Known Gaps
+
+These are real and unclosed. None blocks the feature, but none should be assumed covered.
+
+1. **Templates have no automated tests.** `dashboard.html` changes were verified by rendering the real page and asserting on HTML — a manual check that lives outside the repo. A malformed template is not a build error; it panics at first render. Closing this needs a handler-level test that parses each template with the production `FuncMap` and executes it against a synthetic `DashboardStats`.
+
+2. ~~**Visual appearance unverified.**~~ **CLOSED 2026-08-03.** The user reviewed the running dashboard. The pie slice color was iterated during that review — `#8b5cf6` (violet, rejected) → `#374151` (too dark) → **`#4b5563`** (accepted). Muted italic row styling accepted as-is.
+
+3. **Coverage is 40.7% in one package and 0% everywhere else.** `parser`, `handler`, `repository`, and the import/categorizer service logic remain untested.
+
+4. **Custom `start_of_month` untested for this feature.** All verification ran with `start_of_month: 1` (calendar months). Pay-cycle boundaries (e.g. `19`) are unexercised for the uncategorized rows.
+
+5. **Integration scenarios are manual.** Documented and reproducible, but they will not run in CI.
+
+6. **Large-dataset performance unmeasured.** Deliberately deferred — not a current concern at this data volume.
+
+7. **Three definitions of "uncategorized" remain in the codebase.** This unit pinned one locally (`category_id IS NULL`) and documented why; reconciling `IsUncategorized()`, the `Uncategorized` filter, and `GetUncategorized()` codebase-wide is a separate follow-up.
+
+## Follow-Up Candidates
+
+| Item | Rationale |
+|---|---|
+| Template rendering tests | Only way to catch template panics before a user hits them |
+| Reconcile "uncategorized" definitions | Three variants invite future double-counting bugs |
+| Replace breakdown N+1 with `GROUP BY` | Structural fix if the dashboard ever slows |
+
+## Next Steps
+
+Ready to proceed to the Operations stage. Recommended first: run `make run` and look at the dashboard, which closes gap 2 in under a minute.
+
+---
+
+# Unit: import-revert
+
+Build and test instructions retained from the previous workflow.
 
 ## Build
 
@@ -22,6 +137,10 @@ make test
 # Run service-layer tests specifically
 go test -v ./internal/service -run TestCategorizer
 ```
+
+> Note: as of the uncategorized-dashboard unit, the only test file in the repository is
+> `internal/service/insights_uncategorized_test.go`. The `TestCategorizer` target above
+> matches nothing — no categorizer tests were ever written.
 
 ## Manual Integration Test Checklist
 
