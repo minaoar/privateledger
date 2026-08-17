@@ -10,6 +10,8 @@ import (
 	"github.com/oronno/privateledger/internal/model"
 )
 
+const defaultOFXHeader = "OFXHEADER:100\r\nDATA:OFXSGML\r\nVERSION:151\r\nSECURITY:NONE\r\nENCODING:USASCII\r\nCHARSET:1252\r\nCOMPRESSION:NONE\r\nOLDFILEUID:NONE\r\nNEWFILEUID:NONE\r\n\r\n"
+
 // OFXParser handles parsing of OFX/SGML files from Canadian banks
 type OFXParser struct{}
 
@@ -31,6 +33,12 @@ type ParseResult struct {
 
 // ParseOFXFile parses an OFX file and extracts transactions
 func (p *OFXParser) ParseOFXFile(reader io.Reader, accountID int) (*ParseResult, error) {
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read OFX file: %w", err)
+	}
+	reader = p.injectHeaderIfMissing(content)
+
 	// Parse OFX using ofxgo library
 	response, err := ofxgo.ParseResponse(reader)
 	if err != nil {
@@ -208,10 +216,27 @@ func (p *OFXParser) mergeDetails(txn *ofxgo.Transaction) string {
 
 // ValidateOFXFile performs basic validation on an OFX file without full parsing
 func (p *OFXParser) ValidateOFXFile(reader io.Reader) error {
-	// Try to parse the OFX file
-	_, err := ofxgo.ParseResponse(reader)
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("failed to read OFX file: %w", err)
+	}
+	_, err = ofxgo.ParseResponse(p.injectHeaderIfMissing(content))
 	if err != nil {
 		return fmt.Errorf("invalid OFX file: %w", err)
 	}
 	return nil
+}
+
+// injectHeaderIfMissing prepends a default SGML header when the file starts
+// with <OFX> directly (no header block) and is not XML (no <?xml declaration).
+func (p *OFXParser) injectHeaderIfMissing(content []byte) io.Reader {
+	trimmed := strings.TrimSpace(string(content))
+	upper := strings.ToUpper(trimmed)
+	needsHeader := (strings.HasPrefix(upper, "<OFX") || strings.HasPrefix(upper, "<OFC")) &&
+		!strings.HasPrefix(trimmed, "<?xml") &&
+		!strings.HasPrefix(upper, "OFXHEADER")
+	if needsHeader {
+		return strings.NewReader(defaultOFXHeader + trimmed)
+	}
+	return strings.NewReader(trimmed)
 }
