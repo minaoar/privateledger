@@ -143,14 +143,14 @@ Exact file placement may use an existing same-responsibility file discovered imm
 
 ### Step 11 — Independent review and verification gate
 
-- [ ] In a separate provider session, invoke the repository's independent review/test role with the handoff and approved artifacts.
-- [ ] Require independently authored tests for parser SIC cases; fresh/legacy/repeated/failed migration and data preservation; connection timeout behavior; transaction/mapping round trips and constraints; seed absent/oversized/symlink/valid/invalid/repeated/non-empty/persistence-failure behavior; atomicity; and SIC-free compatibility.
-- [ ] Require independently owned `pgregory.net/rapid` property tests for normalization/validation and feasible seed invariants, including shrinking/replay evidence.
-- [ ] Require performance evidence for the approved SIC-free regression, 100,000-row legacy migration, and accepted 100,000-row seed targets on a recorded environment.
-- [ ] Require race-detector evidence only if UOW-1 introduces/exercises concurrent state; otherwise record why it is not applicable.
-- [ ] Production findings return to the production role; the independent role alone corrects tests that contradict approved artifacts and documents why.
-- [ ] Repeat review after material production fixes until required tests and performance targets pass and no Blocking/High findings remain.
-- [ ] Gate closes only when `aidlc-docs/construction/sic-import-and-storage/code-review/independent-review.md` exists and reports final status PASS.
+- [x] In a separate provider session, invoke the repository's independent review/test role with the handoff and approved artifacts.
+- [x] Require independently authored tests for parser SIC cases; fresh/legacy/repeated/failed migration and data preservation; connection timeout behavior; transaction/mapping round trips and constraints; seed absent/oversized/symlink/valid/invalid/repeated/non-empty/persistence-failure behavior; atomicity; and SIC-free compatibility.
+- [x] Require independently owned `pgregory.net/rapid` property tests for normalization/validation and feasible seed invariants, including shrinking/replay evidence.
+- [x] Require performance evidence for the approved SIC-free regression, 100,000-row legacy migration, and accepted 100,000-row seed targets on a recorded environment.
+- [x] Require race-detector evidence only if UOW-1 introduces/exercises concurrent state; otherwise record why it is not applicable.
+- [x] Production findings return to the production role; the independent role alone corrects tests that contradict approved artifacts and documents why.
+- [x] Repeat review after material production fixes until required tests and performance targets pass and no Blocking/High findings remain.
+- [x] Gate closes only when `aidlc-docs/construction/sic-import-and-storage/code-review/independent-review.md` exists and reports final status PASS.
 
 ## Story Completion Checklist
 
@@ -164,8 +164,8 @@ Exact file placement may use an existing same-responsibility file discovered imm
 - [x] Every production step and story checkbox is complete.
 - [x] Production build/vet/format and existing regression tests pass.
 - [x] Production summary and independent handoff are complete.
-- [ ] Independent review/test provider has authored and run required verification.
-- [ ] Performance and property evidence is recorded.
-- [ ] Independent review final status is PASS.
-- [ ] No required test fails and no Blocking/High finding remains.
-- [ ] User explicitly approves completed UOW-1 Code Generation before the workflow advances.
+- [x] Independent review/test provider has authored and run required verification.
+- [x] Performance and property evidence is recorded.
+- [x] Independent review final status is PASS.
+- [x] No required test fails and no Blocking/High finding remains.
+- [x] User explicitly approves completed UOW-1 Code Generation before the workflow advances.

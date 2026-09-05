@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-08-17T05:48:26Z
-- **Current Stage**: CONSTRUCTION - UOW-1 Code Generation Part 3 Handoff
+- **Current Stage**: CONSTRUCTION - UOW-2 Functional Design
 - **Branch**: support-mcc-for-category
 
 ## Workspace State
@@ -47,7 +47,7 @@
 - [x] NFR Requirements — COMPLETED FOR UOW-1
 - [x] NFR Design — COMPLETED FOR UOW-1
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (ALWAYS)
+- [x] Code Generation — COMPLETED FOR UOW-1
 - [ ] Build and Test — EXECUTE (ALWAYS)
 
 ### 🟡 OPERATIONS PHASE
@@ -55,11 +55,11 @@
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Unit**: UOW-1 — SIC Import and Storage
-- **Current Stage**: Code Generation Part 3 — independent re-review COMPLETE for UOW-1 production Revision 2 (gate PASS)
-- **Last Completed**: Independent re-review of production Revision 2 `a51211a` — PASS on 2026-09-05; F-01, F-02, and F-03 verified resolved with independent evidence
-- **Next Step**: User review of `aidlc-docs/construction/sic-import-and-storage/code-review/independent-review.md`, then decide whether the 5 open Low findings (F-04, F-05, F-13, F-14, F-15) are fixed now or deferred, before approving Code Generation for UOW-1
-- **Status**: Independent gate PASS on Revision 2 `a51211a` (0 Blocking, 0 High, 0 Medium, 5 Low open, 10 Informational); all builds, vet, tests, full `-race` tests, and the three performance targets pass; Code Generation stage awaiting explicit user approval
+- **Current Unit**: UOW-2 — SIC Mapping Management
+- **Current Stage**: Functional Design — ready to plan for UOW-2
+- **Last Completed**: UOW-1 Code Generation approved on 2026-09-05 after independent Revision 2 gate PASS
+- **Next Step**: Create and present the UOW-2 Functional Design plan for approval
+- **Status**: UOW-1 Code Generation complete; its five non-blocking Low findings (F-04, F-05, F-13, F-14, F-15) are deferred to follow-up work; UOW-2 is ready to begin
 
 ## Notes
 - Production code and verification tests have mandatory cross-provider ownership. Each role runs in a separate session, the handoff is manual and artifact-based, and the independent review must report PASS before Code Generation completes.
