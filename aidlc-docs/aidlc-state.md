@@ -56,10 +56,10 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-1 — SIC Import and Storage
-- **Current Stage**: Code Generation Part 3 — UOW-1 production complete, independent review/test required
-- **Last Completed**: NFR Design for UOW-1 — approved 2026-09-05
-- **Next Step**: Commit the production revision, then run the independent review/test role in a separate provider session using `aidlc-docs/construction/sic-import-and-storage/code/independent-review-handoff.md`
-- **Status**: Production build, vet, and existing tests pass; independent gate remains open and UOW-1 is not complete
+- **Current Stage**: Code Generation Part 3 — UOW-1 production Revision 2 awaiting independent re-review
+- **Last Completed**: Production fixes for independent findings F-01, F-02, and F-03; unchanged independent suite passes
+- **Next Step**: Commit Production Revision 2, then have the separate-provider independent role re-review it and update `aidlc-docs/construction/sic-import-and-storage/code-review/independent-review.md`
+- **Status**: Prior gate PASS applied to revision 513e23b; material production fixes require a fresh PASS before Code Generation can complete
 
 ## Notes
 - Production code and verification tests have mandatory cross-provider ownership. Each role runs in a separate session, the handoff is manual and artifact-based, and the independent review must report PASS before Code Generation completes.

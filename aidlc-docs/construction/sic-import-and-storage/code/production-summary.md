@@ -6,6 +6,16 @@
 - Baseline subject: `docs: plan SIC category mapping with AI-DLC`
 - Production state: working-tree diff from the baseline; independent review must record the eventual committed revision or equivalent complete diff.
 
+### Revision 2 after independent findings
+
+The first independent review examined production commit `513e23b4ffb920a2744e248b2ce5523829b39c8b` and reported PASS with three Medium findings. The production role applied a second, currently uncommitted production revision:
+
+- F-01: `ValidateCSV` now returns neutral `validated`; `imported` and `ImportedRows` are assigned only after atomic persistence succeeds.
+- F-02: startup uses `ImportFileIfPresentWithReport` to receive explicit absent, skipped, oversized, invalid, imported, read-failed, and persistence-failed outcomes. The original error-only method remains as a compatibility wrapper.
+- F-03: startup emits at most 50 row warnings and always records aggregate rejected/reported/omitted counts.
+
+This revision requires separate-provider re-review before the independent gate is considered current.
+
 ## Files Modified
 
 - `internal/model/transaction.go` — nullable canonical SIC plus downstream display description.
@@ -54,6 +64,8 @@ git diff --check                                               PASS
 ```
 
 The build emitted a non-fatal sandbox warning when Go attempted to update a module-version stat-cache file under the read-only user module cache; the command exited successfully. Vet and tests completed without that warning.
+
+After Revision 2, formatting, diff check, build, vet, and the unchanged independent `go test -count=1 ./... -timeout 30m` suite all passed. No independent test file was modified by the production role.
 
 ## Ownership and Remaining Gate
 

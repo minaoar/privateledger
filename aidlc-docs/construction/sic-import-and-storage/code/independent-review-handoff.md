@@ -12,6 +12,16 @@ The independent role may modify verification tests, fixtures, test helpers, test
 - Current production revision: uncommitted working-tree production diff from that baseline.
 - Before review, record either the committed production SHA or an exact complete diff identifier that includes untracked production files.
 
+### Re-review request
+
+The first independent review passed commit `513e23b4ffb920a2744e248b2ce5523829b39c8b` with Medium findings F-01, F-02, and F-03. Production Revision 2 addresses all three in:
+
+- `internal/model/sic_mapping.go`
+- `internal/service/sic_mapping_service.go`
+- `cmd/privateledger/main.go`
+
+Re-review the complete new production revision and specifically verify report outcome timing/counts, startup outcome propagation, and bounded diagnostic output. Update the independent review artifact only from the independent provider session.
+
 ## Approved Authorities
 
 - `PROJECT_GUIDELINES.md`

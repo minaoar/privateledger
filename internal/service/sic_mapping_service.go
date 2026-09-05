@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -42,69 +41,69 @@ func NewSICMappingService(
 // ImportFileIfPresent imports a local seed only when the mapping table is
 // empty. Invalid and oversized user input is reported but is non-fatal.
 func (s *SICMappingService) ImportFileIfPresent(path string) error {
+	_, err := s.ImportFileIfPresentWithReport(path)
+	return err
+}
+
+// ImportFileIfPresentWithReport imports a local seed and returns its explicit
+// outcome so the startup boundary can apply logging and lifecycle policy.
+func (s *SICMappingService) ImportFileIfPresentWithReport(path string) (*model.SICMappingImportReport, error) {
+	report := &model.SICMappingImportReport{Errors: make([]model.SICMappingImportError, 0)}
 	_, err := os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		report.Outcome = model.SICMappingImportAbsent
+		return report, nil
 	}
 	if err != nil {
-		return fmt.Errorf("failed to discover SIC mapping seed %q: %w", path, err)
+		report.Outcome = model.SICMappingImportReadFailed
+		return report, fmt.Errorf("failed to discover SIC mapping seed %q: %w", path, err)
 	}
 
 	existing, err := s.sicRepo.Count()
 	if err != nil {
-		return fmt.Errorf("failed to check existing SIC mappings: %w", err)
+		report.Outcome = model.SICMappingImportPersistenceFailed
+		return report, fmt.Errorf("failed to check existing SIC mappings: %w", err)
 	}
 	if existing > 0 {
-		slog.Info("Skipping SIC mapping seed because SQLite mappings already exist",
-			slog.String("path", path),
-			slog.Int("existing_mappings", existing))
-		return nil
+		report.Outcome = model.SICMappingImportSkippedExisting
+		report.ExistingRows = existing
+		return report, nil
 	}
 
 	file, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("failed to open SIC mapping seed %q: %w", path, err)
+		report.Outcome = model.SICMappingImportReadFailed
+		return report, fmt.Errorf("failed to open SIC mapping seed %q: %w", path, err)
 	}
 	defer file.Close()
 
 	info, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("failed to inspect SIC mapping seed %q: %w", path, err)
+		report.Outcome = model.SICMappingImportReadFailed
+		return report, fmt.Errorf("failed to inspect SIC mapping seed %q: %w", path, err)
 	}
 	if info.Size() > maxSICMappingSeedSize {
-		slog.Warn("Rejecting oversized SIC mapping seed",
-			slog.String("path", path),
-			slog.Int64("size_bytes", info.Size()),
-			slog.Int64("maximum_bytes", maxSICMappingSeedSize))
-		return nil
+		report.Outcome = model.SICMappingImportOversized
+		return report, nil
 	}
 
 	mappings, report, err := s.ValidateCSV(file)
 	if err != nil {
-		return fmt.Errorf("failed to read SIC mapping seed %q: %w", path, err)
+		report.Outcome = model.SICMappingImportReadFailed
+		return report, fmt.Errorf("failed to read SIC mapping seed %q: %w", path, err)
 	}
 	if report.RejectedRows > 0 {
-		for _, validationErr := range report.Errors {
-			slog.Warn("Rejected SIC mapping seed row",
-				slog.String("path", path),
-				slog.Int("row", validationErr.RowNumber),
-				slog.String("field", validationErr.Field),
-				slog.String("code", validationErr.Code))
-		}
-		slog.Warn("SIC mapping seed validation failed; no mappings imported",
-			slog.String("path", path),
-			slog.Int("total_rows", report.TotalRows),
-			slog.Int("rejected_rows", report.RejectedRows))
-		return nil
+		report.Outcome = model.SICMappingImportInvalid
+		return report, nil
 	}
 
 	if err := s.sicRepo.BulkInsertAtomic(mappings); err != nil {
-		return fmt.Errorf("failed to persist SIC mapping seed %q: %w", path, err)
+		report.Outcome = model.SICMappingImportPersistenceFailed
+		return report, fmt.Errorf("failed to persist SIC mapping seed %q: %w", path, err)
 	}
-	slog.Info("Imported SIC mapping seed",
-		slog.String("path", path),
-		slog.Int("imported_rows", len(mappings)))
-	return nil
+	report.Outcome = model.SICMappingImportImported
+	report.ImportedRows = len(mappings)
+	return report, nil
 }
 
 // ValidateCSV parses and validates the complete mapping CSV without mutation.
@@ -187,7 +186,7 @@ func (s *SICMappingService) ValidateCSV(reader io.Reader) ([]*model.SICMapping, 
 	if report.RejectedRows > 0 {
 		return nil, report, nil
 	}
-	report.Outcome = model.SICMappingImportImported
+	report.Outcome = model.SICMappingImportValidated
 	return mappings, report, nil
 }
 

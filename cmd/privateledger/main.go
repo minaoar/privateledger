@@ -17,6 +17,7 @@ import (
 	"github.com/oronno/privateledger/internal/handler"
 	"github.com/oronno/privateledger/internal/logger"
 	"github.com/oronno/privateledger/internal/middleware"
+	"github.com/oronno/privateledger/internal/model"
 	"github.com/oronno/privateledger/internal/parser"
 	"github.com/oronno/privateledger/internal/repository"
 	"github.com/oronno/privateledger/internal/service"
@@ -26,6 +27,7 @@ const (
 	defaultConfigFile     = "config.json"
 	defaultDBFile         = "privateledger.db"
 	defaultSICMappingFile = "sic_mappings.csv"
+	maxSICSeedDiagnostics = 50
 )
 
 var (
@@ -95,10 +97,16 @@ func main() {
 	insightsService := service.NewInsightsService(transactionRepo, categoryRepo, cfg)
 	sicMappingService := service.NewSICMappingService(sicMappingRepo, categoryRepo)
 
-	if err := sicMappingService.ImportFileIfPresent(sicMappingPath); err != nil {
-		slog.Error("Failed to initialize SIC mappings", slog.String("error", err.Error()))
+	sicImportReport, err := sicMappingService.ImportFileIfPresentWithReport(sicMappingPath)
+	if err != nil {
+		attributes := []any{slog.String("error", err.Error())}
+		if sicImportReport != nil {
+			attributes = append(attributes, slog.String("outcome", string(sicImportReport.Outcome)))
+		}
+		slog.Error("Failed to initialize SIC mappings", attributes...)
 		log.Fatalf("Failed to initialize SIC mappings: %v", err)
 	}
+	logSICMappingImportOutcome(sicMappingPath, sicImportReport)
 
 	// Load patterns for categorizer
 	if err := categorizer.LoadPatterns(); err != nil {
@@ -206,6 +214,46 @@ func main() {
 	if err := router.Run(addr); err != nil {
 		slog.Error("Failed to start server", slog.String("error", err.Error()))
 		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+
+func logSICMappingImportOutcome(path string, report *model.SICMappingImportReport) {
+	if report == nil {
+		return
+	}
+	switch report.Outcome {
+	case model.SICMappingImportAbsent:
+		return
+	case model.SICMappingImportSkippedExisting:
+		slog.Info("Skipping SIC mapping seed because SQLite mappings already exist",
+			slog.String("path", path),
+			slog.Int("existing_mappings", report.ExistingRows))
+	case model.SICMappingImportOversized:
+		slog.Warn("Rejecting oversized SIC mapping seed",
+			slog.String("path", path),
+			slog.Int64("maximum_bytes", 10<<20))
+	case model.SICMappingImportInvalid:
+		limit := len(report.Errors)
+		if limit > maxSICSeedDiagnostics {
+			limit = maxSICSeedDiagnostics
+		}
+		for _, validationErr := range report.Errors[:limit] {
+			slog.Warn("Rejected SIC mapping seed row",
+				slog.String("path", path),
+				slog.Int("row", validationErr.RowNumber),
+				slog.String("field", validationErr.Field),
+				slog.String("code", validationErr.Code))
+		}
+		slog.Warn("SIC mapping seed validation failed; no mappings imported",
+			slog.String("path", path),
+			slog.Int("total_rows", report.TotalRows),
+			slog.Int("rejected_rows", report.RejectedRows),
+			slog.Int("reported_diagnostics", limit),
+			slog.Int("omitted_diagnostics", len(report.Errors)-limit))
+	case model.SICMappingImportImported:
+		slog.Info("Imported SIC mapping seed",
+			slog.String("path", path),
+			slog.Int("imported_rows", report.ImportedRows))
 	}
 }
 

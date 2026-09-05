@@ -115,7 +115,9 @@ const (
 	SICMappingImportSkippedExisting   SICMappingImportOutcome = "skipped_existing"
 	SICMappingImportInvalid           SICMappingImportOutcome = "invalid"
 	SICMappingImportOversized         SICMappingImportOutcome = "oversized"
+	SICMappingImportValidated         SICMappingImportOutcome = "validated"
 	SICMappingImportImported          SICMappingImportOutcome = "imported"
+	SICMappingImportReadFailed        SICMappingImportOutcome = "read_failed"
 	SICMappingImportPersistenceFailed SICMappingImportOutcome = "persistence_failed"
 )
 
