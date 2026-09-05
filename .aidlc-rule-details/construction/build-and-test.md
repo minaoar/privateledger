@@ -5,6 +5,8 @@
 ## Prerequisites
 - Code Generation must be complete for all units
 - All code artifacts must be generated
+- Every unit must have `aidlc-docs/construction/{unit-name}/code-review/independent-review.md` with final status PASS
+- Unit tests must have been authored in a separate session by a provider different from the production-code provider
 - Project is ready for build and testing
 
 ---
@@ -12,7 +14,7 @@
 ## Step 1: Analyze Testing Requirements
 
 Analyze the project to determine appropriate testing strategy:
-- **Unit tests**: Already generated per unit during code generation
+- **Unit tests**: Independently generated and initially executed per unit during the Code Generation independent-review gate
 - **Integration tests**: Test interactions between units/services
 - **Performance tests**: Load, stress, and scalability testing
 - **End-to-end tests**: Complete user workflows
@@ -301,6 +303,13 @@ Create `aidlc-docs/construction/build-and-test/build-and-test-summary.md`:
 Update `aidlc-docs/aidlc-state.md`:
 - Mark Build and Test stage as complete
 - Update current status
+
+### Mandatory Failure Ownership During Build and Test
+
+- A production failure returns to the primary production-code model for correction.
+- A test may be changed only by the independent reviewer/test-author model and only when it demonstrably contradicts approved artifacts.
+- Material production fixes require independent re-review and rerunning affected tests before Build and Test can complete.
+- The build/test model must not delete, skip, or weaken accurate tests to obtain a passing result.
 
 ---
 

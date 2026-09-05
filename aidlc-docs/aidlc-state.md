@@ -2,95 +2,67 @@
 
 ## Project Information
 - **Project Type**: Brownfield
-- **Start Date**: 2026-06-29T00:00:00Z
-- **Current Stage**: CONSTRUCTION - Code Generation Part 1 (awaiting approval of code generation plan)
-- **Branch**: show-uncategorized-transactions
+- **Start Date**: 2026-08-17T05:48:26Z
+- **Current Stage**: CONSTRUCTION - UOW-1 Code Generation Part 1 Review
+- **Branch**: support-mcc-for-category
 
 ## Workspace State
 - **Existing Code**: Yes
-- **Programming Languages**: Go
-- **Build System**: Make + go modules
-- **Project Structure**: Monolith (single binary, clean architecture)
+- **Programming Languages**: Go, HTML templates, JavaScript
+- **Build System**: Make + Go modules
+- **Project Structure**: Monolith (single Go binary, clean architecture)
 - **Workspace Root**: /Users/tanzil/Documents/GitHub/privateledger
+
+## Code Location Rules
+- **Application Code**: Workspace root (NEVER in aidlc-docs/)
+- **Documentation**: aidlc-docs/ only
 
 ## Extension Configuration
 | Extension | Enabled | Decided At |
 |---|---|---|
-| security-baseline | Pending | Requirements Analysis |
-| property-based-testing | Pending | Requirements Analysis |
-| resiliency-baseline | Pending | Requirements Analysis |
+| security-baseline | No | Requirements Analysis |
+| property-based-testing | Partial | Requirements Analysis |
+| resiliency-baseline | No | Requirements Analysis |
 
-## Execution Plan Summary
-- **Status**: Pending user answers to requirement-verification-questions.md
-- **Stages to Execute**: Requirements Analysis (in progress), Workflow Planning, Code Generation, Build and Test
-- **Stages to Skip**: Reverse Engineering (artifacts exist), User Stories, Application Design, Units Generation, Functional Design, NFR Requirements, NFR Design, Infrastructure Design
+## Requirement Analysis Summary
+- **User Request**: Plan GitHub issue #5 — auto-categorize transactions based on SIC/MCC values found under OFX/QFX `<SIC>` tags.
+- **Request Type**: New Feature / Enhancement
+- **Initial Scope Estimate**: Multiple Components (parser, model, database schema/migration, repositories, categorizer service, handlers/API, categories UI, tests)
+- **Initial Complexity Estimate**: Moderate
+- **Status**: Requirements approved and INCEPTION completed; CONSTRUCTION is in progress for UOW-1
 
 ## Stage Progress
 
 ### 🔵 INCEPTION PHASE
 - [x] Workspace Detection
-- [x] Reverse Engineering — SKIPPED (prior artifacts exist)
+- [x] Reverse Engineering — SKIPPED (prior architecture artifact exists and existing code was inspected for issue #5 impact)
 - [x] Requirements Analysis — COMPLETED
-- [ ] User Stories — SKIP
-- [ ] Application Design — SKIP
-- [ ] Units Generation — SKIP
-- [ ] Workflow Planning
+- [x] User Stories — COMPLETED
+- [x] Workflow Planning — COMPLETED
+- [x] Application Design — COMPLETED
+- [x] Units Generation — COMPLETED
 
 ### 🟢 CONSTRUCTION PHASE
-- [ ] Functional Design — SKIP
-- [ ] NFR Requirements — SKIP
-- [ ] NFR Design — SKIP
+- [x] Functional Design — COMPLETED FOR UOW-1
+- [x] NFR Requirements — COMPLETED FOR UOW-1
+- [x] NFR Design — COMPLETED FOR UOW-1
 - [ ] Infrastructure Design — SKIP
-- [x] Code Generation — COMPLETED
-- [x] Build and Test — COMPLETED
+- [ ] Code Generation — EXECUTE (ALWAYS)
+- [ ] Build and Test — EXECUTE (ALWAYS)
 
 ### 🟡 OPERATIONS PHASE
 - [ ] Operations — PLACEHOLDER
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Stage**: Build and Test COMPLETE
-- **Next Stage**: Operations (placeholder)
-- **Status**: Awaiting user approval of build and test results
+- **Current Unit**: UOW-1 — SIC Import and Storage
+- **Current Stage**: Code Generation Part 1 — UOW-1 plan complete, awaiting approval
+- **Last Completed**: NFR Design for UOW-1 — approved 2026-09-05
+- **Next Step**: User reviews and explicitly approves `aidlc-docs/construction/plans/sic-import-and-storage-code-generation-plan.md`
+- **Status**: Production implementation plan created; no production code has been generated
 
-### Build and Test Results
-- `go build`, `go vet`, `gofmt` all clean
-- Added `internal/service/insights_uncategorized_test.go` — the repository's **first test file**; 12 tests (25 cases), all pass
-- `internal/service` coverage 0.0% → **40.7%**; all other packages remain 0.0%
-- Mutation-verified: 4 injected defects each caught by the expected test; source restored byte-identical
-- 5 manual integration scenarios pass against a DB copy on an isolated port
-- Dashboard latency 11 ms median (179 txns, 16 categories); unit adds 12 queries, none to summary cards or pie chart
-- Artifacts: build-instructions.md, unit-test-instructions.md, integration-test-instructions.md, performance-test-instructions.md, build-and-test-summary.md (import-revert content preserved)
-
-### Known Gaps (documented, not blocking)
-1. Templates have no automated tests — verified manually only; malformed templates panic at render, not build
-2. ~~Visual appearance never reviewed~~ — CLOSED 2026-08-03: user reviewed the running dashboard; pie slice color iterated to `#4b5563`
-3. Coverage 0% outside internal/service
-4. Custom `start_of_month` untested for this feature (all runs used 1)
-5. Integration scenarios are manual, will not run in CI
-6. Large-dataset performance deliberately deferred
-7. Three codebase-wide definitions of "uncategorized" remain unreconciled (pinned locally only)
-
-### Code Generation Notes
-- Plan Revision 1 created, then reviewed against actual source on 2026-08-03
-- Revision 2 corrected 5 issues: redundant queries (Steps 4/5), `PreviousAmount` inconsistency (Step 4), unpinned "uncategorized" definition (double-count risk), duplicated breakdown function (Steps 2/3), indistinguishable pie color (Step 5)
-- Confirmed: Investment breakdown table gets no uncategorized row (requirements Q1=A)
-- All 22 plan checkboxes marked complete; all 10 steps executed
-
-### Files Modified
-- `internal/repository/transaction_repo.go` — `CategoryIsNull` + `TransactionType` filters
-- `internal/service/insights_service.go` — breakdown fn collapsed to delegate (~85 lines removed); uncategorized rows, summary-card totals, pie slice added
-- `cmd/privateledger/web/templates/dashboard.html` — uncategorized row rendering in expense + income tables
-
-### Verification Performed (against a copy of privateledger.db, isolated port 8899)
-- `go build`, `go vet`, `go test` all clean (repo has no test files)
-- Dashboard renders HTTP 200; templates parse
-- Uncategorized row amounts match raw SQL for every period, both tables
-- Column totals equal sum of rows in all 3 tables — no double-counting
-- Summary cards: expense 202.97 → 698.27, income 0.00 → 936.21 (matches SQL)
-- `previous_amount` also includes uncategorized — Revision-1 bug confirmed fixed
-- Investment table/summary correctly excludes uncategorized
-- Pie slice -495.30 matches SQL; color `#4b5563` (medium-dark grey) distinct from Others/fallback
-- Step 2 regression: 84 categorized cells checked across 3 tables, all match SQL
-- Uncategorized links return 200 and filter correctly (56 txns, 0 wrong-category, 0 out-of-range)
-- User's real DB and port 8844 untouched
+## Notes
+- Production code and verification tests have mandatory cross-provider ownership. Each role runs in a separate session, the handoff is manual and artifact-based, and the independent review must report PASS before Code Generation completes.
+- Application design artifacts were reviewed against software engineering best practices, implementation simplicity, and the existing codebase on 2026-08-24; 10 resolutions were applied (see the Design Review Resolutions table in `application-design.md`).
+- Three requirement amendments (FR4 x2, FR11) were approved by the user and applied to `requirements.md` on 2026-08-24; affected `stories.md` acceptance criteria were aligned. FR11 is now digits-only, which also removed the SIC collation decision from the design. FR13 needed no change — it already specified the single upload endpoint.
+- Previous AI-DLC artifacts for the uncategorized dashboard work were archived to `aidlc-docs/archive/show-uncategorized-dashboard-2026-08-17/` before starting this issue-specific workflow.

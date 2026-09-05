@@ -1,0 +1,6 @@
+interface:
+  display_name: "Production Code Generator"
+  short_description: "Implement approved production code only"
+  default_prompt: "Use $production-code-generator to implement the approved production steps for the current AI-DLC unit without editing tests."
+policy:
+  allow_implicit_invocation: true

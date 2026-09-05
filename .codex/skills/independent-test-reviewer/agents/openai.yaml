@@ -1,0 +1,6 @@
+interface:
+  display_name: "Independent Test Reviewer"
+  short_description: "Review code and independently author tests"
+  default_prompt: "Use $independent-test-reviewer to review the separate provider's production revision and independently write and run its tests."
+policy:
+  allow_implicit_invocation: true

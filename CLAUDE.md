@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Mandatory Shared Guidelines
+
+Read `PROJECT_GUIDELINES.md` completely before planning, editing, reviewing, or testing. It is the canonical provider-neutral source for durable project rules. Also read `aidlc-docs/aidlc-state.md` and the approved artifacts for the current stage/unit. If this file duplicates a rule, `PROJECT_GUIDELINES.md` is authoritative unless a newer approved AI-DLC artifact intentionally amends it.
+
 ## Project Overview
 
 PrivateLedger is a local-only personal finance application built in Go. It works with exported bank transactions in standard OFX (Microsoft Money) or QFX (Intuit Quicken) formats, provides pattern-based automatic categorization, and generates spending insights - all while keeping all financial data private on the user's machine.
