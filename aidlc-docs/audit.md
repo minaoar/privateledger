@@ -914,3 +914,27 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: Production Revision 2 complete; separate-provider re-review required before the independent gate closes
 
 ---
+
+## Code Generation Part 3 — Independent Re-review Requested (UOW-1, Revision 2)
+**Timestamp**: 2026-09-05T23:02:45Z
+**User Input**: "Re-review production commit a51211a using aidlc-docs/construction/sic-import-and-storage/code/independent-review-handoff.md. Verify fixes for F-01, F-02, and F-03, run the unchanged test suite, and update the independent review artifact. Do not modify production files"
+**AI Response**: "Verified production Revision 2 as commit a51211a ('fix: address SIC import review findings'), HEAD of support-mcc-for-category. Production diff 513e23b..a51211a touches cmd/privateledger/main.go, internal/model/sic_mapping.go, and internal/service/sic_mapping_service.go, matching the handoff's new Re-review request section. Independent role's Revision 1 tests and the rapid test-only dependency remain uncommitted and unchanged in the working tree. Resumed the same independent-test-reviewer session to re-read the updated handoff, run the unchanged suite first, verify F-01/F-02/F-03 resolution with its own evidence, re-measure the F-03 diagnostic bound, re-run -race and the three performance targets, and update the review artifact in place with a Revision 2 section and explicit PASS/BLOCKED. Production files remain off-limits to the independent role."
+**Context**: CONSTRUCTION / UOW-1 SIC Import and Storage / Code Generation Part 3 — independent re-review of Revision 2 in progress
+
+---
+
+## Code Generation Part 3 — Independent Re-review Interrupted and Restarted (UOW-1, Revision 2)
+**Timestamp**: 2026-09-05T23:08:56Z
+**User Input**: "stopped by mistake. resume"
+**AI Response**: "Correction to the prior entry: the Revision 2 re-review logged as 'in progress' was stopped before producing any output. Verified nothing was left half-written — no test file was created or modified, go.mod/go.sum were unchanged, and independent-review.md remained the Revision 1 artifact (45,145 bytes, no mention of a51211a). No production file was touched and nothing was committed. The stopped session could not be resumed, so a new independent-test-reviewer session was launched with the full Revision 1 context: reviewed revision a51211a, the F-01/F-02/F-03 definitions and their Revision 1 evidence, the carried-forward F-04/F-05 and Informational items, the inventory of the 15 existing untracked Revision 1 test files plus the pinned rapid v1.1.0 test-only dependency, and the recorded Revision 1 performance numbers. The independent role continues from the on-disk artifacts rather than starting the review over."
+**Context**: CONSTRUCTION / UOW-1 SIC Import and Storage / Code Generation Part 3 — Revision 2 re-review restarted after accidental interruption
+
+---
+
+## Code Generation Part 3 — Independent Re-review Result (UOW-1, Revision 2)
+**Timestamp**: 2026-09-05T23:22:59Z
+**User Input**: "(no user input — automated background task completion)"
+**AI Response**: "Independent re-review of production Revision 2 (a51211a) complete. Gate: PASS. All three Revision 1 Medium findings verified RESOLVED with independent evidence: F-01 (ValidateCSV now ends at validated; Imported/ImportedRows assigned only after BulkInsertAtomic returns, pinned at 0/1/2/25 rows and proven 0 after an injected failed commit), F-02 (ImportFileIfPresentWithReport assigns an outcome at all eight decision points and main.go applies LC-U1-08; every NFRP-U1-06 table row asserted through a real slog.JSONHandler), F-03 (re-measured on a regenerated 1,400,066-byte / 100,000-row fixture: 51 lines and 14,443 bytes versus the Revision 1 100,001 lines and 23,889,163 bytes — a 1961x line and 1972x byte reduction, now 1.03% of seed size rather than ~17x amplification). Residual reopened as F-13. New findings: F-13 Low (unbounded diagnostic accumulation — measured 6,707,480 bytes retained for 100,000 diagnostics, extrapolating to ~47.9 MiB at the 10 MiB seed limit), F-14 Low (duplicated 10<<20 literal in main.go and dropped size_bytes diagnostic), F-15 Low (database read from categoryRepo.GetAll mislabelled read_failed against NFRP-U1-06), F-16/F-17/F-18 Informational. F-04 and F-05 carry forward open and unchanged; neither file appears in the Revision 2 diff. Tests added: 13 functions and 27 sub-cases across internal/service/sic_seed_outcome_test.go, cmd/privateledger/startup_sic_outcome_test.go, and cmd/privateledger/startup_sic_diagnostic_volume_test.go; no existing test was modified. The unchanged Revision 1 suite was run against Revision 2 code first and exited 0 before anything was written. gofmt, go build ./..., go vet ./..., go test -count=1 ./..., and full go test -race -count=1 ./... all pass with zero races. Performance on Apple M1 / macOS 15.5 / go1.26.0: PERF-01 -0.97% (baseline abd9963 median 3.130470292s vs candidate 3.099974834s, both re-measured back to back) against a +10% budget, PERF-02 43.35 ms against 5 s, PERF-03 545.34 ms against 10 s. No production file was modified by the independent role — verified: git diff --name-only a51211a over internal/ and cmd/ shows no non-test file. Artifact updated in place to 77,900 bytes with Revision 1 content preserved and sections R2.1-R2.13 appended."
+**Context**: CONSTRUCTION / UOW-1 SIC Import and Storage / Code Generation Part 3 — Revision 2 independent gate PASS; awaiting user decision on 5 open Low findings before stage approval
+
+---
