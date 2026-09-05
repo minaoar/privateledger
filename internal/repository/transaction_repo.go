@@ -25,8 +25,8 @@ func (r *TransactionRepository) Create(txn *model.Transaction) error {
 	query := `
 		INSERT INTO ledger_transaction (
 			account_id, import_batch_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			transaction_details, transaction_type, sic_code, category_id, category_source
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	result, err := r.db.Exec(query,
@@ -38,6 +38,7 @@ func (r *TransactionRepository) Create(txn *model.Transaction) error {
 		txn.Amount,
 		txn.TransactionDetails,
 		txn.TransactionType,
+		txn.SICCode,
 		txn.CategoryID,
 		txn.CategorySource,
 	)
@@ -65,7 +66,7 @@ func formatDatePosted(datePosted time.Time) string {
 func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID string, datePosted time.Time) (*model.Transaction, error) {
 	query := `
 		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source, created_at
+			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
 		FROM ledger_transaction
 		WHERE account_id = ? AND trn_type = ? AND fit_id = ? AND date_posted = ?
 	`
@@ -80,6 +81,7 @@ func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID stri
 		&txn.Amount,
 		&txn.TransactionDetails,
 		&txn.TransactionType,
+		&txn.SICCode,
 		&txn.CategoryID,
 		&txn.CategorySource,
 		&txn.CreatedAt,
@@ -98,10 +100,12 @@ func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID stri
 // GetByID retrieves a transaction by its ID
 func (r *TransactionRepository) GetByID(transactionID int) (*model.Transaction, error) {
 	query := `
-		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source, created_at
-		FROM ledger_transaction
-		WHERE transaction_id = ?
+		SELECT t.transaction_id, t.account_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
+			t.transaction_details, t.transaction_type, t.sic_code, t.category_id, t.category_source, t.created_at,
+			COALESCE(NULLIF(sm.description, ''), sm.description_detail) AS sic_description
+		FROM ledger_transaction t
+		LEFT JOIN sic_mapping sm ON t.sic_code = sm.sic_code
+		WHERE t.transaction_id = ?
 	`
 
 	var txn model.Transaction
@@ -114,9 +118,11 @@ func (r *TransactionRepository) GetByID(transactionID int) (*model.Transaction, 
 		&txn.Amount,
 		&txn.TransactionDetails,
 		&txn.TransactionType,
+		&txn.SICCode,
 		&txn.CategoryID,
 		&txn.CategorySource,
 		&txn.CreatedAt,
+		&txn.SICDescription,
 	)
 
 	if err == sql.ErrNoRows {
@@ -157,14 +163,16 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 	query := `
 		SELECT
 			t.transaction_id, t.account_id, t.import_batch_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
-			t.transaction_details, t.transaction_type, t.category_id, t.category_source, t.created_at,
+			t.transaction_details, t.transaction_type, t.sic_code, t.category_id, t.category_source, t.created_at,
 			a.name as account_name,
 			c.name as category_name,
 			c.color as category_color,
-			c.icon as category_icon
+			c.icon as category_icon,
+			COALESCE(NULLIF(sm.description, ''), sm.description_detail) AS sic_description
 		FROM ledger_transaction t
 		LEFT JOIN account a ON t.account_id = a.account_id
 		LEFT JOIN category c ON t.category_id = c.category_id
+		LEFT JOIN sic_mapping sm ON t.sic_code = sm.sic_code
 		WHERE 1=1
 	`
 	var args []interface{}
@@ -246,6 +254,7 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 			&txn.Amount,
 			&txn.TransactionDetails,
 			&txn.TransactionType,
+			&txn.SICCode,
 			&txn.CategoryID,
 			&txn.CategorySource,
 			&txn.CreatedAt,
@@ -253,6 +262,7 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 			&txn.CategoryName,
 			&txn.CategoryColor,
 			&txn.CategoryIcon,
+			&txn.SICDescription,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
@@ -293,7 +303,7 @@ func (r *TransactionRepository) UpdateCategory(transactionID int, categoryID *in
 func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error) {
 	query := `
 		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source, created_at
+			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
 		FROM ledger_transaction
 		WHERE category_source = 0
 		ORDER BY date_posted DESC
@@ -317,6 +327,7 @@ func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error)
 			&txn.Amount,
 			&txn.TransactionDetails,
 			&txn.TransactionType,
+			&txn.SICCode,
 			&txn.CategoryID,
 			&txn.CategorySource,
 			&txn.CreatedAt,
@@ -327,6 +338,62 @@ func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error)
 		transactions = append(transactions, &txn)
 	}
 
+	return transactions, nil
+}
+
+// GetUncategorizedBySICCodes returns uncategorized transactions matching any
+// canonical SIC code. An empty input avoids issuing invalid SQL.
+func (r *TransactionRepository) GetUncategorizedBySICCodes(sicCodes []string) ([]*model.Transaction, error) {
+	if len(sicCodes) == 0 {
+		return []*model.Transaction{}, nil
+	}
+
+	placeholders := make([]string, len(sicCodes))
+	args := make([]any, len(sicCodes))
+	for i, sicCode := range sicCodes {
+		placeholders[i] = "?"
+		args[i] = sicCode
+	}
+	query := `
+		SELECT transaction_id, account_id, import_batch_id, trn_type, fit_id, date_posted, amount,
+			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
+		FROM ledger_transaction
+		WHERE category_source = 0
+			AND sic_code IN (` + strings.Join(placeholders, ",") + `)
+		ORDER BY date_posted DESC
+	`
+
+	rows, err := r.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query uncategorized transactions by SIC codes: %w", err)
+	}
+	defer rows.Close()
+
+	transactions := make([]*model.Transaction, 0)
+	for rows.Next() {
+		var txn model.Transaction
+		if err := rows.Scan(
+			&txn.TransactionID,
+			&txn.AccountID,
+			&txn.ImportBatchID,
+			&txn.TrnType,
+			&txn.FitID,
+			&txn.DatePosted,
+			&txn.Amount,
+			&txn.TransactionDetails,
+			&txn.TransactionType,
+			&txn.SICCode,
+			&txn.CategoryID,
+			&txn.CategorySource,
+			&txn.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan transaction by SIC code: %w", err)
+		}
+		transactions = append(transactions, &txn)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating transactions by SIC codes: %w", err)
+	}
 	return transactions, nil
 }
 

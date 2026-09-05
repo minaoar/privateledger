@@ -35,6 +35,9 @@ CREATE TABLE IF NOT EXISTS ledger_transaction (
     transaction_details TEXT,
     transaction_type    INTEGER NOT NULL,  -- 1=debit, 2=credit
 
+    -- Optional normalized OFX SIC value (not part of transaction identity)
+    sic_code        TEXT,
+
     -- Categorization
     category_id     INTEGER REFERENCES category(category_id) ON DELETE SET NULL,
     category_source INTEGER NOT NULL DEFAULT 0 CHECK (category_source IN (0, 1, 2)),  -- 0=none, 1=rule, 2=manual
@@ -60,6 +63,16 @@ CREATE TABLE IF NOT EXISTS category_pattern (
     pattern_name        TEXT NOT NULL UNIQUE,
     category_id         INTEGER NOT NULL REFERENCES category(category_id) ON DELETE CASCADE,
     created_at          DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- SIC-to-category mappings. A NULL category intentionally assigns nothing.
+CREATE TABLE IF NOT EXISTS sic_mapping (
+    sic_mapping_id     INTEGER PRIMARY KEY,
+    sic_code           TEXT NOT NULL UNIQUE,
+    description        TEXT,
+    description_detail TEXT,
+    category_id        INTEGER REFERENCES category(category_id) ON DELETE SET NULL,
+    created_at         DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes for query performance

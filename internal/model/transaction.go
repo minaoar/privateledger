@@ -29,16 +29,18 @@ type Transaction struct {
 	// Processed fields
 	TransactionDetails string          `json:"transaction_details" db:"transaction_details"`
 	TransactionType    TransactionType `json:"transaction_type" db:"transaction_type"`
+	SICCode            *SICCode        `json:"sic_code,omitempty" db:"sic_code"`
 
 	// Categorization
 	CategoryID     *int           `json:"category_id" db:"category_id"` // Nullable
 	CategorySource CategorySource `json:"category_source" db:"category_source"`
 
 	// Display fields (populated via JOIN, not stored in DB)
-	AccountName   *string `json:"account_name,omitempty" db:"account_name"`
-	CategoryName  *string `json:"category_name,omitempty" db:"category_name"`
-	CategoryColor *string `json:"category_color,omitempty" db:"category_color"`
-	CategoryIcon  *string `json:"category_icon,omitempty" db:"category_icon"`
+	AccountName    *string `json:"account_name,omitempty" db:"account_name"`
+	CategoryName   *string `json:"category_name,omitempty" db:"category_name"`
+	CategoryColor  *string `json:"category_color,omitempty" db:"category_color"`
+	CategoryIcon   *string `json:"category_icon,omitempty" db:"category_icon"`
+	SICDescription *string `json:"sic_description,omitempty" db:"sic_description"`
 }
 
 // NewTransaction creates a new Transaction from OFX data

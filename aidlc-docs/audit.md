@@ -850,3 +850,34 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: Awaiting explicit plan approval; no production code generated
 
 ---
+
+## UOW-1 Code Generation Part 1 - Plan Approved
+**Timestamp**: 2026-09-05T21:44:59Z
+**User Response**: "go ahead"
+**Approved Artifact**: `aidlc-docs/construction/plans/sic-import-and-storage-code-generation-plan.md`
+**Status**: Approved; Code Generation Part 2 production implementation started
+**Ownership Boundary**: Production files and production documentation only; verification tests, fixtures, test-only dependencies, benchmarks, and independent review remain owned by a separate provider session.
+
+---
+
+## UOW-1 Code Generation Part 2 - Production Implementation Complete
+**Timestamp**: 2026-09-05T21:44:59Z
+**Baseline Revision**: `abd99633903c21d72be6c5e96c332d526f36acf6`
+**Production Files Modified**:
+- `internal/model/transaction.go`
+- `internal/parser/ofx_parser.go`
+- `internal/database/schema.sql`
+- `internal/database/db.go`
+- `internal/repository/transaction_repo.go`
+- `cmd/privateledger/main.go`
+**Production Files Created**:
+- `internal/model/sic_mapping.go`
+- `internal/repository/sic_mapping_repo.go`
+- `internal/service/sic_mapping_service.go`
+**Production Documentation Created**:
+- `aidlc-docs/construction/sic-import-and-storage/code/production-summary.md`
+- `aidlc-docs/construction/sic-import-and-storage/code/independent-review-handoff.md`
+**Verification**: Formatting, `go build ./...`, `go vet ./...`, existing `go test ./...`, and `git diff --check` passed. The production role created or modified no verification tests, fixtures, benchmarks, property tests, test-only dependencies, or independent review artifact.
+**Status**: Production generation complete; Code Generation Part 3 independent review/test gate required in a separate provider session
+
+---

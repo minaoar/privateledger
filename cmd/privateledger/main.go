@@ -23,8 +23,9 @@ import (
 )
 
 const (
-	defaultConfigFile = "config.json"
-	defaultDBFile     = "privateledger.db"
+	defaultConfigFile     = "config.json"
+	defaultDBFile         = "privateledger.db"
+	defaultSICMappingFile = "sic_mappings.csv"
 )
 
 var (
@@ -43,6 +44,7 @@ func main() {
 	execDir := filepath.Dir(execPath)
 	configPath := filepath.Join(execDir, defaultConfigFile)
 	dbPath := filepath.Join(execDir, defaultDBFile)
+	sicMappingPath := filepath.Join(execDir, defaultSICMappingFile)
 
 	// Load configuration
 	cfg, err := config.Load(configPath)
@@ -84,12 +86,19 @@ func main() {
 	categoryRepo := repository.NewCategoryRepository(db)
 	patternRepo := repository.NewCategoryPatternRepository(db)
 	importBatchRepo := repository.NewImportBatchRepository(db)
+	sicMappingRepo := repository.NewSICMappingRepository(db)
 
 	// Initialize services
 	ofxParser := parser.NewOFXParser()
 	categorizer := service.NewCategorizer(patternRepo, transactionRepo)
 	importService := service.NewImportService(ofxParser, transactionRepo, accountRepo, categorizer, importBatchRepo)
 	insightsService := service.NewInsightsService(transactionRepo, categoryRepo, cfg)
+	sicMappingService := service.NewSICMappingService(sicMappingRepo, categoryRepo)
+
+	if err := sicMappingService.ImportFileIfPresent(sicMappingPath); err != nil {
+		slog.Error("Failed to initialize SIC mappings", slog.String("error", err.Error()))
+		log.Fatalf("Failed to initialize SIC mappings: %v", err)
+	}
 
 	// Load patterns for categorizer
 	if err := categorizer.LoadPatterns(); err != nil {
