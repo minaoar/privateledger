@@ -1016,3 +1016,135 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-2 Functional Design COMPLETE. Next stage is NFR Requirements for UOW-2, which has not been started.
 
 ---
+
+## UOW-2 NFR Requirements — Plan and Clarification Questions Created
+**Timestamp**: 2026-09-06T04:48:41Z
+**User Input**: "push and proceed to NFR Requirements"
+**AI Response**: "Pushed de92e85 to origin/support-mcc-for-category (7131e64..de92e85). Started NFR Requirements for UOW-2 per construction/nfr-requirements.md. Created the stage plan with execution checklist and nine embedded clarification questions in [Answer]: format. The assessment identifies UOW-2's new NFR surfaces relative to UOW-1: the first HTTP write path for mappings, the first deliberate concurrent state via the BR-U2-44 mutex, an application-written backup file, and a cross-unit call held under lock. Two UOW-1 NFRs need explicit successors — NFR-U1-TEST-04's conditional race-detector evidence is now triggered because UOW-2 does introduce concurrent state, and NFR-U1-SEC-03's pre-parse size bound needs an upload-path statement per BR-U2-39. Questions cover mutex waiting policy, upload size bound, diagnostic bound, backup file retention (unbounded accumulation is unaddressed in the approved design), which performance targets are blocking, page-render scale, UOW-2 property-based testing scope under the Partial configuration, and whether deferred finding F-15 is folded into UOW-2 now that its mislabelled outcome becomes user-visible through the upload response."
+**Artifact**: `aidlc-docs/construction/plans/sic-mapping-management-nfr-requirements-plan.md`
+**Status**: Awaiting answers to nine questions; no UOW-2 NFR requirements or tech-stack artifacts generated yet.
+
+---
+
+## UOW-2 NFR Requirements — Answers Analyzed and Artifacts Generated
+**Timestamp**: 2026-09-06T04:59:47Z
+**User Input**: "following AI DLC, continue with the next step"
+**Inputs**: Completed NFR plan answers Q1–Q9: A, A, A, B, B, C, A, A, A; approved functional design; project and UOW-1 NFR artifacts.
+**Action**: Generated UOW-2 `nfr-requirements.md` and `tech-stack-decisions.md`; updated plan and lifecycle state without marking the stage approved.
+**Interpretations**: Q5/Q6 establish merge-only blocking timing plus a 1,000-mapping page usability fixture. Q9 supplies the UOW-1 ten-second/100,000-row precedent for the proposed merge benchmark, now including successful backup and no-op handoff. Q7 explicitly scopes generated properties to merge idempotency/invariants; round-trip and category-resolution examples remain required. Concrete timeout and cancellation design remains the next stage's responsibility.
+**PBT Compliance**: PBT-09 compliant: existing rapid dependency retained. PBT-02/03 scope refined by explicit Q7 selection; PBT-07/08 requirements carried forward to independent verification. Other rules advisory under Partial mode. No blocking stage finding; no execution evidence claimed.
+**Finding Scope**: F-15 correction now required in UOW-2, using persistence_failed for database validation infrastructure failures; F-04/F-05 remain deferred. Prior review artifacts preserved.
+**Status**: NFR artifacts ready for review; explicit approval required by `.aidlc-rule-details/construction/nfr-requirements.md` Step 8 before NFR Design. Documentation only; no production/test edits, commit, or push.
+
+---
+
+## UOW-2 NFR Requirements — Explicit Approval
+**Timestamp**: 2026-09-06T05:28:03Z
+**User Input**: "approved."
+**Decision**: Approved both UOW-2 NFR Requirements artifacts, including the ten-second/100,000-row merge benchmark and documented Q7 property scope. Marked stage complete and removed draft status from approved artifacts.
+
+## UOW-2 NFR Design — Artifacts Generated
+**Timestamp**: 2026-09-06T05:28:03Z
+**Action**: Created the NFR Design plan, nfr-design-patterns.md, and logical-components.md. Evaluated resilience, scalability, performance, security and logical components. Resolved implementation choices assigned to this stage by the approved NFRs without reopening settled user preferences.
+**Design Decisions**: Five-second configurable channel-gate admission; thirty-second cooperative post-commit context; gate held until collaborator returns; context-aware UOW-2 persistence; stable busy and saved-with-warning results; bounded streaming multipart intake; exclusive 0600 backup files with checked write/Sync/Close and best-effort partial cleanup; prepared atomic upsert and pre-state diff.
+**Code Inspection Finding**: Existing ValidateCSV uses len(report.Errors) to determine row validity. Design explicitly requires an independent validity flag/counter so the 50-diagnostic cap cannot accept invalid rows after truncation.
+**PBT Compliance**: PBT-09 retained; approved PBT-02/03 scope preserved; PBT-07/08 verification requirements carried forward. No blocking design-stage PBT finding; execution evidence pending.
+**Status**: NFR Design ready for explicit approval under `.aidlc-rule-details/construction/nfr-design.md` Step 8. Infrastructure Design remains skipped; next stage after approval is Code Generation planning. Documentation only; no production/tests changed, no commit/push.
+
+---
+
+## UOW-2 NFR Design — Simplified on User Request
+**Timestamp**: 2026-09-06T05:37:00Z
+**User Input**: "simplify"
+**Changes**: Removed new JSON timeout settings and configuration validation/migration work; retained a constructor-injected five-second admission default. Removed the checkpoint thirty-second post-commit timer and context-aware collaborator expansion; UOW-3 owns the real collaborator's budget/cancellation design. Limited context changes to admission, phase-boundary checks and new transaction operations. Replaced custom streaming multipart processing/buffering with standard bounded multipart parsing and cleanup. Removed required backup Sync and broad filesystem test abstractions; retain checked write/flush/close, exclusive creation and partial cleanup.
+**Requirement Alignment**: Configured admission is provided through injection, not a user-facing setting. The checkpoint collaborator is an immediate no-op, so no processing deadline is needed; lock scope, bounded competing waits and committed-warning semantics remain unchanged. No approved NFR target or independent test ownership changed.
+**Artifacts**: Revised both NFR Design documents, design plan and state. Historical audit entries retained. Design remains awaiting explicit approval; no production/test changes or test execution.
+
+---
+
+## UOW-2 NFR Design — Review Requested
+**Timestamp**: 2026-09-06T05:52:00Z
+**User Input**: "following AI DLC, any feedback regarding the nfr design?"
+**AI Response**: "Reviewed both UOW-2 NFR Design artifacts against the approved NFR Requirements and Functional Design. Reported the design complete and consistent: every approved NFR group (PERF-01, SCALE-01, CON-01, REL-01/02/03, SEC-01/02/03, UX-01, MAINT-01, TEST-01-04) maps to a pattern; BR-U2-39/40/42/44/46 are operationalized by NFRP-U2-01/02/05; the admission gate, prepared atomic merge, exclusive-creation backup, bounded multipart intake and independent row-validity flag are technically sound. Three non-blocking observations recorded: the five-second admission bound sits above UOW-1's separate five-second SQLite busy timeout by design, the gate is deliberately held across the collaborator with UOW-3 owning the real budget, and the F-15 correction depends on replacing the `len(report.Errors)` validity test. Recommended approval. No artifact was modified during the review."
+**Context**: CONSTRUCTION / UOW-2 SIC Mapping Management / NFR Design — pre-approval review
+
+---
+
+## UOW-2 NFR Design — Explicit Approval
+**Timestamp**: 2026-09-06T05:56:00Z
+**User Input**: "approved the NFR."
+**AI Response**: "Recorded explicit NFR Design approval. Marked the final plan checkbox complete, changed both artifact status lines from 'awaiting explicit approval' to 'APPROVED by the user on 2026-09-06', and advanced lifecycle state to Code Generation Part 1 planning."
+**Approved Artifacts**:
+- `aidlc-docs/construction/sic-mapping-management/nfr-design/nfr-design-patterns.md`
+- `aidlc-docs/construction/sic-mapping-management/nfr-design/logical-components.md`
+**Status**: UOW-2 NFR Design COMPLETE. Infrastructure Design remains skipped. Next stage is Code Generation Part 1 (Planning), which requires its own explicit plan approval before any production code is written.
+**Carried Forward**: F-15 correction is in UOW-2 production/verification scope; F-04 and F-05 remain deferred. Production code and verification tests retain mandatory cross-provider ownership in separate sessions.
+
+---
+
+## UOW-2 Code Generation Part 1 — Plan Created and Approval Requested
+**Timestamp**: 2026-09-06T06:10:00Z
+**User Input**: "go ahead"
+**AI Response**: "Created the UOW-2 code generation plan: 14 sequential steps covering shared domain contracts/limits, the shared-validation correction, repository atomic merge and numeric ordering, the service admission gate and collaborator contract, page data/CRUD/export, the backup helper, upload merge orchestration, the API handler with bounded multipart intake, page route and wiring, the SIC mappings template, production verification, production documentation, independent handoff, and the independent gate. Ownership boundary restated: the production role touches no test file, fixture, or test-only dependency, and must not modify the 15 existing UOW-1 test files."
+**Artifact**: `aidlc-docs/construction/plans/sic-mapping-management-code-generation-plan.md`
+**Scope**: Modify `internal/model/sic_mapping.go`, `internal/service/sic_mapping_service.go`, `internal/repository/sic_mapping_repo.go`, `internal/handler/page_handler.go`, `cmd/privateledger/main.go`, `cmd/privateledger/web/templates/layout.html`, `API_ROUTES.md`. Create `internal/handler/sic_mapping_handler.go`, `cmd/privateledger/web/templates/sic_mappings.html`, and two production documentation artifacts. No schema migration is required; `sic_mapping` already carries the needed columns and constraints.
+**Pre-Existing Conditions Verified Against the Working Tree Before Planning**:
+- F-15 confirmed live at `internal/service/sic_mapping_service.go:90-94` — a `categoryRepo.GetAll()` database failure is relabelled `read_failed` by the caller.
+- `ValidateCSV` decides row validity via `len(report.Errors)` at `internal/service/sic_mapping_service.go:161,179`. Applying the approved 50-diagnostic cap without replacing this test would classify every invalid row after the cap as valid and merge it. Recorded as the reason Step 2 requires an explicit per-row invalid flag.
+- F-14 confirmed live — `cmd/privateledger/main.go:234` carries `10<<20` duplicating `maxSICMappingSeedSize` at `internal/service/sic_mapping_service.go:16`; `maxSICSeedDiagnostics = 50` at `main.go:30` bounds startup logging only.
+- Mapping order is lexicographic: `sic_code` is `TEXT NOT NULL UNIQUE` and `internal/repository/sic_mapping_repo.go:100` uses `ORDER BY sm.sic_code`, so `1000` sorts before `999`. `logical-components.md` directed this stage to verify the real column representation before choosing SQL; numeric ordering is now Step 3.
+- Destructive `ReplaceAll` exists at `internal/repository/sic_mapping_repo.go:171`; the plan forbids any merge path from calling it and makes that a Step 11 diff check.
+**Approval Prompt**: "Please review and explicitly approve the complete UOW-2 code generation plan before production generation begins."
+**Status**: Awaiting explicit plan approval; no production code generated.
+
+---
+
+## UOW-2 Code Generation Part 1 — Plan Approved
+**Timestamp**: 2026-09-06T06:20:00Z
+**User Input**: "approved"
+**AI Response**: "Recorded plan approval and started Code Generation Part 2 production implementation."
+**Approved Artifact**: `aidlc-docs/construction/plans/sic-mapping-management-code-generation-plan.md`
+**Ownership Boundary**: Production files and production documentation only. Verification tests, fixtures, test-only dependencies, benchmarks, and the independent review artifact remain owned by a separate-provider session. The 15 existing UOW-1 test files must not be modified by the production role.
+**Provider Note**: This session (Claude) is authoring UOW-2 production code, inverting the UOW-1 arrangement in which Claude performed the independent review. Per `.claude/CLAUDE.md`, the UOW-2 independent review and test authorship must therefore run in a different provider's session; this session cannot close its own gate.
+**Status**: Approved; Part 2 production generation started.
+
+---
+
+## UOW-2 Code Generation Part 2 — Production Implementation Complete
+**Timestamp**: 2026-09-06T06:45:00Z
+**User Input**: "(no user input — executing the approved plan)"
+**Baseline Revision**: `de92e85644ef49810d01ca76af307e6b09946ba6`
+**Production Files Modified**:
+- `internal/model/sic_mapping.go`
+- `internal/service/sic_mapping_service.go`
+- `internal/repository/sic_mapping_repo.go`
+- `internal/handler/page_handler.go`
+- `cmd/privateledger/main.go`
+- `cmd/privateledger/web/templates/layout.html`
+- `API_ROUTES.md`
+**Production Files Created**:
+- `internal/handler/sic_mapping_handler.go`
+- `cmd/privateledger/web/templates/sic_mappings.html`
+**Production Documentation Created**:
+- `aidlc-docs/construction/sic-mapping-management/code/production-summary.md`
+- `aidlc-docs/construction/sic-mapping-management/code/independent-review-handoff.md`
+**AI Response**: "Executed plan Steps 1-13. Implemented the shared domain bounds and result types, the row-validity and F-15 corrections in the shared validation path, the repository atomic merge with numeric ordering, the service admission gate and collaborator contract, page data/CRUD/export, the backup helper, upload merge orchestration, the API handler with bounded multipart intake, page route and wiring, and the mapping page template. No schema migration was required and no production dependency was added."
+**Verification**: `gofmt -l ./cmd ./internal` clean; `go build ./...` pass; `go vet ./...` pass; `git diff --check` clean. Production smoke verification ran on an isolated port against a temporary database, leaving the user's real database and port 8844 untouched: page render 200; `05412` normalized to `5412`; duplicate 409; non-digit 422; unknown delete 404; ordering `999, 1000, 5412` proving the numeric-cast fix (lexicographic would give `1000, 5412, 999`); merge created 2 / unchanged 1 with a returned backup path; omitted codes retained; re-upload fully unchanged; header-only committed with zero counts; backups at mode `-rw-------` with three same-second files not colliding; an 80-invalid-plus-1-valid file returning 422 with `rejected_rows: 80` authoritative, 50 diagnostics, `diagnostics_truncated: true`, and the valid row not merged; 11 MiB upload 413 oversized; update clearing a category; CSV export with five columns in numeric order.
+**Findings Implemented Pending Independent Verification**: F-13 (diagnostics bounded at accumulation), F-14 (single shared size constant), F-15 (`persistence_failed` for category-load failure, outcome preserved by the wrapper), F-16 (`merged` added to the shared outcome set). F-04 and F-05 remain deferred and untouched.
+**Ownership**: No test file, fixture, test-only dependency, benchmark, or independent review artifact was created or modified. `pgregory.net/rapid` is untouched.
+**Pre-Existing Test Failures Reported Rather Than Edited**: `TestSICMappingRepository_UniqueCodeRejected` (asserts the error text contains "UNIQUE"; the repository now returns `model.ErrSICMappingDuplicate` because NFRP-U2-07 forbids error-string matching and the driver text previously reached the API body), plus `TestStartupDiagnosticVolumeForLargeInvalidSeed` and `TestStartupDiagnosticRetentionForLargeInvalidSeed` (both assert one retained diagnostic per rejected row, which is the F-13 defect BR-U2-40 closes). Authoritative counts were confirmed intact for a 100,000-row invalid seed: `Outcome=invalid`, `RejectedRows=100000`, `ImportedRows=0`, mapping count 0. All three are recorded for independent adjudication.
+**Correction Made During Execution**: Step 1's removal of the duplicated diagnostic literal initially deleted `maxSICSeedDiagnostics` from `main.go`, breaking compilation of an existing test that references it. It was restored as an alias of the shared domain constant, preserving single-source-of-truth without deleting an identifier existing tests use.
+**Status**: Production generation complete. Code Generation Part 3 independent review/test gate required in a separate provider session.
+**Provider Note**: Claude authored UOW-2 production code, so Claude cannot close this gate. UOW-1's arrangement is inverted for this unit.
+
+---
+
+## UOW-2 Code Generation Part 2 — Production Commit
+**Timestamp**: 2026-09-06T06:58:00Z
+**User Input**: "sure"
+**AI Response**: "Committed the UOW-2 production diff as `ee24446` ('feat: add SIC mapping management page, API, and merge upload') on branch support-mcc-for-category, then updated the independent handoff to name that revision. Production code and AI-DLC documentation were committed separately, following the UOW-1 precedent, so the diff the reviewer examines carries no documentation noise."
+**Production Revision**: `ee24446e669c6892f73cd3448776c9f95a2d1e58`
+**Production Diff**: `git diff de92e85..ee24446` — 9 files, +1639 / -51
+**Context**: CONSTRUCTION / UOW-2 SIC Mapping Management / Code Generation Part 2 — production revision pinned for independent review
+
+---
