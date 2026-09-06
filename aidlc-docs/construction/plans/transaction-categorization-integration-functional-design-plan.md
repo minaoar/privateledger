@@ -48,6 +48,9 @@ Confirmed against the working tree before planning.
 Answer each by replacing the `[Answer]:` tag. These are the decisions this stage cannot settle from
 the approved artifacts.
 
+A recommendation is marked **(Recommended)** on one option per question, with the reason on the line
+below it. They are suggestions, not defaults — pick whatever you prefer and I will design to it.
+
 ### Q1 — Recategorization budget and cancellation
 
 UOW-2's NFR Design explicitly deferred this: the mapping-mutation gate is held for the whole
@@ -57,10 +60,20 @@ long the lock holder runs.
 
 - A. Bound the recategorization work with a processing deadline; on expiry, commit what was already
   applied and report a partial result with a warning. Mapping changes stay committed.
-- B. No deadline. Recategorization runs to completion however long it takes; the mapping change and
-  its recategorization are always all-or-nothing together.
+- B. **(Recommended)** No deadline. Recategorization runs to completion, and a failure remains a
+  post-commit warning exactly as BR-U2-45 already specifies.
+  *Measured evidence says the feared delay does not occur at this scale: merging 100,000 mappings took
+  1.4 s, and recategorization is one indexed `GetUncategorizedBySICCodes` query plus bulk updates. A
+  deadline would buy nothing while introducing partial-completion state to report and test. The gate
+  only blocks other mapping mutations, by one person, in a local app.*
 - C. No deadline, but do the recategorization in bounded batches so progress is visible and the
   operation can report counts as it goes.
+
+**Correction to this question:** option B originally read "the mapping change and its recategorization
+are always all-or-nothing together." That was wrong of me — it contradicts approved rule BR-U2-45,
+under which the mapping commit lands first and a later collaborator failure is a committed-with-warning
+success, never a rollback. Choosing all-or-nothing would mean reopening an approved UOW-2 decision. B is
+restated above to match the approved contract.
 
 [Answer]:
 
@@ -71,9 +84,14 @@ applies there too. The consequence: the first time an existing user clicks "Reca
 upgrading, their entire uncategorized backlog becomes eligible for SIC-based assignment in one action.
 
 - A. Accept it. This is FR6 working as specified, and the action is already explicitly user-initiated.
-- B. Accept it, but the Categories page action must warn beforehand that SIC mappings will now also be
-  applied, and report SIC-assigned and pattern-assigned counts separately in the result.
+- B. **(Recommended)** Accept it, but the Categories page action must warn beforehand that SIC mappings
+  will now also be applied, and report SIC-assigned and pattern-assigned counts separately in the result.
+  *Same behaviour as A, plus the two things you would actually want the first time this runs: notice
+  before it touches your whole backlog, and a split count telling you how much came from SIC — which is
+  the only quick read on whether your mappings are right.*
 - C. Keep "Recategorize All" text-pattern-only and add a separate explicit action for SIC.
+  *Note: this contradicts FR6 and application design resolution 6, so it would need a requirement
+  amendment rather than just a design decision.*
 
 [Answer]:
 
@@ -81,12 +99,17 @@ upgrading, their entire uncategorized backlog becomes eligible for SIC-based ass
 
 The existing `go h.categorizer.LoadPatterns()` is a real data race, and UOW-3 adds a second cache.
 
-- A. Make both caches mutex-protected and make every reload synchronous, removing the bare goroutine.
-  Simplest to reason about; the reload becomes part of the request.
+- A. **(Recommended)** Make both caches mutex-protected and make every reload synchronous, removing the
+  bare goroutine.
+  *A reload is one small query, so the latency saved by the goroutine is negligible — and asynchrony
+  costs correctness: today you can add a pattern and immediately recategorize against a stale cache.
+  Making it synchronous removes both the race and that ordering bug.*
 - B. Keep reload asynchronous but guard both caches with `sync.RWMutex`, so the race is fixed while
   request latency is unchanged.
+  *Fixes the race but keeps the stale-read-after-write ordering problem.*
 - C. Load rules from the database on each categorization run instead of caching, removing the
   concurrency question entirely at the cost of per-run queries.
+  *Would add a query per transaction during import, risking the approved SIC-free import benchmark.*
 
 [Answer]:
 
@@ -95,11 +118,14 @@ The existing `go h.categorizer.LoadPatterns()` is a real data race, and UOW-3 ad
 Import categorizes each transaction as it is inserted. SIC categorization needs mapping data during
 that loop.
 
-- A. Use the in-memory mapping cache, loaded once at startup and refreshed on mapping changes.
-  Fastest; consistent with how patterns already work.
+- A. **(Recommended)** Use the in-memory mapping cache, loaded once at startup and refreshed on mapping
+  changes.
+  *Mirrors how text patterns already work, so there is one cache lifecycle to understand rather than
+  two, and it pairs directly with the Q3 answer.*
 - B. Query the mapping per transaction during import. Always current, but adds a query per row and
   risks regressing the approved SIC-free import benchmark.
 - C. Load a mapping snapshot once at the start of each import run.
+  *Also correct, but introduces a second, different cache lifecycle alongside the pattern cache.*
 
 [Answer]:
 
@@ -108,12 +134,16 @@ that loop.
 US-12 lets a user create a SIC mapping from the Change Category or Create Pattern modal. FR14 scopes
 recategorization to mapping changes, so a mapping created this way is a mapping change.
 
-- A. Apply to the current transaction and immediately recategorize all other currently uncategorized
-  transactions sharing that SIC code, consistent with how the mapping page behaves.
+- A. **(Recommended)** Apply to the current transaction and immediately recategorize all other currently
+  uncategorized transactions sharing that SIC code, consistent with how the mapping page behaves.
+  *Creating a mapping should mean the same thing wherever you create it. FR14 already scopes
+  recategorization to mapping changes, and this is one.*
 - B. Apply to the current transaction only; other matching transactions wait for the next explicit
   recategorization.
+  *Makes the same action behave differently depending on which screen you did it from.*
 - C. Apply to the current transaction, then show how many other uncategorized transactions share that
   SIC code and let the user decide whether to apply.
+  *Better UX in isolation, but adds a round trip and a second decision point mid-categorization.*
 
 [Answer]:
 
@@ -124,9 +154,13 @@ covered merge idempotency, omission, and counts under the approved Q7 scope.
 
 - A. Generated properties for the categorization priority matrix only — text-before-SIC, empty-mapping
   no-op, and manual preservation across arbitrary transaction and rule sets. Everything else by example.
-- B. The above plus generated properties for recategorization scoping, that only currently
-  uncategorized transactions matching the affected codes ever change.
+- B. **(Recommended)** The above plus generated properties for recategorization scoping, that only
+  currently uncategorized transactions matching the affected codes ever change.
+  *The scoping invariant is the one that protects data you have already categorised by hand. It is
+  exactly the kind of property that holds for every example someone thinks to write and fails on the
+  combination nobody did, so generating it is worth more here than anywhere else in the feature.*
 - C. Examples only for UOW-3; rely on the property coverage already established in UOW-1 and UOW-2.
+  *US-13 explicitly calls for selected property-based tests in this unit.*
 
 [Answer]:
 

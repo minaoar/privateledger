@@ -1248,3 +1248,14 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-2 Code Generation is complete with the independent gate PASS at Revision 3. UOW-3 Functional Design remains paused with its six questions unanswered.
 
 ---
+
+## UOW-3 Functional Design — Recommendations Added to Open Questions
+**Timestamp**: 2026-09-06T09:50:00Z
+**User Input**: "for the uow-3 questions, can you also note which options are recommended (maybe put that in a bracket)?"
+**AI Response**: "Marked one option per question **(Recommended)** with a one-line reason, and added short notes on the non-recommended options where an option carries a hidden cost or conflicts with an approved artifact. Recommendations: Q1 B (no deadline), Q2 B (accept plus warning and split counts), Q3 A (synchronous mutex-protected reload), Q4 A (in-memory cache mirroring the pattern cache), Q5 A (modal-created mapping behaves like a mapping-page change), Q6 B (priority-matrix plus recategorization-scoping properties)."
+**Correction Made While Drafting**: Q1 option B originally read "the mapping change and its recategorization are always all-or-nothing together", which contradicts approved rule BR-U2-45 — the mapping commit lands first and a later collaborator failure is a committed-with-warning success, never a rollback. The option was restated to match the approved contract, and the correction is recorded inline in the question so the change is visible rather than silent.
+**Rationale Basis**: The Q1 recommendation rests on measured evidence rather than preference — the UOW-2 PERF-01 benchmark merged 100,000 mappings in 1.4 s, and recategorization is one indexed `GetUncategorizedBySICCodes` query plus bulk updates, so a processing deadline would add partial-completion state to report and test without addressing a delay that occurs at this scale.
+**Conflict Flagged**: Q2 option C would leave "Recategorize All" text-pattern-only, which contradicts FR6 and application design resolution 6 and would require a requirement amendment rather than a design decision. This is noted on the option itself.
+**Status**: Six questions still awaiting answers; no UOW-3 design artifact or production code generated.
+
+---
