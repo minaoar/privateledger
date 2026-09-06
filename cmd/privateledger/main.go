@@ -101,7 +101,12 @@ func main() {
 
 	// Initialize services
 	ofxParser := parser.NewOFXParser()
-	categorizer := service.NewCategorizer(patternRepo, transactionRepo)
+	// One SIC categorizer instance serves two roles: Categorizer's lookup and
+	// UOW-2's recategorization collaborator. They must be the same instance,
+	// or a mapping change would reload one view of the cache and leave the
+	// other stale.
+	sicCategorizer := service.NewSICMappingCategorizer(sicMappingRepo, transactionRepo)
+	categorizer := service.NewCategorizerWithSIC(patternRepo, transactionRepo, sicCategorizer)
 	importService := service.NewImportService(ofxParser, transactionRepo, accountRepo, categorizer, importBatchRepo)
 	insightsService := service.NewInsightsService(transactionRepo, categoryRepo, cfg)
 	// The no-op recategorization collaborator is supplied explicitly: UOW-3
@@ -112,7 +117,7 @@ func main() {
 		categoryRepo,
 		execDir,
 		sicAdmissionTimeout,
-		service.NewNoopSICRecategorizationCollaborator(),
+		sicCategorizer,
 	)
 
 	sicImportReport, err := sicMappingService.ImportFileIfPresentWithReport(sicMappingPath)
@@ -127,13 +132,13 @@ func main() {
 	logSICMappingImportOutcome(sicMappingPath, sicImportReport)
 
 	// Load patterns for categorizer
-	if err := categorizer.LoadPatterns(); err != nil {
-		slog.Warn("Failed to load categorizer patterns", slog.String("error", err.Error()))
+	if err := categorizer.LoadRules(); err != nil {
+		slog.Warn("Failed to load categorization rules", slog.String("error", err.Error()))
 	}
 
 	// Initialize handlers
 	accountHandler := handler.NewAccountHandler(accountRepo)
-	transactionHandler := handler.NewTransactionHandler(transactionRepo)
+	transactionHandler := handler.NewTransactionHandlerWithSIC(transactionRepo, sicMappingService)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo, patternRepo, categorizer)
 	importHandler := handler.NewImportHandler(importService)
 	importBatchHandler := handler.NewImportBatchHandler(importBatchRepo, importService)
@@ -207,6 +212,9 @@ func main() {
 		api.DELETE("/sic-mappings/:id", sicMappingHandler.Delete)
 		api.GET("/sic-mappings/download", sicMappingHandler.Download)
 		api.POST("/sic-mappings/upload", sicMappingHandler.Upload)
+
+		// Create or update a SIC mapping from a transaction categorization modal
+		api.POST("/transactions/:id/sic-mapping", transactionHandler.CreateSICMappingForTransaction)
 	}
 
 	// Serve static files

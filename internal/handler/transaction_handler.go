@@ -9,16 +9,132 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/oronno/privateledger/internal/model"
 	"github.com/oronno/privateledger/internal/repository"
+	"github.com/oronno/privateledger/internal/service"
 )
 
 // TransactionHandler handles transaction-related HTTP requests
 type TransactionHandler struct {
 	repo *repository.TransactionRepository
+
+	// sicMappingService is nil when mapping creation from the transaction
+	// modals is not wired. Mapping writes go through the service, never the
+	// mapping repository, so normalization, uniqueness, admission, backup and
+	// recategorization behave the same as they do on the mapping page.
+	sicMappingService *service.SICMappingService
 }
 
 // NewTransactionHandler creates a new TransactionHandler
 func NewTransactionHandler(repo *repository.TransactionRepository) *TransactionHandler {
 	return &TransactionHandler{repo: repo}
+}
+
+// NewTransactionHandlerWithSIC creates a handler that can also create SIC
+// mappings from the transaction categorization modals.
+func NewTransactionHandlerWithSIC(
+	repo *repository.TransactionRepository,
+	sicMappingService *service.SICMappingService,
+) *TransactionHandler {
+	return &TransactionHandler{repo: repo, sicMappingService: sicMappingService}
+}
+
+// CreateSICMappingRequest creates or updates the mapping for a transaction's
+// SIC code. CategoryID is required: a modal is not a way to create an
+// intentionally empty mapping, which belongs on the mapping page.
+type CreateSICMappingRequest struct {
+	CategoryID  *int   `json:"category_id"`
+	Description string `json:"description"`
+}
+
+// CreateSICMappingForTransaction maps the transaction's SIC code to a category.
+// POST /api/transactions/:id/sic-mapping
+//
+// This is an ordinary mapping change, so it also recategorizes other currently
+// uncategorized transactions carrying the same code. Creating a mapping means
+// the same thing wherever it is created.
+func (h *TransactionHandler) CreateSICMappingForTransaction(c *gin.Context) {
+	if h.sicMappingService == nil {
+		c.JSON(http.StatusNotImplemented, gin.H{
+			"error": "SIC mapping creation is not available",
+			"code":  "not_available",
+		})
+		return
+	}
+
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID", "code": "invalid_request"})
+		return
+	}
+
+	var req CreateSICMappingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload", "code": "invalid_request"})
+		return
+	}
+	if req.CategoryID == nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "A category must be selected to create a SIC mapping",
+			"code":  "category_required",
+		})
+		return
+	}
+
+	transaction, err := h.repo.GetByID(id)
+	if err != nil {
+		slog.Error("Error loading transaction for SIC mapping", slog.Int("transaction_id", id), slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load the transaction", "code": "internal_error"})
+		return
+	}
+	if transaction == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Transaction not found", "code": "not_found"})
+		return
+	}
+	if transaction.SICCode == nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "This transaction has no SIC code to map",
+			"code":  "no_sic_code",
+		})
+		return
+	}
+
+	input := model.SICMappingInput{
+		SICCode:     string(*transaction.SICCode),
+		Description: req.Description,
+		CategoryID:  req.CategoryID,
+	}
+
+	// An existing mapping for this code is updated rather than rejected: from
+	// the modal the user is stating what the code should mean, not asserting
+	// that no mapping exists yet.
+	existing, err := h.sicMappingService.FindMappingByCode(string(*transaction.SICCode))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing mappings", "code": "internal_error"})
+		return
+	}
+
+	var result *model.SICMappingMutationResult
+	if existing != nil {
+		if input.Description == "" {
+			input.Description = existing.Description
+		}
+		input.DescriptionDetail = existing.DescriptionDetail
+		result, err = h.sicMappingService.UpdateMapping(c.Request.Context(), existing.SICMappingID, input)
+	} else {
+		result, err = h.sicMappingService.CreateMapping(c.Request.Context(), input)
+	}
+	if err != nil {
+		status, code := classifySICMappingFailure(err)
+		if code == "mapping_busy" {
+			c.Header("Retry-After", "1")
+		}
+		c.JSON(status, gin.H{
+			"error": sicMappingFailureMessage(err, code, "Failed to save the SIC mapping."),
+			"code":  code,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // ListTransactions returns transactions with optional filters

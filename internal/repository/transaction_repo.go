@@ -2,9 +2,9 @@ package repository
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/oronno/privateledger/internal/model"
@@ -348,22 +348,29 @@ func (r *TransactionRepository) GetUncategorizedBySICCodes(sicCodes []string) ([
 		return []*model.Transaction{}, nil
 	}
 
-	placeholders := make([]string, len(sicCodes))
-	args := make([]any, len(sicCodes))
-	for i, sicCode := range sicCodes {
-		placeholders[i] = "?"
-		args[i] = sicCode
+	// The codes travel as a single JSON array parameter rather than one
+	// placeholder each. SQLite accepts 32,766 bound variables, and a mapping
+	// upload can affect more codes than that, so expanding placeholders would
+	// fail on exactly the large merges this query exists to serve.
+	//
+	// Codes are encoded as JSON strings because sic_code is a TEXT column;
+	// json_each over [7011] would yield an INTEGER whose comparison is decided
+	// by type affinity, while ["7011"] yields TEXT and matches.
+	encodedCodes, err := json.Marshal(sicCodes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode SIC codes for lookup: %w", err)
 	}
+
 	query := `
 		SELECT transaction_id, account_id, import_batch_id, trn_type, fit_id, date_posted, amount,
 			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
 		FROM ledger_transaction
 		WHERE category_source = 0
-			AND sic_code IN (` + strings.Join(placeholders, ",") + `)
+			AND sic_code IN (SELECT value FROM json_each(?))
 		ORDER BY date_posted DESC
 	`
 
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.Query(query, string(encodedCodes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to query uncategorized transactions by SIC codes: %w", err)
 	}
@@ -452,20 +459,22 @@ func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.
 		return nil
 	}
 
-	// Build placeholders for IN clause
-	placeholders := make([]string, len(transactionIDs))
-	args := []interface{}{categoryID, source}
-	for i, id := range transactionIDs {
-		placeholders[i] = "?"
-		args = append(args, id)
+	// One JSON array parameter instead of one placeholder per ID. Beyond
+	// SQLite's 32,766 variable ceiling the expanded form fails outright, and
+	// chunking around it would need an explicit transaction to stay
+	// all-or-nothing. A single statement is atomic by construction.
+	//
+	// IDs are encoded as JSON numbers to match the INTEGER column.
+	encodedIDs, err := json.Marshal(transactionIDs)
+	if err != nil {
+		return fmt.Errorf("failed to encode transaction IDs for update: %w", err)
 	}
 
-	query := fmt.Sprintf(
-		`UPDATE ledger_transaction SET category_id = ?, category_source = ? WHERE transaction_id IN (%s)`,
-		strings.Join(placeholders, ","),
-	)
+	query := `UPDATE ledger_transaction
+		SET category_id = ?, category_source = ?
+		WHERE transaction_id IN (SELECT value FROM json_each(?))`
 
-	_, err := r.db.Exec(query, args...)
+	_, err = r.db.Exec(query, categoryID, source, string(encodedIDs))
 	if err != nil {
 		return fmt.Errorf("failed to bulk update categories: %w", err)
 	}

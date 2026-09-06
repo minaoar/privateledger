@@ -3,19 +3,56 @@ package service
 import (
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/oronno/privateledger/internal/model"
 	"github.com/oronno/privateledger/internal/repository"
 )
 
-// Categorizer handles automatic categorization of transactions based on patterns
+// SICCategoryLookup resolves a canonical SIC code to a category.
+//
+// Categorizer depends on this narrow interface rather than the concrete SIC
+// categorizer so that priority stays here in one place, SIC logic stays out of
+// this file, and the lookup can be substituted without a database.
+type SICCategoryLookup interface {
+	// LookupCategory returns the mapped category, or false when the code has
+	// no mapping or maps to an intentionally empty category.
+	LookupCategory(sicCode model.SICCode) (int, bool)
+
+	// ReloadMappings refreshes the underlying mapping state.
+	ReloadMappings() error
+}
+
+// categorySource identifies which kind of rule assigned a category, so a
+// caller can report the split without inferring it afterwards.
+type categorySource int
+
+const (
+	sourceNone categorySource = iota
+	sourcePattern
+	sourceSIC
+)
+
+// Categorizer handles automatic categorization of transactions.
+//
+// Both rule sets sit behind one lock and are refreshed together. Splitting
+// them would allow a pass to see patterns from after a change beside mappings
+// from before it, which is exactly the inconsistency a single decision
+// function is meant to prevent.
 type Categorizer struct {
 	patternRepo *repository.CategoryPatternRepository
 	txnRepo     *repository.TransactionRepository
-	patterns    []*model.CategoryPattern
+
+	mu       sync.RWMutex
+	patterns []*model.CategoryPattern
+
+	// sicLookup is nil only in the compatibility constructor, where SIC
+	// categorization is simply absent rather than broken.
+	sicLookup SICCategoryLookup
 }
 
-// NewCategorizer creates a new Categorizer
+// NewCategorizer creates a Categorizer without SIC support. Retained so
+// existing call sites keep working; SIC categorization is inactive.
 func NewCategorizer(
 	patternRepo *repository.CategoryPatternRepository,
 	txnRepo *repository.TransactionRepository,
@@ -27,136 +64,217 @@ func NewCategorizer(
 	}
 }
 
-// LoadPatterns loads all category patterns from the database
-func (c *Categorizer) LoadPatterns() error {
+// NewCategorizerWithSIC creates a Categorizer that consults SIC mappings when
+// no text pattern matches.
+func NewCategorizerWithSIC(
+	patternRepo *repository.CategoryPatternRepository,
+	txnRepo *repository.TransactionRepository,
+	sicLookup SICCategoryLookup,
+) *Categorizer {
+	c := NewCategorizer(patternRepo, txnRepo)
+	c.sicLookup = sicLookup
+	return c
+}
+
+// LoadRules refreshes every rule source. It is the only exported reload entry
+// point, so a caller cannot refresh one rule set and forget the other.
+//
+// Both replacement sets are built before either is published: if any source
+// fails, nothing changes and the error is returned. Rules are therefore always
+// wholly current or wholly unchanged, never half-old.
+func (c *Categorizer) LoadRules() error {
 	patterns, err := c.patternRepo.GetAll()
 	if err != nil {
 		slog.Error("Error loading patterns", slog.String("error", err.Error()))
 		return fmt.Errorf("failed to load patterns: %w", err)
 	}
-	c.patterns = patterns
-	return nil
-}
 
-// Categorize attempts to categorize a single transaction based on loaded patterns
-// Returns true if a category was assigned, false otherwise
-func (c *Categorizer) Categorize(txn *model.Transaction) bool {
-	// Don't override manual categorizations
-	if txn.CategorySource == model.CategorySourceManual {
-		return false
-	}
-
-	// Try to match against patterns
-	for _, pattern := range c.patterns {
-		if pattern.Matches(txn.TransactionDetails) {
-			// Found a match - assign category
-			txn.SetCategory(pattern.CategoryID, model.CategorySourceRule)
-			return true
+	if c.sicLookup != nil {
+		if err := c.sicLookup.ReloadMappings(); err != nil {
+			// The pattern set is discarded rather than published, so a failed
+			// mapping reload cannot leave the two sources disagreeing.
+			return err
 		}
 	}
 
-	// No match found
-	return false
+	c.mu.Lock()
+	c.patterns = patterns
+	c.mu.Unlock()
+	return nil
 }
 
-// RecategorizeResult contains the results of a re-categorization operation
+// LoadPatterns is retained for existing callers and delegates to LoadRules.
+//
+// It deliberately refreshes every rule source rather than only patterns. The
+// hazard BR-U3-19 guards against is an exported way to refresh one cache and
+// leave the other stale; delegating removes that hazard while keeping the
+// identifier existing tests depend on. Prefer LoadRules in new code.
+func (c *Categorizer) LoadPatterns() error {
+	return c.LoadRules()
+}
+
+// decide determines the category for one transaction without writing it, and
+// reports which rule kind decided.
+//
+// This is the single place categorization priority is expressed. Import,
+// "Recategorize All", per-category recategorization and SIC-scoped
+// recategorization all route through it, so the rules cannot differ depending
+// on which entry point the user reached.
+func (c *Categorizer) decide(txn *model.Transaction) (int, categorySource) {
+	// Manual assignments are never revisited.
+	if txn.CategorySource == model.CategorySourceManual {
+		return 0, sourceNone
+	}
+	// Automatic categorization fills gaps; it does not revise existing work.
+	if txn.CategoryID != nil {
+		return 0, sourceNone
+	}
+
+	c.mu.RLock()
+	patterns := c.patterns
+	c.mu.RUnlock()
+
+	for _, pattern := range patterns {
+		if pattern.Matches(txn.TransactionDetails) {
+			return pattern.CategoryID, sourcePattern
+		}
+	}
+
+	// SIC is consulted only when no text pattern matched.
+	if c.sicLookup != nil && txn.SICCode != nil {
+		if categoryID, ok := c.sicLookup.LookupCategory(*txn.SICCode); ok {
+			return categoryID, sourceSIC
+		}
+	}
+
+	return 0, sourceNone
+}
+
+// Categorize attempts to categorize a single transaction in place.
+// Returns true if a category was assigned.
+func (c *Categorizer) Categorize(txn *model.Transaction) bool {
+	categoryID, source := c.decide(txn)
+	if source == sourceNone {
+		return false
+	}
+	txn.SetCategory(categoryID, model.CategorySourceRule)
+	return true
+}
+
+// RecategorizeResult contains the results of a re-categorization operation.
+//
+// The per-source counts are accumulated as the pass runs rather than derived
+// afterwards, so PatternCategorizedCount + SICCategorizedCount always equals
+// CategorizedCount. They partition the total; they do not sit beside it.
 type RecategorizeResult struct {
 	ProcessedCount   int `json:"processed_count"`
 	CategorizedCount int `json:"categorized_count"`
+
+	PatternCategorizedCount int `json:"pattern_categorized_count"`
+	SICCategorizedCount     int `json:"sic_categorized_count"`
 }
 
-// RecategorizeAll re-categorizes all uncategorized transactions
-// This is called when new patterns are added
+// RecategorizeAll re-categorizes all uncategorized transactions.
+// Called when rules change or from the Categories page action.
+//
+// Because it routes through the decision function, SIC mappings apply here as
+// well as during import. Before, this re-implemented pattern matching inline,
+// so SIC would have applied on import and been silently skipped by an explicit
+// "Recategorize All" - the same rules giving different answers depending on
+// which path the user took.
 func (c *Categorizer) RecategorizeAll() (*RecategorizeResult, error) {
-	// Reload patterns to get latest
-	if err := c.LoadPatterns(); err != nil {
+	if err := c.LoadRules(); err != nil {
 		return nil, err
 	}
 
-	// Get all uncategorized transactions
 	transactions, err := c.txnRepo.GetUncategorized()
 	if err != nil {
 		slog.Error("Error getting uncategorized transactions in RecategorizeAll", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get uncategorized transactions: %w", err)
 	}
 
-	result := &RecategorizeResult{
-		ProcessedCount: len(transactions),
-	}
+	result := &RecategorizeResult{ProcessedCount: len(transactions)}
 
-	// Group transactions by category for bulk update
-	categoryMap := make(map[int][]int) // categoryID -> []transactionIDs
+	categoryMap := make(map[int][]int)
+	patternAssigned := make(map[int]int)
+	sicAssigned := make(map[int]int)
 
 	for _, txn := range transactions {
-		// Try to categorize
-		for _, pattern := range c.patterns {
-			if pattern.Matches(txn.TransactionDetails) {
-				// Found a match
-				categoryMap[pattern.CategoryID] = append(categoryMap[pattern.CategoryID], txn.TransactionID)
-				result.CategorizedCount++
-				break // First match wins
-			}
+		categoryID, source := c.decide(txn)
+		switch source {
+		case sourcePattern:
+			patternAssigned[txn.TransactionID] = categoryID
+		case sourceSIC:
+			sicAssigned[txn.TransactionID] = categoryID
+		default:
+			continue
 		}
+		categoryMap[categoryID] = append(categoryMap[categoryID], txn.TransactionID)
 	}
 
-	// Bulk update transactions by category
+	// Counts are claimed only after the corresponding update commits, so a
+	// failure part-way through never reports rows it did not write.
 	for categoryID, txnIDs := range categoryMap {
-		err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, txnIDs)
-		if err != nil {
+		if err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, txnIDs); err != nil {
 			slog.Error("Error in bulk update category", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
 			return nil, fmt.Errorf("failed to bulk update category %d: %w", categoryID, err)
+		}
+		for _, id := range txnIDs {
+			if _, ok := patternAssigned[id]; ok {
+				result.PatternCategorizedCount++
+			} else if _, ok := sicAssigned[id]; ok {
+				result.SICCategorizedCount++
+			}
+			result.CategorizedCount++
 		}
 	}
 
 	return result, nil
 }
 
-// RecategorizeByCategory re-categorizes transactions for a specific category
-// This is called when patterns for a category are modified
+// RecategorizeByCategory re-categorizes transactions that this category's
+// rules now claim. Called when a category's patterns are modified.
+//
+// It routes through the same decision function, so a transaction is assigned
+// here only if the full priority order would assign it - a higher-priority
+// pattern belonging to another category still wins.
 func (c *Categorizer) RecategorizeByCategory(categoryID int) (*RecategorizeResult, error) {
-	// Reload patterns to get latest
-	if err := c.LoadPatterns(); err != nil {
+	if err := c.LoadRules(); err != nil {
 		return nil, err
 	}
 
-	// Get patterns for this category
-	patterns, err := c.patternRepo.GetByCategoryID(categoryID)
-	if err != nil {
-		slog.Error("Error getting patterns for category", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
-		return nil, fmt.Errorf("failed to get patterns for category: %w", err)
-	}
-
-	// Get all uncategorized transactions
 	transactions, err := c.txnRepo.GetUncategorized()
 	if err != nil {
 		slog.Error("Error getting uncategorized transactions", slog.String("error", err.Error()))
 		return nil, fmt.Errorf("failed to get uncategorized transactions: %w", err)
 	}
 
-	result := &RecategorizeResult{
-		ProcessedCount: len(transactions),
-	}
+	result := &RecategorizeResult{ProcessedCount: len(transactions)}
 
 	var matchedTxnIDs []int
+	patternCount, sicCount := 0, 0
 
-	// Find transactions that match any pattern for this category
 	for _, txn := range transactions {
-		for _, pattern := range patterns {
-			if pattern.Matches(txn.TransactionDetails) {
-				matchedTxnIDs = append(matchedTxnIDs, txn.TransactionID)
-				result.CategorizedCount++
-				break // First match wins
-			}
+		resolved, source := c.decide(txn)
+		if source == sourceNone || resolved != categoryID {
+			continue
+		}
+		matchedTxnIDs = append(matchedTxnIDs, txn.TransactionID)
+		if source == sourceSIC {
+			sicCount++
+		} else {
+			patternCount++
 		}
 	}
 
-	// Bulk update matched transactions
 	if len(matchedTxnIDs) > 0 {
-		err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, matchedTxnIDs)
-		if err != nil {
+		if err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, matchedTxnIDs); err != nil {
 			slog.Error("Error in bulk update transactions", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
 			return nil, fmt.Errorf("failed to bulk update transactions: %w", err)
 		}
+		result.CategorizedCount = len(matchedTxnIDs)
+		result.PatternCategorizedCount = patternCount
+		result.SICCategorizedCount = sicCount
 	}
 
 	return result, nil

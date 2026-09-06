@@ -448,6 +448,12 @@ func (s *SICMappingService) GetPageData() (*model.SICMappingPageData, error) {
 	return &model.SICMappingPageData{Mappings: mappings, Categories: categories}, nil
 }
 
+// FindMappingByCode returns the mapping for a canonical code, or nil when
+// none exists. It is a read and does not take the mutation gate.
+func (s *SICMappingService) FindMappingByCode(rawSICCode string) (*model.SICMapping, error) {
+	return s.sicRepo.GetByCode(rawSICCode)
+}
+
 // ListMappings returns all mappings in canonical numeric order.
 func (s *SICMappingService) ListMappings() ([]*model.SICMapping, error) {
 	return s.sicRepo.GetAll()

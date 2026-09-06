@@ -418,6 +418,29 @@ Get the current month period based on config.
 
 ---
 
+### POST /api/transactions/:id/sic-mapping
+
+Creates or updates the SIC mapping for this transaction's SIC code, from the Change Category or
+Create Categorization Pattern modal.
+
+**Body**: `{"category_id": 3, "description": "optional"}`
+
+`category_id` is **required** — a modal cannot create an intentionally empty mapping; that belongs on
+the SIC mappings page. This is an ordinary mapping change, so it also categorizes other currently
+uncategorized transactions carrying the same code.
+
+**Response**: `200 OK` — `{"mapping": {...}, "mapping_committed": true, "recategorized_rows": 4}`
+
+| Status | `code` | Meaning |
+|---|---|---|
+| 400 | `invalid_request` | Bad transaction ID or payload |
+| 404 | `not_found` | Unknown transaction |
+| 422 | `category_required` | No category selected |
+| 422 | `no_sic_code` | The transaction carries no SIC code |
+| 501 | `not_available` | Mapping creation is not wired |
+
+Other failures reuse the SIC mapping error codes below.
+
 ## SIC Mappings
 
 Maps merchant SIC/MCC codes to categories. All endpoints are local-only.

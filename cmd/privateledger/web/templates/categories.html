@@ -513,20 +513,39 @@ async function deletePattern(id, name) {
 }
 
 async function recategorizeAll() {
-    if (!confirm('Re-categorize all uncategorized transactions based on current patterns?')) {
+    // SIC mappings now participate in this action, so it can categorize an
+    // entire backlog through mappings the user has never exercised. Saying so
+    // once beforehand is better than having it discovered afterwards.
+    if (!confirm(
+        'Re-categorize all uncategorized transactions?\n\n' +
+        'Both text patterns and SIC mappings will be applied.\n' +
+        'Categories you assigned manually are never changed.'
+    )) {
         return;
     }
 
     try {
         const response = await fetch('/api/categories/recategorize', { method: 'POST' });
-        if (response.ok) {
-            const result = await response.json();
-            showToast(`Re-categorized ${result.categorized_count} of ${result.processed_count} transactions`, 'success');
-        } else {
+        if (!response.ok) {
             showToast('Failed to re-categorize', 'danger');
+            return;
         }
+        const result = await response.json();
+
+        if (result.categorized_count === 0) {
+            showToast(`No transactions matched. ${result.processed_count} left uncategorized.`, 'info');
+            return;
+        }
+
+        // The split is what shows whether the mappings are behaving as
+        // intended; a combined total would hide it.
+        showToast(
+            `Re-categorized ${result.categorized_count} of ${result.processed_count} transactions ` +
+            `(${result.pattern_categorized_count} by pattern, ${result.sic_categorized_count} by SIC mapping)`,
+            'success'
+        );
     } catch (error) {
-        showToast('An error occurred', 'danger');
+        showToast('The result is unknown. Refresh and check before retrying.', 'warning');
     }
 }
 </script>

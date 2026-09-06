@@ -138,15 +138,17 @@
                                             {{$txnID := .TransactionID}}
                                             {{$txnDetails := .TransactionDetails}}
                                             {{$txnCategoryID := .CategoryID}}
+                                            {{$txnSIC := .SICCode}}
+                                            {{$txnSICDesc := .SICDescription}}
                                             <li>
                                                 <a class="dropdown-item" href="#"
-                                                   onclick="openChangeCategoryModal({{$txnID}}, {{if $txnCategoryID}}{{$txnCategoryID}}{{else}}null{{end}}); return false;">
+                                                   onclick="openChangeCategoryModal({{$txnID}}, {{if $txnCategoryID}}{{$txnCategoryID}}{{else}}null{{end}}, {{if $txnSIC}}'{{$txnSIC}}'{{else}}null{{end}}, {{if $txnSICDesc}}'{{$txnSICDesc}}'{{else}}''{{end}}); return false;">
                                                     <i class="bi bi-tag me-1"></i>Change Category
                                                 </a>
                                             </li>
                                             <li>
                                                 <a class="dropdown-item" href="#"
-                                                   onclick="openPatternModal({{$txnID}}, '{{$txnDetails}}', {{if $txnCategoryID}}{{$txnCategoryID}}{{else}}null{{end}}); return false;">
+                                                   onclick="openPatternModal({{$txnID}}, '{{$txnDetails}}', {{if $txnCategoryID}}{{$txnCategoryID}}{{else}}null{{end}}, {{if $txnSIC}}'{{$txnSIC}}'{{else}}null{{end}}, {{if $txnSICDesc}}'{{$txnSICDesc}}'{{else}}''{{end}}); return false;">
                                                     <i class="bi bi-magic me-1"></i>Auto-categorize Similar
                                                 </a>
                                             </li>
@@ -237,6 +239,23 @@
                             {{end}}
                         </select>
                     </div>
+                    <div id="changeCategorySicBlock" class="border rounded p-3 bg-light" data-testid="txn-sic-context" hidden>
+                        <div class="small text-muted mb-1">Merchant SIC code</div>
+                        <div class="mb-2">
+                            <span class="font-monospace fw-semibold" id="changeCategorySicCode"></span>
+                            <span class="text-muted ms-2" id="changeCategorySicDescription"></span>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="changeCategoryCreateMapping"
+                                   data-testid="txn-sic-create-mapping-toggle">
+                            <label class="form-check-label" for="changeCategoryCreateMapping">
+                                Also map this SIC code to the selected category
+                            </label>
+                            <div class="form-text">
+                                Other uncategorized transactions with this SIC code will be categorized too.
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -264,6 +283,32 @@
                         <label class="form-label fw-semibold">Transaction:</label>
                         <div class="form-control bg-light" id="patternTransactionDetails" style="cursor: not-allowed;" readonly></div>
                         <small class="text-muted">Original transaction description for reference</small>
+                    </div>
+
+                    <div class="mb-3" id="patternRuleTypeBlock" data-testid="txn-pattern-type-choice" hidden>
+                        <label class="form-label fw-semibold">Rule type</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="patternRuleType"
+                                   id="patternRuleTypeText" value="text" checked
+                                   onchange="syncPatternRuleType()">
+                            <label class="form-check-label" for="patternRuleTypeText">
+                                Match the description text
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="patternRuleType"
+                                   id="patternRuleTypeSic" value="sic"
+                                   onchange="syncPatternRuleType()">
+                            <label class="form-check-label" for="patternRuleTypeSic">
+                                Map the merchant SIC code
+                                <span class="font-monospace fw-semibold ms-1" id="patternSicCode"></span>
+                                <span class="text-muted ms-1" id="patternSicDescription"></span>
+                            </label>
+                            <div class="form-text">
+                                Creates a SIC mapping instead of a text pattern, and categorizes other
+                                uncategorized transactions with this code.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -581,9 +626,26 @@ function extractSmartPattern(transactionDetails) {
     return pattern.toUpperCase();
 }
 
-function openChangeCategoryModal(transactionId, currentCategoryId) {
+// Names here are prefixed for this page. layout.html loads app.js after page
+// content, so a bare name shared with an app.js global is silently overwritten
+// at runtime while the markup still looks correct.
+let txnSicCodeForModal = null;
+
+function openChangeCategoryModal(transactionId, currentCategoryId, sicCode, sicDescription) {
     // Store transaction ID
     document.getElementById('changeCategoryTransactionId').value = transactionId;
+
+    txnSicCodeForModal = sicCode || null;
+    const sicBlock = document.getElementById('changeCategorySicBlock');
+    const mappingToggle = document.getElementById('changeCategoryCreateMapping');
+    mappingToggle.checked = false;
+    if (txnSicCodeForModal) {
+        document.getElementById('changeCategorySicCode').textContent = txnSicCodeForModal;
+        document.getElementById('changeCategorySicDescription').textContent = sicDescription || '';
+        sicBlock.hidden = false;
+    } else {
+        sicBlock.hidden = true;
+    }
 
     // Pre-select current category if exists
     const categorySelect = document.getElementById('changeCategorySelect');
@@ -597,9 +659,21 @@ function openChangeCategoryModal(transactionId, currentCategoryId) {
     new bootstrap.Modal(document.getElementById('changeCategoryModal')).show();
 }
 
-function openPatternModal(transactionId, transactionDetails, currentCategoryId) {
+function openPatternModal(transactionId, transactionDetails, currentCategoryId, sicCode, sicDescription) {
     // Store transaction ID
     document.getElementById('patternTransactionId').value = transactionId;
+
+    txnSicCodeForModal = sicCode || null;
+    const ruleTypeBlock = document.getElementById('patternRuleTypeBlock');
+    document.getElementById('patternRuleTypeText').checked = true;
+    if (txnSicCodeForModal) {
+        document.getElementById('patternSicCode').textContent = txnSicCodeForModal;
+        document.getElementById('patternSicDescription').textContent = sicDescription || '';
+        ruleTypeBlock.hidden = false;
+    } else {
+        ruleTypeBlock.hidden = true;
+    }
+    syncPatternRuleType();
 
     // Show original transaction details
     document.getElementById('patternTransactionDetails').textContent = transactionDetails;
@@ -618,6 +692,41 @@ function openPatternModal(transactionId, transactionDetails, currentCategoryId) 
 
     // Open modal
     new bootstrap.Modal(document.getElementById('createPatternModal')).show();
+}
+
+// Disables the inapplicable field rather than hiding it, so the form does not
+// appear to lose inputs when the choice changes.
+function syncPatternRuleType() {
+    const sicChosen = document.getElementById('patternRuleTypeSic').checked;
+    const patternText = document.getElementById('patternText');
+    patternText.disabled = sicChosen;
+    patternText.required = !sicChosen;
+}
+
+// Creates or updates the SIC mapping for the transaction's code. Returns true
+// on success. A failure here is reported but never silently swallowed.
+async function saveTransactionSicMapping(transactionId, categoryId) {
+    try {
+        const response = await fetch(`/api/transactions/${transactionId}/sic-mapping`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({category_id: parseInt(categoryId, 10)})
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            showToast(body.error || 'The SIC mapping could not be saved.', 'danger');
+            return false;
+        }
+        const extra = body.recategorized_rows
+            ? ` ${body.recategorized_rows} similar transaction(s) categorized.`
+            : '';
+        showToast(`SIC mapping saved.${extra}`, 'success');
+        return true;
+    } catch (error) {
+        // A lost response says nothing about whether the server committed.
+        showToast('The SIC mapping result is unknown. Refresh and check before retrying.', 'warning');
+        return false;
+    }
 }
 
 document.getElementById('changeCategoryForm').addEventListener('submit', async function(e) {
@@ -641,11 +750,19 @@ document.getElementById('changeCategoryForm').addEventListener('submit', async f
     const categoryIcon = selectedOption.dataset.icon;
     const categoryColor = selectedOption.dataset.color;
 
+    const alsoMap = document.getElementById('changeCategoryCreateMapping').checked && txnSicCodeForModal;
+
     // Close modal first
     bootstrap.Modal.getInstance(document.getElementById('changeCategoryModal')).hide();
 
     // Update category
     await updateCategory(transactionId, categoryId, categoryName, categoryIcon, categoryColor);
+
+    // The mapping is created after the transaction is categorized, so a
+    // mapping failure never leaves the user's explicit choice unapplied.
+    if (alsoMap) {
+        await saveTransactionSicMapping(transactionId, categoryId);
+    }
 });
 
 {{if .Filter.BatchID}}
@@ -706,8 +823,25 @@ document.getElementById('createPatternForm').addEventListener('submit', async fu
     const transactionId = document.getElementById('patternTransactionId').value;
     const patternText = document.getElementById('patternText').value.trim();
     const categoryId = document.getElementById('patternCategorySelect').value;
+    const useSicMapping = document.getElementById('patternRuleTypeSic').checked && txnSicCodeForModal;
 
-    if (!patternText || !categoryId) {
+    if (!categoryId) {
+        showToast('Please select a category', 'warning');
+        return;
+    }
+
+    // A SIC mapping replaces the text pattern here; it never creates both.
+    if (useSicMapping) {
+        const saved = await saveTransactionSicMapping(transactionId, categoryId);
+        if (!saved) {
+            return;
+        }
+        bootstrap.Modal.getInstance(document.getElementById('createPatternModal')).hide();
+        setTimeout(() => window.location.reload(), 1500);
+        return;
+    }
+
+    if (!patternText) {
         showToast('Please fill in all required fields', 'warning');
         return;
     }

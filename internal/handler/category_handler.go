@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -147,10 +148,14 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		patterns = append(patterns, *pattern)
 	}
 
-	// Trigger re-categorization if patterns were added
+	// Trigger re-categorization if patterns were added. RecategorizeByCategory
+	// reloads rules itself, so no separate reload is needed here.
 	if len(patterns) > 0 {
-		h.categorizer.LoadPatterns()
-		h.categorizer.RecategorizeByCategory(category.CategoryID)
+		if _, err := h.categorizer.RecategorizeByCategory(category.CategoryID); err != nil {
+			slog.Error("Failed to recategorize after creating category patterns",
+				slog.Int("category_id", category.CategoryID),
+				slog.String("error", err.Error()))
+		}
 	}
 
 	result := &model.CategoryWithPatterns{
@@ -297,9 +302,13 @@ func (h *CategoryHandler) AddPattern(c *gin.Context) {
 		return
 	}
 
-	// Trigger re-categorization for this category
-	h.categorizer.LoadPatterns()
-	h.categorizer.RecategorizeByCategory(categoryID)
+	// Trigger re-categorization for this category. RecategorizeByCategory
+	// reloads rules itself.
+	if _, err := h.categorizer.RecategorizeByCategory(categoryID); err != nil {
+		slog.Error("Failed to recategorize after adding a pattern",
+			slog.Int("category_id", categoryID),
+			slog.String("error", err.Error()))
+	}
 
 	c.JSON(http.StatusCreated, pattern)
 }
@@ -338,8 +347,13 @@ func (h *CategoryHandler) DeletePattern(c *gin.Context) {
 		return
 	}
 
-	// Reload patterns for categorizer
-	go h.categorizer.LoadPatterns()
+	// Reload rules synchronously. This was a detached goroutine, which raced
+	// with in-flight reads of the rule cache and let a caller act on rules it
+	// believed were already refreshed.
+	if err := h.categorizer.LoadRules(); err != nil {
+		slog.Error("Failed to reload rules after deleting a pattern",
+			slog.String("error", err.Error()))
+	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Pattern deleted successfully"})
 }
