@@ -89,6 +89,80 @@ Not yet decided; UOW-4's own stages own the decision.
 `requirements.md` FR4; `business-rules.md` BR-U2-16 through BR-U2-18, BR-U2-23 through BR-U2-25;
 `sic_mapping_service.go` `resolveSICCategory` and `writeBackup`; `stories.md` US-10 and US-11.
 
+### U4-02 — CSV header rejects cosmetic variation, including Excel's byte-order mark
+
+**Admitted** 2026-09-06.
+**Reported by** the user: "while importing the csv file, the header is case sensitive. in general, all
+csv content (including header and body) should be case insensitive and should not fail any operation."
+**Severity** Medium. The BOM case is the sharpest: a file saved by Excel on Windows is rejected with an
+error message that gives no hint why.
+
+#### Verified behaviour
+
+Tested against a temporary database on an isolated port, 2026-09-06. One category `Groceries` existed.
+
+| Input | Result |
+|---|---|
+| Canonical header | 200 `merged` |
+| Lowercase header `sic_code,description,…` | **422** `invalid_header` |
+| Mixed-case header `Sic_Code,…` | **422** `invalid_header` |
+| Header with a space after a comma | **422** `invalid_header` |
+| UTF-8 BOM before a canonical header | **422** `invalid_header` |
+| Body: `groceries` (lowercase) | 200 `merged` |
+| Body: `GROCERIES` (uppercase) | 200 `merged` |
+
+`matchesSICMappingHeader` compares each column with `!=`, so any difference in case, surrounding
+whitespace, or a leading BOM byte fails the whole file.
+
+#### Correction to the reported scope
+
+The report says all CSV content is case-sensitive. The **body already is not**: `resolveSICCategory`
+tries an exact match, then falls back to a case-insensitive one, so `groceries` and `GROCERIES` both
+resolve today. SIC codes are digits and descriptions are free text stored verbatim, so case does not
+apply to them either.
+
+The gap is confined to the header. Recording that accurately matters — chasing case-insensitivity
+through the body would be work with nothing to fix, and would miss the BOM, which is not a case problem
+at all but fails for the same reason and is the one a real user is most likely to hit.
+
+#### Where "should not fail any operation" has a genuine limit
+
+`category.name` is `TEXT NOT NULL UNIQUE` with no `COLLATE NOCASE`, so uniqueness is case-sensitive and
+two categories may differ only by case. Verified: creating `Food` and then `food` both returned 201.
+
+With both present, a CSV naming `FOOD` cannot be resolved — it matches two categories. The upload is
+rejected with `category_ambiguous`, and that rejection is correct: silently picking one would assign
+transactions to a category the user did not choose.
+
+So case-insensitive matching cannot be made unconditionally non-failing while the database permits
+case-distinct category names. UOW-4 has to decide between:
+
+- Making category names case-insensitively unique, which needs a migration and a decision about existing
+  databases that already contain such a pair.
+- Keeping case-sensitive uniqueness and accepting that ambiguity remains a legitimate rejection, while
+  improving the message so the user is told which categories collided.
+
+BR-U2-16's exact-match-wins rule already resolves the unambiguous half of this: an exact `food` still
+matches `food` even when `Food` exists. Only a spelling that matches neither exactly is ambiguous.
+
+#### Candidate directions
+
+Not yet decided; UOW-4's own stages own this.
+
+- Normalize the header before comparison: strip a UTF-8 BOM, trim surrounding whitespace per column, and
+  compare case-insensitively. Column order and count stay required.
+- Keep the accepted spelling out of the error path — report which column failed rather than echoing file
+  content, preserving NFR-U2-SEC-01.
+- Decide the category-name uniqueness question above, since it bounds what "never fails" can mean.
+- Consider whether export should keep emitting the canonical header regardless of what was accepted on
+  import, so round-tripping stays predictable.
+
+#### Artifacts implicated
+
+`business-rules.md` BR-U2-10 (column order), BR-U2-16 through BR-U2-18 (category resolution);
+`sic_mapping_service.go` `matchesSICMappingHeader` and `resolveSICCategory`; `schema.sql` `category.name`
+uniqueness; `requirements.md` FR4.
+
 ---
 
 ## Deliberately Not Admitted
