@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-08-17T05:48:26Z
-- **Current Stage**: CONSTRUCTION - UOW-2 Code Generation Part 3 (independent RE-review of Revision 2)
+- **Current Stage**: CONSTRUCTION - UOW-3 Functional Design
 - **Branch**: support-mcc-for-category
 
 ## Workspace State
@@ -56,7 +56,14 @@
 - [x] NFR Requirements — COMPLETED FOR UOW-2 (approved 2026-09-06)
 - [x] NFR Design — COMPLETED FOR UOW-2 (approved 2026-09-06)
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — Parts 1 and 2 COMPLETE; Part 3 independent gate required
+- [x] Code Generation — COMPLETED FOR UOW-2 (independent gate PASS; approved 2026-09-06)
+
+#### UOW-3 — Transaction Categorization Integration
+- [ ] Functional Design — IN PROGRESS
+- [ ] NFR Requirements — TBD
+- [ ] NFR Design — TBD
+- [ ] Infrastructure Design — SKIP
+- [ ] Code Generation — EXECUTE (ALWAYS)
 
 #### After all units
 - [ ] Build and Test — EXECUTE (ALWAYS)
@@ -66,11 +73,11 @@
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Unit**: UOW-2 — SIC Mapping Management
-- **Current Stage**: Code Generation Part 3 — Revision 1 reviewed BLOCKED; Revision 2 production fixes complete and awaiting independent re-review
-- **Last Completed**: UOW-2 production Revision 2 addressing all eight independent findings U2-F01 through U2-F08 (2026-09-06). Revision 1 was `ee24446`.
-- **Next Step**: Independent re-review of Revision 2 in a different provider session, using the Re-Review Request appended to `aidlc-docs/construction/sic-mapping-management/code/independent-review-handoff.md`. Claude authored production and cannot close this gate.
-- **Status**: Independent review of Revision 1 (`ee24446`) returned BLOCKED with eight open findings (six Medium, two Low) and five failing tests. The independent role also corrected the three superseded UOW-1 tests with justification and authored six new test files plus property and benchmark coverage; PERF-01 measured a 1.404 s median against the 10 s target, and no data races were found. Production Revision 2 has addressed all eight findings: cross-field upload file counting, buffered download so an export failure returns 500, cancellation checks at service phase boundaries, rejection of nil collaborator wiring, unknown-outcome reporting on transport failure, removal of timed reloads that discarded backup paths and warnings, typed SQLite result-code classification, and logging of committed outcomes whose response could not be delivered. `gofmt`, `go build`, `go vet`, the short suite, the full long suite, and `-race` all pass; the five previously failing tests pass unmodified and no test file was edited by production. Revision 1 verification gaps 1-5 remain open, including the writer/closer seam for a real backup Close fault. F-04 and F-05 remain deferred.
+- **Current Unit**: UOW-3 — Transaction Categorization Integration
+- **Current Stage**: UOW-3 Functional Design — not yet started
+- **Last Completed**: UOW-2 Code Generation approved by the user on 2026-09-06 after the independent gate returned PASS on Revision 2 (`1c37d22`), with Revision 3 closing the Low finding U2-R2-F01.
+- **Next Step**: UOW-3 — Transaction Categorization Integration. Begin Functional Design planning, then NFR Requirements, NFR Design, and Code Generation. Build and Test follows all three units.
+- **Status**: UOW-2 Code Generation gate is CLOSED. Independent review (OpenAI/Codex, separate provider) reviewed Revision 1 `ee24446` as BLOCKED with eight findings, then Revision 2 `1c37d22` as PASS with all eight RESOLVED and no Blocking, High, or Medium finding remaining. The single Low finding U2-R2-F01, a stale constructor comment contradicting the nil-collaborator contract, was fixed in Revision 3. Full suite, long tests, and `-race` pass across all seven packages with zero data races. PERF-01 measured a 1.4255 s median against the 10 s target; SCALE-01 verified at 1,000 rows; rapid properties replay at seed 20260906. Five verification limitations are recorded and adjudicated as non-blocking by the independent role, including no injected `os.File.Close` fault in `writeBackup` (no production seam advised) and no live browser for visual/keyboard checks. F-13/F-14/F-15/F-16 are verified corrected; F-04 and F-05 remain deferred.
 
 ## Notes
 - Production code and verification tests have mandatory cross-provider ownership. Each role runs in a separate session, the handoff is manual and artifact-based, and the independent review must report PASS before Code Generation completes.

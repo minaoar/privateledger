@@ -61,6 +61,21 @@ func TestReviewU2PageScaleAndEscaping(t *testing.T) {
 			t.Errorf("missing %s", required)
 		}
 	}
+	for _, required := range []string{
+		"function setUnknownOutcome(action)",
+		"The result of this change is unknown.",
+		"Refresh the mapping list and check before trying again.",
+		"sic-mapping-refresh-button",
+		"partial.backup_path",
+		"partial.backup_warning",
+	} {
+		if !strings.Contains(html, required) {
+			t.Errorf("missing persistent result behavior %q", required)
+		}
+	}
+	if strings.Contains(html, "setTimeout(") {
+		t.Error("rendered page still contains a timed status reload")
+	}
 	if out := os.Getenv("SIC_REVIEW_RENDER_PATH"); out != "" {
 		if e = os.WriteFile(out, []byte(html), 0600); e != nil {
 			t.Fatal(e)

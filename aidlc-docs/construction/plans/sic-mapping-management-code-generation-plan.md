@@ -337,9 +337,9 @@ required: `sic_mapping` already exists with the needed columns and constraints.
 
 ### Step 14 — Independent review and verification gate
 
-- [ ] In a separate provider session, invoke the repository's independent review/test role with the handoff
+- [x] In a separate provider session, invoke the repository's independent review/test role with the handoff
       and approved artifacts.
-- [ ] Require independently authored tests for: admission timeout and acquisition races; gate release on
+- [x] Require independently authored tests for: admission timeout and acquisition races; gate release on
       every failure path; a cancelled waiter performing no late mutation; the gate held through the
       collaborator; merge atomicity and rollback; omission, idempotency, and header-only no-op; created/
       updated/unchanged counts; committed-with-warning on reload and collaborator failure; category
@@ -347,23 +347,23 @@ required: `sic_mapping` already exists with the needed columns and constraints.
       `RejectedRows`; the F-15 classification across validation, startup, and upload; exact upload size
       bounds including exactly-at-limit; multipart cleanup and extra/missing file rejection; backup
       collision, write failure, close failure, and partial cleanup; numeric ordering; and CSV round-trip.
-- [ ] Require independently owned `pgregory.net/rapid` properties for merge idempotency, omission
+- [x] Require independently owned `pgregory.net/rapid` properties for merge idempotency, omission
       preservation, and count invariants under the approved Q7 scope, with shrinking and replay evidence.
       CSV round-trip and category resolution remain examples.
-- [ ] Require race-detector evidence, now triggered because UOW-2 introduces concurrent state
+- [x] Require race-detector evidence, now triggered because UOW-2 introduces concurrent state
       (NFR-U1-TEST-04), run separately from performance acceptance.
-- [ ] Require the approved merge benchmark: 100,000 pre-existing codes; an upload of 100,000 codes split
+- [x] Require the approved merge benchmark: 100,000 pre-existing codes; an upload of 100,000 codes split
       25,000 new / 25,000 changed / 50,000 unchanged, leaving 25,000 pre-existing codes omitted; 100
       categories; file within 10 MiB; pre-state restored per run; successful backup and the no-op handoff
       included; measured from service entry to returned result excluding fixture setup; one warm-up, at
       least five runs, median at most ten seconds on the recorded reference environment.
-- [ ] Require the unpaginated 1,000-mapping page verified as usability and functional evidence with no
+- [x] Require the unpaginated 1,000-mapping page verified as usability and functional evidence with no
       invented latency threshold.
-- [ ] Production findings return to the production role; the independent role alone corrects tests that
+- [x] Production findings return to the production role; the independent role alone corrects tests that
       contradict approved artifacts and documents why.
-- [ ] Repeat review after material production fixes until required tests and performance targets pass and no
+- [x] Repeat review after material production fixes until required tests and performance targets pass and no
       Blocking/High findings remain.
-- [ ] Gate closes only when
+- [x] Gate closes only when
       `aidlc-docs/construction/sic-mapping-management/code-review/independent-review.md` exists and reports
       final status PASS.
 
@@ -378,14 +378,14 @@ required: `sic_mapping` already exists with the needed columns and constraints.
 
 ## Exit Criteria
 
-- [ ] Every production step and story checkbox is complete.
-- [ ] Production build, vet, format, and existing regression tests pass.
-- [ ] Production summary and independent handoff are complete.
-- [ ] Independent review/test provider has authored and run required verification.
-- [ ] Performance, property, and race evidence is recorded.
-- [ ] Independent review final status is PASS.
-- [ ] No required test fails and no Blocking/High finding remains.
-- [ ] User explicitly approves completed UOW-2 Code Generation before the workflow advances.
+- [x] Every production step and story checkbox is complete.
+- [x] Production build, vet, format, and existing regression tests pass.
+- [x] Production summary and independent handoff are complete.
+- [x] Independent review/test provider has authored and run required verification.
+- [x] Performance, property, and race evidence is recorded.
+- [x] Independent review final status is PASS.
+- [x] No required test fails and no Blocking/High finding remains.
+- [x] User explicitly approves completed UOW-2 Code Generation before the workflow advances. (2026-09-06, user: "approved. commit and push, then proceed to UOW-3")
 
 ## Out of Scope
 

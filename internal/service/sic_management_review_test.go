@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -270,6 +271,46 @@ func TestReviewU2PostCommitWarnings(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestReviewU2PostCommitCancellationReturnsAndLogsSavedOutcome(t *testing.T) {
+	f := newSeedFixture(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var logOutput bytes.Buffer
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logOutput, nil)))
+	t.Cleanup(func() { slog.SetDefault(previousLogger) })
+
+	s := reviewService(f, reviewCollaborator{reload: func() error {
+		cancel()
+		return nil
+	}})
+	result, err := s.CreateMapping(ctx, model.SICMappingInput{
+		SICCode:     "1",
+		Description: "must-not-appear-in-log",
+	})
+	if err != nil || result == nil || !result.MappingCommitted {
+		t.Fatalf("committed create was reported as cancelled: result=%+v err=%v", result, err)
+	}
+	if f.mappingCount() != 1 {
+		t.Fatal("create did not remain durable after post-commit cancellation")
+	}
+	logText := logOutput.String()
+	for _, required := range []string{
+		"SIC mapping change committed but the response could not be delivered",
+		"operation=create_sic_mapping",
+		"mapping_committed=true",
+		"warnings=0",
+	} {
+		if !strings.Contains(logText, required) {
+			t.Errorf("saved-outcome log missing %q: %s", required, logText)
+		}
+	}
+	if strings.Contains(logText, "must-not-appear-in-log") {
+		t.Fatalf("saved-outcome log disclosed mapping content: %s", logText)
 	}
 }
 

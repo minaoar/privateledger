@@ -1,12 +1,13 @@
 # Independent Review — UOW-2 SIC Mapping Management
 
-## Gate: BLOCKED
+## Gate: PASS — Revision 2
 
-Review date: 2026-09-06. Production has reproducible contract failures. Required tests do
-not all pass, so Code Generation Part 3 cannot close. Production fixes belong to the
-production provider; the failing tests remain enabled. No production file was modified.
+Review date: 2026-09-06. Revision 2 passes the independent Code Generation Part 3 gate.
+All required tests pass and no Blocking or High finding remains. The original Revision 1
+review is retained below as historical evidence; the current decision and resolution record
+are in the Revision 2 section at the end. No production file was modified by this review.
 
-## Identity and Revision
+## Revision 1 Identity and Revision (Historical)
 
 - Independent provider/model: OpenAI / GPT-6 (Codex), independent review/test role.
 - Production provider: Claude, per handoff. This is the separate OpenAI provider session
@@ -32,7 +33,7 @@ production provider; the failing tests remain enabled. No production file was mo
 The simplified NFR Design is authoritative: no additional JSON settings, general cancellation
 framework, background worker, or broad filesystem abstraction is requested by this review.
 
-## Findings Requiring Production Attention
+## Revision 1 Findings Requiring Production Attention (Historical)
 
 ### U2-F01 — Medium: extra uploaded files under another field are accepted
 
@@ -337,3 +338,143 @@ gates, and close the listed verification gaps. Do not mark UOW-2 complete based 
 benchmark or absence of data races while behavioral tests fail.
 
 **Final status: BLOCKED (gate FAIL).**
+
+---
+
+# Revision 2 Re-Review
+
+## Identity and Scope
+
+- Independent provider/model: OpenAI / GPT-6 (Codex), independent review/test role.
+- Production provider: Claude, per the cross-provider handoff.
+- Production revision reviewed: `1c37d22b4a326d94e4d8a9caf3f9c0dcc3cfe6ba`.
+- Revision 1 production baseline: `ee24446e669c6892f73cd3448776c9f95a2d1e58`.
+- Review date: 2026-09-06.
+- The working tree was clean when the re-review began. This pass changed independent test files
+  and this review artifact only. No production source, template, migration, runtime configuration,
+  dependency, state, audit, plan, or production-summary file was modified.
+- The authority consulted for Revision 1 remains applicable. The appended Re-Review Request in
+  `code/independent-review-handoff.md` was also reviewed in full.
+
+## Current Finding
+
+### U2-R2-F01 — Low: management-constructor comment contradicts its nil contract
+
+Location: `internal/service/sic_mapping_service.go:108–110`.
+
+The implementation correctly panics when the collaborator is nil, but the exported constructor
+comment still says a nil collaborator falls back to the explicit no-op. The adjacent implementation
+comment and behavior say the opposite. This can mislead future UOW-3 wiring work even though runtime
+behavior is safe.
+
+- Trace: NFR-U2-MAINT-01; U2-F04 resolution.
+- Fix: update the constructor comment to say nil is rejected and callers wanting checkpoint behavior
+  must pass `NewNoopSICRecategorizationCollaborator()` explicitly.
+- Status: OPEN, non-blocking. No test fails because the executable contract is correct.
+
+No Blocking, High, or Medium finding remains.
+
+## Revision 1 Finding Resolution
+
+| Finding | Revision 2 evidence | Status |
+|---|---|---|
+| U2-F01 extra uploaded files | `internal/handler/sic_mapping_handler.go:163–177` counts every multipart file part and requires exactly one part under `file`. The unchanged `extra_other_field` regression passes. | RESOLVED |
+| U2-F02 failed download returned 200 | `internal/handler/sic_mapping_handler.go:115–130` completes export in a buffer before committing attachment headers. The unchanged infrastructure-failure regression now returns an error response. | RESOLVED |
+| U2-F03 missing cancellation boundaries | `internal/service/sic_mapping_service.go:477–502`, `:518–551`, `:573–583`, and `:744–796` recheck cancellation after blocking validation/reads and immediately before backup or CRUD persistence; merge persistence remains context-aware and atomic. The three unchanged cancellation regressions pass. | RESOLVED |
+| U2-F04 nil collaborator silently succeeded | `internal/service/sic_mapping_service.go:121–127` rejects nil at construction. A panic is appropriate here: the condition is a programmer wiring error, construction occurs during startup, the existing constructor cannot return an error without broader API churn, and an explicit no-op constructor remains available. The unchanged regression passes. | RESOLVED |
+| U2-F05 transport failures invited blind retry | `cmd/privateledger/web/templates/sic_mappings.html:212–220`, `:284–286`, `:318–320`, and the upload catch path report an unknown outcome and require refresh/check before retry. Rendered-template assertions cover the shared behavior. | RESOLVED |
+| U2-F06 warnings and backup paths disappeared | `cmd/privateledger/web/templates/sic_mappings.html:168–209` keeps status results until dismissal and offers explicit refresh. CRUD warning results, successful upload results, and failed upload backup path/warning results all use persistent paths. Immediate reload remains only for clean CRUD success, where no warning or backup information exists to preserve. | RESOLVED |
+| U2-F07 driver-message matching | `internal/repository/sic_mapping_repo.go:220–247` uses `errors.As` with `*sqlite.Error`; `:260–303` classifies merge transaction boundaries. Local named values are stable SQLite result codes, and importing the already-used driver in the repository is the correct layer for typed classification. Existing duplicate tests and a new real lock-exhaustion test pass. | RESOLVED |
+| U2-F08 disconnected saved outcomes not logged | `internal/service/sic_mapping_service.go:599–613` emits safe structured fields when the request context is cancelled after commit, with calls on every CRUD/merge committed path. The new test cancels during post-commit reload, proves the committed result remains durable, verifies the audit fields, and verifies mapping content is absent. | RESOLVED |
+
+The U2-F03 checks cover every phase boundary intended by the approved simplified design. Create
+checks after validation/category and duplicate reads; update checks after existing-row, category,
+and collision reads; delete checks directly before its only database operation; merge checks after
+complete validation and again after the snapshot/diff before backup. Cancellation after the backup
+is enforced by the context-aware transaction. Once persistence succeeds, cancellation is not
+returned as rollback: the service builds a committed result, completes the approved synchronous
+post-commit work, and logs the saved outcome if the request context was lost.
+
+For U2-F07, directly importing `modernc.org/sqlite` adds no module and keeps driver knowledge inside
+the persistence layer. The locally declared `SQLITE_BUSY`, `SQLITE_CONSTRAINT_UNIQUE`, and
+`SQLITE_CONSTRAINT_PRIMARYKEY` values match the SQLite API and the current driver. The configured
+real SQLite busy-timeout path independently produced the expected stable domain sentinel. Importing
+the driver's generated platform constants package would increase coupling without improving this
+supported path.
+
+## Revision 2 Acceptance-Criteria Coverage
+
+| Story / acceptance focus | Current result |
+|---|---|
+| US-04/05 mapping view, CRUD, normalization, uniqueness, nullable category, current category choices | PASS through service/handler matrices, real persistence, and the 1,000-row rendered page |
+| US-10 fixed CSV download, empty header, populated round trip, export failure | PASS, including the unchanged failed-export regression |
+| US-11 confirmation, validation, bounded diagnostics, merge/omission/counts, backup reporting | PASS through examples, generated properties, HTTP regressions, rendered-template inspection, and backup byte/mode/retention checks; live browser interaction remains a recorded limitation |
+| NFR-U2-CON-01 / REL-01 | PASS: admission/cancellation races, phase cancellation, serialized snapshots, atomic rollback, foreign keys, and committed-with-warning behavior |
+| NFR-U2-REL-02 / REL-03 | PASS: complete snapshot, unique 0600 backups, cleanup paths, failure classification, and retained prior backups; exact OS `Close` fault injection limitation recorded below |
+| NFR-U2-SEC-01/02/03 | PASS: local-only behavior, escaped output, bounded request/file sizes and diagnostics, multipart cleanup, safe outcome logging |
+| NFR-U2-UX-01 / SCALE-01 | PASS on automated embedded render, persistent-result contracts, numeric ordering, and 1,000 rows; live visual/keyboard exercise unavailable |
+| NFR-U2-MAINT-01 | PASS in behavior and wiring; stale constructor comment is U2-R2-F01 Low |
+| NFR-U2-PERF-01 | PASS: isolated median 1.42551075 s against 10 s |
+| NFR-U2-TEST-01–04 | PASS: examples, seeded generated properties, full suite, and required race run all pass |
+
+## Independently Authored Revision 2 Tests
+
+- `internal/service/sic_management_review_test.go:277` adds
+  `TestReviewU2PostCommitCancellationReturnsAndLogsSavedOutcome`. It cancels during post-commit
+  reload, verifies the write remains durable and reported committed, checks the structured audit
+  fields, and rejects disclosure of a supplied description.
+- `internal/repository/sic_merge_review_test.go:53` adds
+  `TestReviewU2RepositoryClassifiesRealSQLiteBusy`. Two real connections contend for a temporary
+  SQLite database with a short busy timeout; the repository must return the stable database-busy
+  sentinel.
+- `cmd/privateledger/sic_mapping_page_review_test.go:61–78` extends the real embedded-template render
+  with assertions for the unknown-outcome message, explicit refresh control, failed-merge backup
+  path/warning rendering, and absence of timed reloads.
+
+No existing assertion was weakened or removed. Revision 1 tests remain enabled and unchanged apart
+from these additive checks.
+
+## Commands and Results
+
+| Command | Result |
+|---|---|
+| Focused rerun of the five previously failing Revision 1 regressions | PASS, including every multipart boundary subtest and both CRUD cancellation subtests |
+| Targeted new saved-outcome, real SQLite busy, and page-render tests | PASS |
+| `go test -count=1 ./...` | PASS, including long tests; service package completed in 38.160 s |
+| `go test -race -short -count=1 ./...` | PASS for all packages; no data race report |
+| `go test ./internal/service -run '^TestReviewU2MergeProperties$' -rapid.seed=20260906 -count=1 -v` | PASS, 100 generated cases with replay seed 20260906 |
+| `go test ./internal/service -run '^TestReviewU2MergePerformance$' -count=1 -v` | PASS; one warm-up plus five measured runs, median 1.42551075 s |
+| `go build ./...`; `go vet ./...` | PASS |
+| `gofmt -d` on independently changed tests; `git diff --check` | Clean |
+
+The isolated PERF-01 upload remained 3,355,960 bytes and used the approved 100,000 existing /
+100,000 uploaded / 100-category fixture. Measured runs were 1.442192917 s, 1.428576209 s,
+1.404863583 s, 1.399454958 s, and 1.42551075 s after a 1.392220666 s warm-up. The median is
+1.42551075 s, below the 10-second target.
+
+## Remaining Verification Limitations and Adjudication
+
+1. A failure from the exact `os.File.Close` call in `writeBackup` is still not injected end-to-end.
+   No production seam is recommended solely for this test. The branch checks `Close`, withholds the
+   path on error, and calls the independently exercised partial-backup cleanup helper. Adding a file
+   factory/writer abstraction for one direct three-line OS error branch would make the production
+   design more complex without changing its behavior. This accepted coverage limitation does not
+   block the gate.
+2. The prior browser runtime check found no available browser. Automated rendering verifies the
+   shipped template, controls, escaping, ordering, and persistence contracts; visual layout,
+   keyboard focus restoration, and interactive confirmation were not exercised in a live browser.
+3. An exhaustive prepare/commit/OS-cleanup fault matrix was not added. Real transaction rollback,
+   foreign-key failure, write/cleanup failure, and now real SQLite lock exhaustion are covered.
+4. There is no dedicated test where the admission timer and gate release become ready on the same
+   instant. Occupied-gate timeout and 100 cancellation/acquisition races pass. The boundary has no
+   deterministic externally observable ordering requirement, so no production complexity is advised.
+5. Real transaction recategorization remains UOW-3 scope. UOW-2 verifies the explicit no-op wiring
+   and the collaborator contract with controlled implementations.
+
+## Gate Decision
+
+All U2-F01 through U2-F08 are RESOLVED. Every required enabled test passes, the race detector is
+clean, and there is no unresolved Blocking or High finding. U2-R2-F01 is a Low documentation fix
+for the production provider and does not change the executable contract.
+
+**Final status: PASS (Revision 2 independent gate).**

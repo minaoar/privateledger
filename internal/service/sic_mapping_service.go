@@ -106,8 +106,10 @@ func NewSICMappingService(
 }
 
 // NewSICMappingManagementService creates the fully wired UOW-2 service.
-// A non-positive admissionTimeout falls back to the default, and a nil
-// collaborator falls back to the explicit no-op.
+// A non-positive admissionTimeout falls back to the default.
+//
+// A nil collaborator is rejected, not defaulted: callers that want checkpoint
+// behaviour must pass NewNoopSICRecategorizationCollaborator() explicitly.
 func NewSICMappingManagementService(
 	sicRepo *repository.SICMappingRepository,
 	categoryRepo *repository.CategoryRepository,

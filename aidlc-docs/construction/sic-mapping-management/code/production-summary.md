@@ -199,3 +199,21 @@ request carrying a second file under `other` correctly rejected with 400.
 - Verification gaps 1 through 5 in the review remain open and are unchanged by this revision. Gap 1
   (a real `writeBackup` Close fault) would need the small writer/closer seam the review describes;
   it was not added, since the review assigns that decision to production only "if needed".
+
+---
+
+# Revision 3 — Documentation Finding U2-R2-F01
+
+Date: 2026-09-06. The Revision 2 re-review returned **PASS** with one Low documentation finding.
+
+| Finding | Severity | Resolution |
+|---|---|---|
+| U2-R2-F01 | Low | `NewSICMappingManagementService`'s doc comment still said a nil collaborator "falls back to the explicit no-op", contradicting both the adjacent implementation comment and the actual panic. Rewritten to state that nil is rejected and that callers wanting checkpoint behaviour must pass `NewNoopSICRecategorizationCollaborator()` explicitly. |
+
+Comment-only change to `internal/service/sic_mapping_service.go`; no executable behaviour altered.
+
+Verification: `gofmt` clean; `go build ./...` and `go vet ./...` pass; `go test -short -count=1 ./...`,
+the full `go test -count=1 ./...` including long tests, and `go test -race -short -count=1 ./...` all
+pass across all seven packages with zero data races.
+
+All findings from both review passes (U2-F01 through U2-F08, U2-R2-F01) are now closed.

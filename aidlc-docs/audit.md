@@ -1174,3 +1174,37 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: Revision 2 complete; independent re-review required in a different provider session before the gate can close.
 
 ---
+
+## UOW-2 Code Generation Part 3 — Independent Re-Review Result (Revision 2)
+**Timestamp**: 2026-09-06T08:05:00Z
+**User Input**: "what's the next step?"
+**Independent Provider**: OpenAI / GPT-6 (Codex), independent review/test role — separate provider from the Claude production session.
+**Reviewed Revision**: `1c37d22b4a326d94e4d8a9caf3f9c0dcc3cfe6ba`
+**Gate**: PASS
+**Findings**: All of U2-F01 through U2-F08 verified RESOLVED with independent evidence. One new Low finding, U2-R2-F01: the `NewSICMappingManagementService` doc comment still claimed a nil collaborator falls back to the no-op, contradicting the panic the same function performs. No Blocking, High, or Medium finding remains.
+**Independent Evidence**: Three new tests added — post-commit cancellation proving a committed write stays durable while the saved outcome is logged without disclosing mapping content; real two-connection SQLite lock exhaustion returning the stable database-busy sentinel; and extended rendered-template assertions for the unknown-outcome message, the explicit refresh control, failed-merge backup reporting, and the absence of timed reloads. No existing assertion was weakened. Full `go test -count=1 ./...` passes including long tests; `-race` clean; rapid properties replay at seed 20260906; PERF-01 median 1.42551075 s against the 10 s target on the recorded reference environment.
+**Adjudications Recorded**: The panic for nil-collaborator wiring was accepted as appropriate for a startup programmer error. Declaring the three SQLite result codes locally and importing `modernc.org/sqlite` in the repository was accepted as the correct layer for typed classification. No production seam was advised for injecting an `os.File.Close` fault in `writeBackup`, on the grounds that a file factory abstraction would add design complexity without changing behaviour.
+**Remaining Limitations (non-blocking, recorded by the independent role)**: no injected `writeBackup` Close fault; no live browser for visual, keyboard-focus, or interactive confirmation checks; no exhaustive prepare/commit/cleanup fault matrix; no dedicated simultaneous timer-and-gate-release boundary test; real transaction recategorization remains UOW-3 scope.
+**Context**: CONSTRUCTION / UOW-2 / Code Generation Part 3 — independent gate CLOSED PASS
+
+---
+
+## UOW-2 Code Generation — Production Revision 3 (U2-R2-F01)
+**Timestamp**: 2026-09-06T08:10:00Z
+**AI Response**: "Fixed the single Low finding. The `NewSICMappingManagementService` doc comment now states that a nil collaborator is rejected and that callers wanting checkpoint behaviour must pass `NewNoopSICRecategorizationCollaborator()` explicitly, matching the adjacent implementation comment and the actual panic. Comment-only change; no executable behaviour altered."
+**Production File Modified**: `internal/service/sic_mapping_service.go`
+**Verification**: `gofmt` clean; `go build ./...` and `go vet ./...` pass; short suite, full long suite, and `-race` all pass across seven packages with zero data races.
+**Ownership**: No test file or review artifact modified by the production role.
+**Status**: All findings from both review passes closed. UOW-2 Code Generation awaiting explicit user approval per `.aidlc-rule-details/construction/code-generation.md` Step 20.
+
+---
+
+## UOW-2 Code Generation — User Approval and Completion
+**Timestamp**: 2026-09-06T08:20:00Z
+**User Input**: "approved. commit and push, then proceed to UOW-3"
+**Decision**: Approved completed UOW-2 Code Generation.
+**Gate Evidence**: Independent re-review (OpenAI/Codex, separate provider) of production Revision 2 `1c37d22` reports PASS with all of U2-F01 through U2-F08 RESOLVED and no Blocking, High, or Medium finding open. Revision 3 closed the single Low finding U2-R2-F01. Build, vet, format, short suite, full long suite, race, property, and performance checks all pass.
+**Accepted Limitations**: Five verification limitations recorded and adjudicated non-blocking by the independent role, including no injected `os.File.Close` fault in `writeBackup` (no production seam advised) and no live-browser visual, keyboard-focus, or interactive confirmation exercise.
+**Status**: UOW-2 Code Generation COMPLETE. Workflow advances to UOW-3 — Transaction Categorization Integration, beginning at Functional Design.
+
+---

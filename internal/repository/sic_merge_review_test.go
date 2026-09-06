@@ -2,8 +2,12 @@ package repository
 
 import (
 	"context"
-	"github.com/oronno/privateledger/internal/model"
+	"errors"
+	"path/filepath"
 	"testing"
+
+	"github.com/oronno/privateledger/internal/database"
+	"github.com/oronno/privateledger/internal/model"
 )
 
 func TestReviewU2RepositoryMergeForeignKeyRollback(t *testing.T) {
@@ -43,5 +47,41 @@ func TestReviewU2RepositoryMergeForeignKeyRollback(t *testing.T) {
 		if all[i].SICCode != code {
 			t.Fatalf("numeric order %v", all)
 		}
+	}
+}
+
+func TestReviewU2RepositoryClassifiesRealSQLiteBusy(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "busy.db")
+	db1, err := database.Open(database.Config{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db1.Close()
+	db2, err := database.Open(database.Config{Path: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db2.Close()
+	db2.SetMaxOpenConns(1)
+	if _, err = db2.Exec("PRAGMA busy_timeout=25"); err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := db1.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec(`
+		INSERT INTO sic_mapping (sic_code, description, description_detail, category_id)
+		VALUES ('1', '', '', NULL)
+	`); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := NewSICMappingRepository(db2)
+	err = repo.Create(model.NewSICMapping("2", "", "", nil))
+	if !errors.Is(err, model.ErrSICMappingDatabaseBusy) {
+		t.Fatalf("real SQLite lock was not classified as database busy: %v", err)
 	}
 }
