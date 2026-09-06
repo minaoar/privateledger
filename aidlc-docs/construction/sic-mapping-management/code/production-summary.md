@@ -217,3 +217,61 @@ the full `go test -count=1 ./...` including long tests, and `go test -race -shor
 pass across all seven packages with zero data races.
 
 All findings from both review passes (U2-F01 through U2-F08, U2-R2-F01) are now closed.
+
+---
+
+# Revision 4 — Post-Gate Defect U2-USER-01
+
+Date: 2026-09-06. Reported by the user after the independent gate closed:
+*"when i try to delete a SIC code, it prompts twice. then it fails to delete. also, i could not find
+any error in any log."*
+
+## Root Cause
+
+`cmd/privateledger/web/static/js/app.js:59` defines a global `function confirmDelete(message)` that
+simply returns `confirm(...)`. The mapping page defined its own top-level `async function
+confirmDelete()`.
+
+`layout.html` renders page content at line 68 and loads `/static/js/app.js` at line 94, so the page
+script runs **first** and app.js's declaration then overwrites `window.confirmDelete`. By the time the
+user clicked, the modal's `onclick="confirmDelete()"` resolved to app.js's function.
+
+This accounts for all three reported symptoms exactly:
+
+| Symptom | Cause |
+|---|---|
+| Prompts twice | The page's Bootstrap confirmation modal, then app.js's native `confirm()` dialog |
+| Fails to delete | app.js's function only returns a boolean; the `fetch` was never issued |
+| Nothing in any log | No HTTP request reached the server, and no JavaScript error was thrown — the call resolved to a real, working function, just the wrong one |
+
+The API itself was never at fault; `DELETE /api/sic-mappings/:id` worked correctly throughout.
+
+## Fix
+
+Renamed the page function to `confirmDeleteMapping` at its definition and its single `onclick`
+reference, with a comment recording why a bare name is unsafe here. Comment and rename only; no
+behavioural logic changed.
+
+A sweep of every page template against app.js's globals confirms `confirmDelete` was the only
+collision, and that it existed solely in `sic_mappings.html` — this was introduced by UOW-2, not a
+pre-existing pattern. `app.js` declares no top-level `const`/`let`/`var`, so no variable collision is
+possible with `MAX_UPLOAD_MB` or `pendingDeleteId`.
+
+## Verification
+
+`gofmt` clean; `go build ./...` and `go vet ./...` pass; full `go test -count=1 ./...` including long
+tests passes; `-race` clean with zero data races. Verified against a running instance on an isolated
+port: the page now emits `onclick="confirmDeleteMapping()"`, the definition matches, the overlap
+against app.js globals is empty, and `DELETE /api/sic-mappings/1` returns 200 with the mapping removed.
+
+## Why the Gate Missed It
+
+This sits precisely in recorded Limitation 2 of the independent review: no browser was available, so
+only server-rendered HTML was asserted and no page JavaScript was ever executed. A rendered-HTML
+assertion cannot observe a global-name collision, because the markup is correct — the defect is in
+which function that markup's name resolves to at runtime.
+
+**Recommended regression guard for the independent role**: a static check that no page template's
+top-level function names intersect `app.js`'s globals. That is cheap, needs no browser, and would have
+caught this. Test authorship remains the independent role's ownership, so it is recommended here rather
+than added.

@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -80,5 +81,31 @@ func TestReviewU2PageScaleAndEscaping(t *testing.T) {
 		if e = os.WriteFile(out, []byte(html), 0600); e != nil {
 			t.Fatal(e)
 		}
+	}
+}
+
+func TestReviewU2DeleteHandlerIsNotShadowedBySharedScript(t *testing.T) {
+	pageBytes, err := embeddedFiles.ReadFile("web/templates/sic_mappings.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	appBytes, err := embeddedFiles.ReadFile("web/static/js/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	page := string(pageBytes)
+	sharedScript := string(appBytes)
+	match := regexp.MustCompile(`(?s)id="deleteMappingConfirm"[^>]*onclick="([A-Za-z_$][A-Za-z0-9_$]*)\(\)"`).FindStringSubmatch(page)
+	if len(match) != 2 {
+		t.Fatal("delete confirmation button has no callable page handler")
+	}
+	handlerName := match[1]
+	if !strings.Contains(page, "async function "+handlerName+"()") {
+		t.Fatalf("delete button calls %s, but the page does not define its async handler", handlerName)
+	}
+	sharedDefinition := regexp.MustCompile(`(?m)function\s+` + regexp.QuoteMeta(handlerName) + `\s*\(`)
+	if sharedDefinition.MatchString(sharedScript) {
+		t.Fatalf("delete handler %s is shadowed by web/static/js/app.js", handlerName)
 	}
 }

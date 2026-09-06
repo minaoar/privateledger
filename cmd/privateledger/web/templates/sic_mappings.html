@@ -153,7 +153,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-danger" data-testid="sic-mapping-delete-confirm-button"
-                        id="deleteMappingConfirm" onclick="confirmDelete()">Delete</button>
+                        id="deleteMappingConfirm" onclick="confirmDeleteMapping()">Delete</button>
             </div>
         </div>
     </div>
@@ -295,7 +295,11 @@ function openDeleteModal(trigger) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteMappingModal')).show();
 }
 
-async function confirmDelete() {
+// Named for this page specifically. layout.html loads /static/js/app.js
+// after the page content, so a bare name like confirmDelete is silently
+// overwritten by app.js's global of the same name, and the click then calls
+// that instead of this function.
+async function confirmDeleteMapping() {
     if (!pendingDeleteId) return;
     const button = document.getElementById('deleteMappingConfirm');
     button.disabled = true;

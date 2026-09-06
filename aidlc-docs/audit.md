@@ -1208,3 +1208,28 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-2 Code Generation COMPLETE. Workflow advances to UOW-3 — Transaction Categorization Integration, beginning at Functional Design.
 
 ---
+
+## UOW-3 Functional Design — Plan and Clarification Questions Created
+**Timestamp**: 2026-09-06T08:30:00Z
+**User Input**: "approved. commit and push, then proceed to UOW-3"
+**AI Response**: "Committed and pushed `8f51c4b`, then started UOW-3 Functional Design. Inspected the current categorizer, transaction repository, handlers, and the UOW-2 collaborator seam before writing questions, and separated decisions already settled by approved artifacts (FR6 priority, FR7 preservation, FR10 modal display, the SIC-specific categorizer extension shape, and the 2026-08-24 modal semantics) from genuinely open ones, so settled decisions are not re-litigated."
+**Artifact**: `aidlc-docs/construction/plans/transaction-categorization-integration-functional-design-plan.md`
+**Assigned Stories**: US-02, US-03, US-06, US-12, US-13.
+**Verified Starting State Recorded**: `RecategorizeAll` and `RecategorizeByCategory` re-implement pattern matching inline rather than calling `Categorize` (`internal/service/categorizer.go:89-99`), so SIC would apply on import but be skipped by "Recategorize All" — application design resolution 6 assigns that fix here. `go h.categorizer.LoadPatterns()` at `internal/handler/category_handler.go:342` mutates the pattern cache from a goroutine with no synchronization, a pre-existing data race assigned to this unit by resolution 5. `LoadPatterns` is exported with four call sites and becomes unexported behind `LoadRules` per resolution 10. UOW-1 already provides `GetUncategorizedBySICCodes` and the joined `SICDescription`, so US-06 needs no new read path.
+**Open Questions**: Q1 recategorization budget/cancellation, explicitly deferred to UOW-3 by the UOW-2 NFR Design because the mapping gate is held for the whole collaborator call; Q2 the blast radius of "Recategorize All" now applying SIC to an existing uncategorized backlog; Q3 cache reload concurrency shape; Q4 import-time SIC lookup strategy against the approved SIC-free import benchmark; Q5 modal-created mapping scope; Q6 property-based testing scope under Partial mode.
+**Status**: Awaiting answers to six questions; no UOW-3 design artifact or production code generated.
+
+---
+
+## UOW-2 Post-Gate Defect — U2-USER-01 Delete Prompts Twice and Fails
+**Timestamp**: 2026-09-06T09:05:00Z
+**User Input**: "when i try to delete a SIC code, it prompts twice. then it fails to delete. also, i could not find any error in any log."
+**AI Response**: "Reproduced and traced to a JavaScript global-name collision. `cmd/privateledger/web/static/js/app.js:59` defines a global `confirmDelete(message)` returning `confirm(...)`. The mapping page defined its own top-level `async function confirmDelete()`. `layout.html` renders page content at line 68 and loads app.js at line 94, so app.js's declaration overwrites the page's, and the modal's `onclick=\"confirmDelete()\"` resolved to app.js's function: the Bootstrap modal was the first prompt, app.js's native `confirm()` the second, and no fetch was ever issued — which is why nothing appeared in any log and no JavaScript error was raised. Renamed the page function to `confirmDeleteMapping` at its definition and its single onclick reference, with a comment recording why a bare name is unsafe on this page."
+**Severity**: High in user impact — deletion was completely non-functional through the UI — though the API was always correct.
+**Production File Modified**: `cmd/privateledger/web/templates/sic_mappings.html`
+**Scope Check**: A sweep of every page template against app.js's globals confirmed `confirmDelete` was the only collision and existed only in `sic_mappings.html`, so this was introduced by UOW-2 rather than pre-existing. `app.js` declares no top-level const/let/var, so no variable collision with `MAX_UPLOAD_MB` or `pendingDeleteId` is possible.
+**Verification**: `gofmt` clean; `go build ./...` and `go vet ./...` pass; full `go test -count=1 ./...` including long tests passes; `-race` clean with zero data races. Verified on a running instance at an isolated port: page emits `onclick=\"confirmDeleteMapping()\"`, definition matches, app.js overlap empty, and `DELETE /api/sic-mappings/1` returns 200 with the mapping removed. One invalid intermediate smoke run was discarded after `pkill` failed to stop a prior server, so a stale process served the requests; the run was repeated on a clean port.
+**Gate Impact**: This falls inside recorded Limitation 2 of the independent review — no browser was available, so only server-rendered HTML was asserted and no page JavaScript was executed. A rendered-HTML assertion structurally cannot detect a global-name collision, since the markup is correct and only runtime name resolution is wrong. Recommended to the independent role: a static check that no page template's top-level function names intersect app.js's globals.
+**Status**: Fixed. UOW-2 requires an independent re-review pass covering this change before the unit is considered closed again. UOW-3 Functional Design remains paused with its six questions unanswered.
+
+---
