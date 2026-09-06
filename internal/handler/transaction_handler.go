@@ -134,6 +134,22 @@ func (h *TransactionHandler) CreateSICMappingForTransaction(c *gin.Context) {
 		return
 	}
 
+	// The mapping is now the rule that explains this code, so the current
+	// transaction is restated as rule-sourced rather than left manual. Only the
+	// source changes and only when the stored category already matches the
+	// mapping, so this never alters a category the user chose. A transaction
+	// that was uncategorized has already been handled by the mapping's own
+	// scoped recategorization.
+	if stored, readErr := h.repo.GetByID(id); readErr == nil && stored != nil {
+		if stored.CategoryID != nil && *stored.CategoryID == *req.CategoryID &&
+			stored.CategorySource != model.CategorySourceRule {
+			if err := h.repo.UpdateCategory(id, req.CategoryID, model.CategorySourceRule); err != nil {
+				slog.Error("Failed to apply rule source after modal mapping",
+					slog.Int("transaction_id", id), slog.String("error", err.Error()))
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, result)
 }
 

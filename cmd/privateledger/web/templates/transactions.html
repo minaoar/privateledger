@@ -703,6 +703,25 @@ function syncPatternRuleType() {
     patternText.required = !sicChosen;
 }
 
+// Disables a modal's controls while a request is in flight and restores them
+// afterwards, so a second submit cannot start another mutation while the first
+// is unresolved.
+function setTxnModalBusy(form, busy) {
+    form.querySelectorAll('input, select, button, textarea').forEach(el => {
+        if (busy) {
+            if (el.disabled) {
+                el.dataset.txnWasDisabled = '1';
+            } else {
+                el.disabled = true;
+            }
+        } else if (el.dataset.txnWasDisabled === '1') {
+            delete el.dataset.txnWasDisabled;
+        } else {
+            el.disabled = false;
+        }
+    });
+}
+
 // Creates or updates the SIC mapping for the transaction's code. Returns true
 // on success. A failure here is reported but never silently swallowed.
 async function saveTransactionSicMapping(transactionId, categoryId) {
@@ -752,6 +771,8 @@ document.getElementById('changeCategoryForm').addEventListener('submit', async f
 
     const alsoMap = document.getElementById('changeCategoryCreateMapping').checked && txnSicCodeForModal;
 
+    setTxnModalBusy(this, true);
+
     // Close modal first
     bootstrap.Modal.getInstance(document.getElementById('changeCategoryModal')).hide();
 
@@ -760,8 +781,12 @@ document.getElementById('changeCategoryForm').addEventListener('submit', async f
 
     // The mapping is created after the transaction is categorized, so a
     // mapping failure never leaves the user's explicit choice unapplied.
-    if (alsoMap) {
-        await saveTransactionSicMapping(transactionId, categoryId);
+    try {
+        if (alsoMap) {
+            await saveTransactionSicMapping(transactionId, categoryId);
+        }
+    } finally {
+        setTxnModalBusy(this, false);
     }
 });
 
@@ -832,7 +857,13 @@ document.getElementById('createPatternForm').addEventListener('submit', async fu
 
     // A SIC mapping replaces the text pattern here; it never creates both.
     if (useSicMapping) {
-        const saved = await saveTransactionSicMapping(transactionId, categoryId);
+        setTxnModalBusy(this, true);
+        let saved = false;
+        try {
+            saved = await saveTransactionSicMapping(transactionId, categoryId);
+        } finally {
+            setTxnModalBusy(this, false);
+        }
         if (!saved) {
             return;
         }
@@ -846,6 +877,7 @@ document.getElementById('createPatternForm').addEventListener('submit', async fu
         return;
     }
 
+    setTxnModalBusy(this, true);
     try {
         // Create the pattern
         const response = await fetch(`/api/categories/${categoryId}/patterns`, {
@@ -873,6 +905,8 @@ document.getElementById('createPatternForm').addEventListener('submit', async fu
 
     } catch (error) {
         showToast('An error occurred', 'danger');
+    } finally {
+        setTxnModalBusy(this, false);
     }
 });
 </script>

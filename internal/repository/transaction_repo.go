@@ -341,8 +341,12 @@ func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error)
 	return transactions, nil
 }
 
-// GetUncategorizedBySICCodes returns uncategorized transactions matching any
-// canonical SIC code. An empty input avoids issuing invalid SQL.
+// GetUncategorizedBySICCodes returns genuinely uncategorized transactions
+// matching any canonical SIC code. An empty input avoids issuing invalid SQL.
+//
+// Both a zero source and an absent category are required: a row can carry a
+// category while its source reads none, and automatic categorization must
+// never revise a category that is already there.
 func (r *TransactionRepository) GetUncategorizedBySICCodes(sicCodes []string) ([]*model.Transaction, error) {
 	if len(sicCodes) == 0 {
 		return []*model.Transaction{}, nil
@@ -366,6 +370,7 @@ func (r *TransactionRepository) GetUncategorizedBySICCodes(sicCodes []string) ([
 			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
 		FROM ledger_transaction
 		WHERE category_source = 0
+			AND category_id IS NULL
 			AND sic_code IN (SELECT value FROM json_each(?))
 		ORDER BY date_posted DESC
 	`

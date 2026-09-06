@@ -23,6 +23,18 @@ type SICCategoryLookup interface {
 	ReloadMappings() error
 }
 
+// sicDecider exposes the shared decision function to the mapping source.
+type sicDecider interface {
+	decideCategory(txn *model.Transaction) (int, bool)
+}
+
+// decideCategory applies the shared priority order and reports whether a
+// category should be assigned.
+func (c *Categorizer) decideCategory(txn *model.Transaction) (int, bool) {
+	categoryID, source := c.decide(txn)
+	return categoryID, source != sourceNone
+}
+
 // categorySource identifies which kind of rule assigned a category, so a
 // caller can report the split without inferring it afterwards.
 type categorySource int
@@ -73,15 +85,33 @@ func NewCategorizerWithSIC(
 ) *Categorizer {
 	c := NewCategorizer(patternRepo, txnRepo)
 	c.sicLookup = sicLookup
+	// Scoped recategorization lives on the mapping source but must apply the
+	// same priority as every other entry point, so it is given the shared
+	// decision function rather than deciding for itself.
+	if host, ok := sicLookup.(interface{ attachDecider(sicDecider) }); ok {
+		host.attachDecider(c)
+	}
 	return c
+}
+
+// sicMappingStager is implemented by a mapping source that can prepare a
+// replacement index without publishing it. When available it lets LoadRules
+// publish patterns and mappings as one generation under one lock, which is the
+// only way a reader cannot observe half a reload.
+type sicMappingStager interface {
+	prepareMappings() (map[model.SICCode]*model.SICMapping, error)
+	commitMappings(map[model.SICCode]*model.SICMapping)
 }
 
 // LoadRules refreshes every rule source. It is the only exported reload entry
 // point, so a caller cannot refresh one rule set and forget the other.
 //
-// Both replacement sets are built before either is published: if any source
-// fails, nothing changes and the error is returned. Rules are therefore always
-// wholly current or wholly unchanged, never half-old.
+// Where the mapping source can stage its replacement, both sets are published
+// together under this categorizer's write lock, so categorization observes
+// either the complete old generation or the complete new one and never a
+// mixture. A source that can only reload itself falls back to publishing
+// patterns first and restoring them if the mapping reload then fails, so a
+// failed reload still leaves rules unchanged.
 func (c *Categorizer) LoadRules() error {
 	patterns, err := c.patternRepo.GetAll()
 	if err != nil {
@@ -89,28 +119,32 @@ func (c *Categorizer) LoadRules() error {
 		return fmt.Errorf("failed to load patterns: %w", err)
 	}
 
-	if c.sicLookup != nil {
-		if err := c.sicLookup.ReloadMappings(); err != nil {
-			// The pattern set is discarded rather than published, so a failed
-			// mapping reload cannot leave the two sources disagreeing.
+	if stager, ok := c.sicLookup.(sicMappingStager); ok {
+		index, err := stager.prepareMappings()
+		if err != nil {
 			return err
 		}
+		c.mu.Lock()
+		c.patterns = patterns
+		stager.commitMappings(index)
+		c.mu.Unlock()
+		return nil
 	}
 
 	c.mu.Lock()
+	previous := c.patterns
 	c.patterns = patterns
 	c.mu.Unlock()
-	return nil
-}
 
-// LoadPatterns is retained for existing callers and delegates to LoadRules.
-//
-// It deliberately refreshes every rule source rather than only patterns. The
-// hazard BR-U3-19 guards against is an exported way to refresh one cache and
-// leave the other stale; delegating removes that hazard while keeping the
-// identifier existing tests depend on. Prefer LoadRules in new code.
-func (c *Categorizer) LoadPatterns() error {
-	return c.LoadRules()
+	if c.sicLookup != nil {
+		if err := c.sicLookup.ReloadMappings(); err != nil {
+			c.mu.Lock()
+			c.patterns = previous
+			c.mu.Unlock()
+			return err
+		}
+	}
+	return nil
 }
 
 // decide determines the category for one transaction without writing it, and
@@ -130,11 +164,13 @@ func (c *Categorizer) decide(txn *model.Transaction) (int, categorySource) {
 		return 0, sourceNone
 	}
 
+	// The lock is held across both rule sources so one decision sees one
+	// generation. Sampling patterns, releasing, then consulting mappings would
+	// let a concurrent reload land in between.
 	c.mu.RLock()
-	patterns := c.patterns
-	c.mu.RUnlock()
+	defer c.mu.RUnlock()
 
-	for _, pattern := range patterns {
+	for _, pattern := range c.patterns {
 		if pattern.Matches(txn.TransactionDetails) {
 			return pattern.CategoryID, sourcePattern
 		}

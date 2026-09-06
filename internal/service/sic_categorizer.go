@@ -26,6 +26,28 @@ type SICMappingCategorizer struct {
 
 	mu       sync.RWMutex
 	mappings map[model.SICCode]*model.SICMapping
+
+	// decider supplies the shared priority order. Scoped recategorization must
+	// reach the same answer as import and full recategorization, so it never
+	// decides for itself.
+	decider sicDecider
+}
+
+// attachDecider is called during categorizer construction.
+func (c *SICMappingCategorizer) attachDecider(d sicDecider) {
+	c.decider = d
+}
+
+// prepareMappings builds a replacement index without publishing it, so the
+// categorizer can publish patterns and mappings as one generation.
+func (c *SICMappingCategorizer) prepareMappings() (map[model.SICCode]*model.SICMapping, error) {
+	return c.buildMappingIndex()
+}
+
+// commitMappings publishes a prepared index. The caller holds the
+// categorizer's write lock, which is what makes the swap atomic with patterns.
+func (c *SICMappingCategorizer) commitMappings(index map[model.SICCode]*model.SICMapping) {
+	c.publishMappingIndex(index)
 }
 
 // NewSICMappingCategorizer creates the SIC categorization extension.
@@ -90,6 +112,26 @@ func (c *SICMappingCategorizer) LookupCategory(sicCode model.SICCode) (int, bool
 	return *mapping.CategoryID, true
 }
 
+// decideForTransaction applies the shared priority order.
+//
+// The shared decision function decides whenever a categorizer is attached, so a
+// transaction whose description matches a text pattern keeps the
+// higher-priority text category. Wired standalone there are no text patterns to
+// outrank SIC, but the preservation guards still apply: a manual source or an
+// existing category is never revised.
+func (c *SICMappingCategorizer) decideForTransaction(txn *model.Transaction) (int, bool) {
+	if c.decider != nil {
+		return c.decider.decideCategory(txn)
+	}
+	if txn.CategorySource == model.CategorySourceManual || txn.CategoryID != nil {
+		return 0, false
+	}
+	if txn.SICCode == nil {
+		return 0, false
+	}
+	return c.LookupCategory(*txn.SICCode)
+}
+
 // RecategorizeBySICCodes categorizes currently uncategorized transactions
 // carrying any of the supplied codes, and returns how many changed.
 //
@@ -101,7 +143,6 @@ func (c *SICMappingCategorizer) RecategorizeBySICCodes(sicCodes []model.SICCode)
 	if len(sicCodes) == 0 {
 		return 0, nil
 	}
-
 	codes := make([]string, 0, len(sicCodes))
 	for _, code := range sicCodes {
 		codes = append(codes, string(code))
@@ -117,10 +158,7 @@ func (c *SICMappingCategorizer) RecategorizeBySICCodes(sicCodes []model.SICCode)
 
 	byCategory := make(map[int][]int)
 	for _, txn := range transactions {
-		if txn.SICCode == nil {
-			continue
-		}
-		categoryID, ok := c.LookupCategory(*txn.SICCode)
+		categoryID, ok := c.decideForTransaction(txn)
 		if !ok {
 			continue
 		}
