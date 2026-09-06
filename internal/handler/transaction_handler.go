@@ -140,13 +140,23 @@ func (h *TransactionHandler) CreateSICMappingForTransaction(c *gin.Context) {
 	// mapping, so this never alters a category the user chose. A transaction
 	// that was uncategorized has already been handled by the mapping's own
 	// scoped recategorization.
-	if stored, readErr := h.repo.GetByID(id); readErr == nil && stored != nil {
-		if stored.CategoryID != nil && *stored.CategoryID == *req.CategoryID &&
-			stored.CategorySource != model.CategorySourceRule {
-			if err := h.repo.UpdateCategory(id, req.CategoryID, model.CategorySourceRule); err != nil {
-				slog.Error("Failed to apply rule source after modal mapping",
-					slog.Int("transaction_id", id), slog.String("error", err.Error()))
-			}
+	// The mapping is already durable at this point, so a failure here is
+	// reported as a post-commit warning rather than an error. Logging alone
+	// would leave the caller believing the requested outcome was applied.
+	stored, readErr := h.repo.GetByID(id)
+	switch {
+	case readErr != nil:
+		slog.Error("Failed to re-read transaction after modal mapping",
+			slog.Int("transaction_id", id), slog.String("error", readErr.Error()))
+		result.PostCommitWarnings = append(result.PostCommitWarnings,
+			"The mapping was saved, but this transaction could not be re-checked, so it may still be marked as a manual choice.")
+	case stored != nil && stored.CategoryID != nil && *stored.CategoryID == *req.CategoryID &&
+		stored.CategorySource != model.CategorySourceRule:
+		if err := h.repo.UpdateCategory(id, req.CategoryID, model.CategorySourceRule); err != nil {
+			slog.Error("Failed to apply rule source after modal mapping",
+				slog.Int("transaction_id", id), slog.String("error", err.Error()))
+			result.PostCommitWarnings = append(result.PostCommitWarnings,
+				"The mapping was saved, but this transaction is still marked as a manual choice rather than following the new mapping.")
 		}
 	}
 

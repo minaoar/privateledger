@@ -131,19 +131,14 @@ func (c *Categorizer) LoadRules() error {
 		return nil
 	}
 
-	c.mu.Lock()
-	previous := c.patterns
-	c.patterns = patterns
-	c.mu.Unlock()
-
 	if c.sicLookup != nil {
 		if err := c.sicLookup.ReloadMappings(); err != nil {
-			c.mu.Lock()
-			c.patterns = previous
-			c.mu.Unlock()
 			return err
 		}
 	}
+	c.mu.Lock()
+	c.patterns = patterns
+	c.mu.Unlock()
 	return nil
 }
 
