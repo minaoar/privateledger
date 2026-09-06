@@ -65,6 +65,14 @@
 - [ ] Infrastructure Design — SKIP
 - [ ] Code Generation — EXECUTE (ALWAYS)
 
+#### UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
+- [ ] Scope freeze — pending UOW-3 Code Generation completion
+- [ ] Functional Design — NOT STARTED
+- [ ] NFR Requirements — NOT STARTED
+- [ ] NFR Design — NOT STARTED
+- [ ] Infrastructure Design — SKIP
+- [ ] Code Generation — NOT STARTED
+
 #### After all units
 - [ ] Build and Test — EXECUTE (ALWAYS)
 
@@ -73,7 +81,7 @@
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Unit**: UOW-3 — Transaction Categorization Integration
+- **Current Unit**: UOW-3 — Transaction Categorization Integration (UOW-4 registered, scope open, not started)
 - **Current Stage**: UOW-3 Code Generation Part 1 — plan being created
 - **Last Completed**: UOW-3 NFR Design approved by the user on 2026-09-06, including the revision of NFRP-U3-03 from chunking to single-parameter JSON set passing.
 - **Next Step**: Create and approve the UOW-3 code generation plan, then execute production generation. Infrastructure Design remains skipped.

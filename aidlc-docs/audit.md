@@ -1389,3 +1389,34 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-3 NFR Design COMPLETE. Next stage is Code Generation Part 1 planning.
 
 ---
+
+## UOW-3 Code Generation Part 1 — Plan Created and Approval Requested
+**Timestamp**: 2026-09-06T12:50:00Z
+**User Input**: "go ahead."
+**Artifact**: `aidlc-docs/construction/plans/transaction-categorization-integration-code-generation-plan.md`
+**Scope**: Thirteen sequential steps covering single-parameter JSON set passing in the repository, the SIC mapping categorizer implementing UOW-2's collaborator, the guarded cache set and single decision function, recategorization passes with split counts, the import path, the category handler reload fix, the modal mapping endpoint, both templates, wiring, production verification, documentation, handoff, and the independent gate.
+**Files**: Modify `categorizer.go`, `transaction_repo.go`, `import_service.go` (only if the decision-function signature requires it), `category_handler.go`, `transaction_handler.go`, `main.go`, `transactions.html`, `categories.html`, `API_ROUTES.md`. Create `internal/service/sic_categorizer.go` plus two production documentation artifacts. No schema migration and no new dependency.
+**Verified Before Planning**: Import already routes through `Categorize` at `internal/service/import_service.go:105`, so Step 5 is a confirmation rather than a rewrite; the category handler has three reload call sites at `:152`, `:301`, and the detached goroutine at `:342`; and `SICDescription` plus `GetUncategorizedBySICCodes` already exist from UOW-1, so US-06 needs no new read path.
+**Explicit Instruction Carried Into Step 8**: Every new page-level JavaScript function name must be checked against the globals in `app.js` before use, because `layout.html` loads `app.js` after page content and a colliding name is silently overwritten at runtime while the markup still looks correct. This is written into the step rather than left to memory, since UOW-3 adds functions to two templates and that is exactly where defect U2-F09 would recur.
+**Handoff Items Pre-Recorded in Step 12**: That the `sic_code` index has not been confirmed as chosen under a `json_each` subquery — measured timings are consistent with index use but the query plan was not inspected; that UOW-2's approved merge fixture produces 50,000 affected codes and previously never issued the scoped query because the collaborator was a no-op; and that Steps 1 and 6 change behavior shared with UOW-1 and UOW-2, so their regressions must be re-run.
+**Approval Prompt**: "Please review and explicitly approve the complete UOW-3 code generation plan before production generation begins."
+**Status**: Awaiting explicit plan approval; no production code generated.
+
+---
+
+## UOW-4 Registered — Category Lifecycle and Mapping-File Restore Integrity
+**Timestamp**: 2026-09-06T13:15:00Z
+**User Input**: "create a separate uow-4 to address this issue. there can be few more issues that I will find after uow-3. all those including this category modification issue can be done in uow-4. thoughts?" / "sounds good. set up the uow things first, let me know once done and then I will let you know about uow-3"
+**AI Response**: "Agreed with the direction but flagged that a unit defined as leftovers has no completion boundary, which every stage of this workflow depends on. Proposed and, on approval, created UOW-4 with a stated theme rather than a bucket label, an admission rule, and a scope freeze at UOW-3 Code Generation completion."
+**Grounding Investigated Before Proposing**: Checked `stories.md` and found no story covers restoring from a backup — US-11 mentions restore only as a hoped-for side effect of upload. Backups are written before every merge but restoring one was never designed. That missing capability is what gives UOW-4 a genuine theme instead of a leftovers label, and it is why the founding finding had no owning unit.
+**Amended Approved Inception Artifacts**:
+- `aidlc-docs/inception/application-design/unit-of-work.md` — UOW-4 definition with outcome, founding problem, candidate scope, admission rule, scope freeze, and completion boundary; cross-unit rules and delivery order extended.
+- `aidlc-docs/inception/application-design/unit-of-work-dependency.md` — UOW-4 rows added: a hard dependency on UOW-2's CSV column contract, category resolution rules, and backup format; a sequencing-only dependency on UOW-3, since scope freezes at its completion but there is no runtime dependency on categorization. Shared-component responsibilities deliberately left unlisted, because recording them now would assert a design this workflow has not produced.
+- `aidlc-docs/inception/application-design/unit-of-work-story-map.md` — UOW-4 section added assigning no stories yet, on the basis that acceptance criteria must not be invented ahead of requirements gathering.
+**Artifact Created**: `aidlc-docs/construction/uow-4-findings-register.md`, with finding U4-01 recorded including its verified reproduction, what is explicitly unaffected, the root cause, candidate directions, and the artifacts implicated.
+**Admission Rule Recorded**: A finding that breaks approved behaviour of a shipped unit is fixed in that unit, as U2-F09 was; only contract amendments, missing capabilities, and unexamined cross-unit interactions are admitted to UOW-4. This was stated explicitly because without it a genuine regression would get deferred merely because a queue exists — U2-F09 would have been a candidate for parking, and parking it would have left mapping deletion broken.
+**Also Recorded**: A "Deliberately Not Admitted" section listing U2-F09, F-04/F-05, and the UOW-2 merge fixture with reasons, so those decisions are visible rather than re-argued later.
+**Scope of U4-01 Clarified in the Register**: Live categorization is unaffected because transactions and mappings key on `category_id` and the name is only joined for display; category deletion is also correct because `DeleteCategory` calls `ClearCategory` before deleting. The damage is confined to file exchange and restore.
+**Status**: UOW-4 registered with scope open. No UOW-4 stage started. UOW-3 Code Generation plan remains staged and awaiting the user's separate decision.
+
+---

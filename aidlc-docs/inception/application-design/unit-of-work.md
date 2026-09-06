@@ -127,11 +127,84 @@ Transactions use text patterns before SIC mappings, preserve deliberate categori
 
 The unit is complete when all categorization entry points use text-first-then-SIC priority, protected categories remain unchanged, both modals implement the approved SIC behavior, and the complete feature passes build and test verification.
 
+## UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
+
+**Added 2026-09-06**, after UOW-1 and UOW-2 completed and while UOW-3 was in Code Generation planning.
+This amends the originally approved three-unit decomposition.
+
+### Outcome
+
+A category rename, retype, or deletion leaves both live categorization and the local mapping files
+usable, and a backup written by the application can actually be restored through the application.
+
+### Founding Problem
+
+Renaming a category silently breaks every previously exported mapping CSV, including the backups the
+application writes before each merge. Verified 2026-09-06: export a mapping while its category is named
+`Groceries`, rename that category to `Food`, then re-upload the exported file — the whole upload is
+rejected with `category_not_found` on `Category_Name`.
+
+Live categorization is unaffected, because transactions and mappings both key on `category_id` and the
+name is only ever joined for display. The damage is confined to file exchange and restore.
+
+The root cause is a sound decision with an unexamined consequence. FR4 deliberately made
+`Category_Name` authoritative and `Category_ID` merely confirmatory, so a stale ID after a
+delete-and-recreate cannot resolve to a valid but wrong category. That protection is right for a
+user-authored file. It is wrong for a machine-generated backup taken from this same database moments
+earlier, where the ID is provably consistent and the name is a convenience column. The two trust
+contexts are currently served by one code path.
+
+A related gap makes this hard to place anywhere else: **no story covers restoring from a backup.**
+US-11 mentions restore only as a hoped-for side effect of upload. Backups are written but restoring one
+was never designed, which is why this defect has no owning unit.
+
+### Scope
+
+Candidate scope, to be confirmed when the unit's scope freezes:
+
+- A restore path that trusts `Category_ID` for application-generated backups while leaving user-authored
+  uploads name-first exactly as FR4 requires.
+- A story for restoring from a backup file, provisionally US-14.
+- Category rename, retype, and delete behaviour across mappings, exports, and backups.
+- Further findings admitted under the rule below.
+
+### Admission Rule
+
+Not every later finding belongs here.
+
+| Finding type | Where it goes |
+|---|---|
+| Breaks approved behaviour of a shipped unit | Fixed **in that unit**, as U2-F09 was |
+| Contract amendment, missing capability, or an unexamined interaction between units | UOW-4 |
+
+Without this line, a genuine regression gets deferred merely because a queue exists. U2-F09 — where
+mapping deletion could not work at all — would have been a candidate for parking, and parking it would
+have been wrong.
+
+### Scope Freeze
+
+Scope stays open for admissions until UOW-3 Code Generation completes, then freezes. A unit defined as
+"whatever we find later" has no completion boundary, and every stage of this workflow depends on having
+one. Freezing at UOW-3 completion is what allows the boundary below to be stated at all.
+
+### Assigned Stories
+
+To be defined when scope freezes. Candidate stories and admitted findings are recorded in
+`aidlc-docs/construction/uow-4-findings-register.md` until then. No acceptance criteria are invented in
+advance of requirements gathering.
+
+### Completion Boundary
+
+The unit is complete when a backup produced by the application can be restored through the application
+after any category rename or retype, when user-authored uploads retain name-first resolution unchanged,
+and when every finding admitted before the scope freeze is resolved or explicitly deferred with a
+recorded reason.
+
 ## Cross-Unit Rules
 
 - A story has exactly one primary unit even when its acceptance criteria require another unit's contract.
 - Shared files may be touched by multiple units; ownership here describes behavior, not exclusive file ownership.
-- UOW-1 establishes persistent data contracts, UOW-2 establishes mapping-management contracts, and UOW-3 integrates those contracts into categorization.
+- UOW-1 establishes persistent data contracts, UOW-2 establishes mapping-management contracts, UOW-3 integrates those contracts into categorization, and UOW-4 repairs cross-cutting lifecycle and restore gaps found once the first three are in use.
 - Database schema and APIs are evolved in place; no service extraction, additional process, cloud lookup, or second database is introduced.
 - Infrastructure Design remains skipped because the deployment topology does not change.
 
@@ -140,5 +213,6 @@ The unit is complete when all categorization entry points use text-first-then-SI
 1. Complete UOW-1 so SIC transaction and mapping persistence contracts exist.
 2. Complete UOW-2 so mappings can be managed and exchanged locally.
 3. Complete UOW-3 so import and user workflows consume mappings with the approved priority and preservation rules.
+4. Freeze UOW-4 scope at UOW-3 completion, then complete UOW-4 so category lifecycle changes cannot strand a mapping file or a backup.
 
 Incremental vertical checkpoints should keep each unit buildable and testable, while cross-unit verification is finalized in UOW-3.

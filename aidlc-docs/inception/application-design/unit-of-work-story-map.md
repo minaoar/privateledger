@@ -77,6 +77,21 @@
 - Modal upsert integration tests verifying source and no unintended pattern creation.
 - Selected property-based tests and complete build/test run.
 
+## UOW-4 Story Detail — Category Lifecycle and Mapping-File Restore Integrity
+
+**Added 2026-09-06.** Stories are not yet assigned. The unit exists so that findings arising once
+UOW-1 through UOW-3 are in real use have an owning unit with a stated theme, rather than accumulating
+without one.
+
+Its founding problem is that a category rename silently invalidates previously exported mapping CSVs
+including application-written backups, and that no story covers restoring from a backup at all — US-11
+mentions restore only as a hoped-for side effect of upload.
+
+Candidate stories, admitted findings, and their reproductions are recorded in
+`aidlc-docs/construction/uow-4-findings-register.md`. They are promoted into this map when the unit's
+scope freezes at UOW-3 Code Generation completion. No acceptance criteria are written in advance of
+requirements gathering, so this section deliberately assigns nothing yet.
+
 ## Requirement Coverage by Unit
 
 | Requirement | Primary Unit(s) | Coverage Note |
@@ -101,4 +116,5 @@
 - Duplicate primary assignments: none.
 - UOW-1 assignments: US-01, US-07, US-08, US-09.
 - UOW-2 assignments: US-04, US-05, US-10, US-11.
+- UOW-4 assignments: none yet; scope freezes at UOW-3 Code Generation completion.
 - UOW-3 assignments: US-02, US-03, US-06, US-12, US-13.

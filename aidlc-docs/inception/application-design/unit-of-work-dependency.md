@@ -8,6 +8,8 @@
 | UOW-2 — SIC Mapping Management | UOW-1 | Hard | `sic_mapping` schema/model/repository, normalization, category foreign-key semantics, application data directory |
 | UOW-3 — Transaction Categorization Integration | UOW-1 | Hard | Stored transaction `sic_code`, SIC-aware transaction reads, `GetUncategorizedBySICCodes`, migration/index support |
 | UOW-3 — Transaction Categorization Integration | UOW-2 | Hard | Mapping CRUD/read contracts, CSV-merge affected-code handoff, reloadable mapping source, modal upsert service contract |
+| UOW-4 — Category Lifecycle and Mapping-File Restore Integrity | UOW-2 | Hard | CSV column contract, category resolution rules, backup file format and write path |
+| UOW-4 — Category Lifecycle and Mapping-File Restore Integrity | UOW-3 | Sequencing | Scope freezes only when UOW-3 Code Generation completes; UOW-4 has no runtime dependency on categorization |
 
 ## Dependency Direction
 
@@ -77,6 +79,9 @@ UOW-3 provides the recategorization implementation invoked after eligible UOW-2 
 | `SICMappingService` | Startup import portion | CRUD, page data, CSV import/export/backup | Recategorization and modal integration collaboration |
 | Application wiring | Initialize schema/repositories/startup import | Add page/API handler and routes | Connect categorizer extension and transaction modal routes |
 | Tests | Parser/migration/repository/startup tests | CRUD/CSV/API tests | Priority/preservation/modal/integration/PBT tests |
+
+UOW-4 responsibilities on shared components are deliberately unlisted until its scope freezes. Recording
+them now would assert a design this workflow has not yet produced.
 
 Shared files require sequential integration or coordinated commits, but they do not collapse the three behavioral units into layer-based units.
 
