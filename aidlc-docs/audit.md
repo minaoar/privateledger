@@ -1469,3 +1469,22 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: Production committed; handoff ready for the independent provider session. UOW-3 Code Generation Part 3 gate remains open.
 
 ---
+
+## UOW-3 Code Generation Part 3 — Independent Review Result (Revision 1) and Production Revision 2
+**Timestamp**: 2026-09-06T15:40:00Z
+**User Input**: "Independent review is complete. UOW-3 gate: FAIL."
+**Independent Provider**: separate provider session, independent review/test role.
+**Reviewed Revision**: `6833a8d`
+**Gate**: FAIL — four High and two Medium findings.
+**Findings**: U3-F01 scoped recategorization bypassed text-pattern priority; U3-F02 scoped recategorization could overwrite an existing category; U3-F03 a successful reload published mixed cache generations; U3-F04 Change Category plus mapping left the current row manual; U3-F05 modal controls remained enabled while submissions were in flight; U3-F06 `LoadPatterns` remained exported.
+**Adjudication Accepted**: The reviewer rejected the Revision 1 argument for keeping an exported `LoadPatterns` wrapper, on the grounds that the affected callers were independently owned tests and no production compatibility API was required. They migrated their own call sites to `LoadRules`. Production withdrew the deviation and removed the method entirely.
+**Production Response**: All six reproduced before any change was made, and all six were genuine. Four were production violating its own approved design — BR-U3-01 required one decision function serving every path, and the scoped path had its own; NFRP-U3-02 required one guarded cache set, and publication used two mutexes with a second mixing window inside `decide`.
+**Fixes**: Scoped recategorization routes through the shared decision function via a decider attached during `NewCategorizerWithSIC`; the scoped query additionally requires `category_id IS NULL`; `prepareMappings`/`commitMappings` publish patterns and mappings as one generation under the categorizer's write lock and `decide` holds its read lock across both rule sources; the modal mapping endpoint restates the current row as rule-sourced only when the stored category already equals the mapping's category, so a user-chosen category is never altered; both modal forms disable and restore their controls around requests; `LoadPatterns` removed.
+**Self-Inflicted Regression Recorded**: The first U3-F01 attempt made a missing decider a hard error, breaking `TestReviewU3UOW2MergeFiftyThousandAffectedCodes`, which wires a `SICMappingCategorizer` directly as UOW-2's collaborator and had passed for the reviewer. The hard error was wrong: a standalone mapping categorizer must still work, having no text patterns to outrank SIC. It now falls back to a pattern-free decision that still preserves manual sources and existing categories.
+**Environmental Failure Distinguished From a Defect**: `TestReviewU3ImportWithMappingsPerformance` failed once during a loaded full-suite run on this machine and passes isolated at ratio 1.0250, consistent with the reviewer's 3.15%. Recorded explicitly so a contention failure is not later mistaken for a regression.
+**Verification**: `gofmt`, `go build ./...`, `go vet ./...`, `git diff --check` clean. `go test -count=1 ./...` passes across all seven packages with `internal/service` at 178.7s; `go test -race -short -count=1 ./...` passes with zero data races. Template-versus-`app.js` collision sweep clean.
+**Independent Smoke Evidence**: Through the real HTTP API on an isolated port, with a text pattern `AIRLINE` mapped to Travel and a new mapping `5412 -> Grocery` triggering the scoped path: `AIRLINE TICKET` became Travel with source rule, proving the text pattern beat SIC in the scoped path; `SUPERMART` became Grocery where no pattern matched; `AIRLINE PREPAID`, which carried an existing category with source zero, was left untouched. `recategorized_rows` returned 2, matching the rows that actually changed.
+**Ownership**: No test file, fixture, test-only dependency, or the review artifact was modified by production. The two modified existing test files are the reviewer's own `LoadPatterns` to `LoadRules` migration.
+**Status**: Revision 2 complete; independent re-review required in a different provider session before the gate can close.
+
+---

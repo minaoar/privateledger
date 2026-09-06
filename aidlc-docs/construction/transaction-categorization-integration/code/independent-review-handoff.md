@@ -127,3 +127,61 @@ UOW-3 completion **freezes UOW-4's scope**. Two findings are already admitted in
 backups, U4-02 CSV header rejecting cosmetic variation). Anything you find that is a *contract
 amendment or missing capability* rather than a UOW-3 regression should be raised so it can be admitted
 before that freeze — after it, a new unit would be required.
+
+
+---
+
+# Re-Review Request — Revision 2
+
+Date: 2026-09-06. Revision 1 (`6833a8d`) was reviewed **FAIL** with findings U3-F01 through U3-F06.
+Production has addressed all six.
+
+**Revision 2 production revision: `4bf5068`.** Production diff: `git diff 6833a8d..4bf5068` — five files,
+production only. Your test artifacts and the documentation are committed separately.
+
+Please verify each independently rather than trusting this summary, and update `independent-review.md`
+with a Revision 2 section and an explicit PASS/FAIL.
+
+## What changed
+
+| Finding | Where to look |
+|---|---|
+| U3-F01 | `internal/service/sic_categorizer.go` — `decideForTransaction` routes scoped candidates through the shared decision function |
+| U3-F02 | `internal/repository/transaction_repo.go` — query now also requires `category_id IS NULL`; the shared guard applies on this path too |
+| U3-F03 | `internal/service/categorizer.go` — `sicMappingStager` prepare/commit; `LoadRules` publishes both sets under one write lock; `decide` holds its read lock across both rule sources |
+| U3-F04 | `internal/handler/transaction_handler.go` — rule source restated, only when the stored category already matches the mapping |
+| U3-F05 | `cmd/privateledger/web/templates/transactions.html` — `setTxnModalBusy` disables and restores both modal forms |
+| U3-F06 | `internal/service/categorizer.go` — `LoadPatterns` removed; your adjudication accepted in full |
+
+## Production verification claimed
+
+`gofmt`, `go build`, `go vet`, `git diff --check` clean. `go test -count=1 ./...` passes across all
+seven packages; `go test -race -short -count=1 ./...` passes with zero data races. No test file,
+fixture, or this artifact was edited by production.
+
+## Points deserving independent judgement
+
+1. **The U3-F03 fallback path.** With a source implementing `prepareMappings`/`commitMappings` — the
+   real one — publication is genuinely atomic. A source offering only `ReloadMappings`, such as your
+   staged fake, takes a fallback that publishes patterns first and restores them if the mapping reload
+   then fails. Confirm the fallback is acceptable, or require the interface be narrowed so no fallback
+   is needed.
+2. **A regression I introduced and caught.** My first U3-F01 attempt made a missing decider a hard
+   error, which broke `TestReviewU3UOW2MergeFiftyThousandAffectedCodes` — a test that passed for you.
+   A standalone mapping categorizer now falls back to a pattern-free decision that still preserves
+   manual sources and existing categories. Confirm that fallback's semantics.
+3. **U3-F04's narrowing.** The rule source is restated only when the stored category already equals the
+   mapping's category, so a category the user chose is never changed. Confirm this satisfies BR-U3-31
+   without weakening FR7.
+4. **U3-F05 needs browser confirmation.** Its acceptance condition requires confirming both modal paths
+   in an executing browser. Production could not do that; the change is source-level only.
+5. **`TestReviewU3ImportWithMappingsPerformance` failed once on this machine** during a loaded
+   full-suite run, and passes isolated at ratio 1.0250. If you see it fail, please check machine load
+   before recording it as a regression.
+
+6. **Your retained rapid replay fixture now replays green.**
+   `internal/service/testdata/rapid/TestReviewU3ScopedRecategorizationProperty/…​.fail` still exists and
+   `TestReviewU3ScopedRecategorizationProperty` passes with it present. Production committed it rather
+   than deleting it, since it is your artifact and you recorded it as deliberately retained. Decide
+   whether to keep it as evidence of the original counterexample or remove it so a future reader does
+   not mistake it for a live failure.

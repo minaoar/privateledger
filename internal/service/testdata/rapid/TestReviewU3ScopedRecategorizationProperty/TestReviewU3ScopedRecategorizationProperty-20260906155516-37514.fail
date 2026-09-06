@@ -1,0 +1,21 @@
+# 2026/09/06 15:55:16.753088 [TestReviewU3ScopedRecategorizationProperty] [rapid] draw affect 100: false
+# 2026/09/06 15:55:16.753091 [TestReviewU3ScopedRecategorizationProperty] [rapid] draw affect 200: false
+# 2026/09/06 15:55:16.753092 [TestReviewU3ScopedRecategorizationProperty] [rapid] draw affect 300: true
+# 2026/09/06 15:55:16.753093 [TestReviewU3ScopedRecategorizationProperty] [rapid] draw transaction count: 1
+# 2026/09/06 15:55:16.753093 [TestReviewU3ScopedRecategorizationProperty] [rapid] draw code 0: "300"
+# 2026/09/06 15:55:16.753097 [TestReviewU3ScopedRecategorizationProperty] [rapid] draw source 0: 0
+# 2026/09/06 15:55:16.753099 [TestReviewU3ScopedRecategorizationProperty] [rapid] draw has category 0: true
+# 2026/09/06 15:55:16.753785 [TestReviewU3ScopedRecategorizationProperty] changed count=1, want 0 eligible rows
+# 
+v0.4.8#20260906
+0x0
+0x0
+0x1
+0x0
+0x0
+0x0
+0x38e38e38e38e4
+0x2
+0x0
+0x0
+0x1

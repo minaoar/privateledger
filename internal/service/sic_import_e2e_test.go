@@ -70,7 +70,7 @@ func newImportHarness(t *testing.T) *importHarness {
 	}
 
 	categorizer := NewCategorizer(patRepo, txnRepo)
-	if err := categorizer.LoadPatterns(); err != nil {
+	if err := categorizer.LoadRules(); err != nil {
 		t.Fatalf("load patterns: %v", err)
 	}
 
@@ -146,7 +146,7 @@ func TestImport_SICFreeFileBehaviourUnchanged(t *testing.T) {
 		t.Fatalf("create pattern: %v", err)
 	}
 	categorizer := NewCategorizer(h.patRepo, h.txnRepo)
-	if err := categorizer.LoadPatterns(); err != nil {
+	if err := categorizer.LoadRules(); err != nil {
 		t.Fatalf("load patterns: %v", err)
 	}
 	accountRepo := repository.NewAccountRepository(h.db)

@@ -84,7 +84,7 @@ func runSICFreeImportOnce(t *testing.T, ofx string) time.Duration {
 	}
 
 	categorizer := NewCategorizer(patternRepo, txnRepo)
-	if err := categorizer.LoadPatterns(); err != nil {
+	if err := categorizer.LoadRules(); err != nil {
 		t.Fatalf("load patterns: %v", err)
 	}
 	importService := NewImportService(parser.NewOFXParser(), txnRepo, accountRepo, categorizer, batchRepo)

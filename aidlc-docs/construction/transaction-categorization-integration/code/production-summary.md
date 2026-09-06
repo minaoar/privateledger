@@ -101,3 +101,76 @@ returns 422 `category_required`. All three pages render 200.
   import fixtures) are unmeasured.
 - The `json_each` query plan was not inspected; index use is inferred from timing only.
 - No page JavaScript was executed — the smoke test exercised HTTP endpoints and server-rendered HTML.
+
+---
+
+# Revision 2 — Independent Review Findings Addressed
+
+Date: 2026-09-06. Responds to the UOW-3 independent review (gate FAIL, four High and two Medium
+findings). Every finding was reproduced against the reviewer's tests before being fixed. No test file,
+fixture, or review artifact was modified by the production role.
+
+| Finding | Sev | Resolution |
+|---|---|---|
+| U3-F01 | High | `RecategorizeBySICCodes` called `LookupCategory` directly, giving the scoped path its own priority logic in which SIC beat text patterns. It now routes every candidate through the shared decision function via a decider attached during `NewCategorizerWithSIC`. |
+| U3-F02 | High | `GetUncategorizedBySICCodes` filtered only `category_source = 0`; a row can carry a category while its source reads none. It now also requires `category_id IS NULL`, and the shared decision function's existing-category guard applies on this path too. |
+| U3-F03 | High | `LoadRules` published mappings under the source's mutex and patterns under the categorizer's, so a reader could see new mappings beside old patterns. `SICMappingCategorizer` now exposes `prepareMappings`/`commitMappings`, and `LoadRules` publishes both under the categorizer's write lock as one generation. `decide` holds its read lock across both rule sources, closing a second window where it sampled patterns, released, then consulted SIC. |
+| U3-F04 | High | The page's PATCH marked the row manual before the mapping existed, and scoped recategorization could not correct a row that was no longer uncategorized. The mapping endpoint now restates the row as rule-sourced — only when the stored category already equals the mapping's category, so it can never change a category the user chose. |
+| U3-F05 | Medium | Both modal forms now disable their controls immediately before the request and restore them on success, HTTP failure, and transport failure. Controls already disabled for other reasons are left disabled on restore. |
+| U3-F06 | Medium | `LoadPatterns` removed entirely. The reviewer migrated their own call sites to `LoadRules`, which removed the compilation obstacle behind the Revision 1 deviation. |
+
+## LoadPatterns Adjudication Accepted
+
+The Revision 1 argument for keeping an exported wrapper is withdrawn. The reviewer was right that the
+affected callers were independently owned tests, so no production compatibility API was required.
+`LoadRules` is now the sole exported reload entry point, as BR-U3-19 and NFRP-U3-02 always said.
+
+## A Regression Introduced and Caught During This Revision
+
+The first attempt at U3-F01 made a missing decider a hard error. That broke
+`TestReviewU3UOW2MergeFiftyThousandAffectedCodes`, which wires a `SICMappingCategorizer` directly as
+UOW-2's collaborator without a categorizer — a test that had **passed** for the reviewer.
+
+The hard error was wrong. A standalone mapping categorizer must still work; it simply has no text
+patterns to outrank SIC. `decideForTransaction` now delegates to the shared decision function when a
+categorizer is attached, and otherwise applies the preservation guards — manual source and existing
+category are still never revised — skipping only the pattern step that genuinely does not exist in that
+wiring. This is recorded because the regression was self-inflicted while fixing a different finding.
+
+## Verification
+
+| Command | Result |
+|---|---|
+| `gofmt -l ./cmd ./internal` | clean |
+| `go build ./...`, `go vet ./...`, `git diff --check` | clean |
+| `go test -count=1 ./...` | **all seven packages pass** (internal/service 178.7s) |
+| `go test -race -short -count=1 ./...` | **all seven packages pass, zero data races** |
+| Template/`app.js` collision sweep | no overlap |
+
+### A failure that was environmental, not a defect
+
+`TestReviewU3ImportWithMappingsPerformance` failed during an early full-suite run on this machine while
+other work was loading it. Run isolated it passes at ratio **1.0250** — 2.5% against the 10% budget,
+consistent with the reviewer's measured 3.15%. Recorded rather than passed over, because a performance
+failure that is really contention is easy to mistake for a real regression later.
+
+## Independent Smoke Evidence
+
+Beyond the reviewer's tests, the scoped path was exercised through the real HTTP API on an isolated
+port. Three transactions all carrying SIC `5412`, with a text pattern `AIRLINE` mapped to Travel, and a
+new mapping `5412 -> Grocery` created to trigger scoped recategorization:
+
+```
+AIRLINE TICKET    -> Travel    src=1    text pattern beat SIC in the scoped path
+SUPERMART         -> Grocery   src=1    SIC applied where no pattern matched
+AIRLINE PREPAID   -> Grocery   src=0    existing category left untouched
+```
+
+`recategorized_rows` returned 2, matching the two rows that actually changed. The first line is the
+direct evidence for U3-F01 and the third for U3-F02.
+
+## Still Not Verified by Production
+
+Benchmarks beyond the isolated PERF-02 re-run, browser execution of the modal disable/restore behaviour
+required by U3-F05's acceptance condition, and the query plan under `json_each` — which the reviewer has
+now confirmed uses `idx_txn_sic`.
