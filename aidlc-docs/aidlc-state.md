@@ -63,7 +63,7 @@
 - [x] NFR Requirements — COMPLETED FOR UOW-3 (approved 2026-09-06)
 - [x] NFR Design — COMPLETED FOR UOW-3 (approved 2026-09-06)
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — EXECUTE (ALWAYS)
+- [ ] Code Generation — Parts 1 and 2 COMPLETE; Part 3 independent gate required
 
 #### UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
 - [ ] Scope freeze — pending UOW-3 Code Generation completion
@@ -82,9 +82,9 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-3 — Transaction Categorization Integration (UOW-4 registered, scope open, not started)
-- **Current Stage**: UOW-3 Code Generation Part 1 — plan being created
-- **Last Completed**: UOW-3 NFR Design approved by the user on 2026-09-06, including the revision of NFRP-U3-03 from chunking to single-parameter JSON set passing.
-- **Next Step**: Create and approve the UOW-3 code generation plan, then execute production generation. Infrastructure Design remains skipped.
+- **Current Stage**: UOW-3 Code Generation Part 3 — independent review and test authorship required in a different provider session
+- **Last Completed**: UOW-3 Code Generation Part 2 production implementation, committed as `6833a8d` (2026-09-06).
+- **Next Step**: Run the UOW-3 independent review and test authorship in a different provider session using `aidlc-docs/construction/transaction-categorization-integration/code/independent-review-handoff.md`. Claude authored production and cannot close this gate.
 - **Status**: UOW-2 Code Generation gate is CLOSED. Independent review (OpenAI/Codex, separate provider) reviewed Revision 1 `ee24446` as BLOCKED with eight findings, then Revision 2 `1c37d22` as PASS with all eight RESOLVED and no Blocking, High, or Medium finding remaining. The single Low finding U2-R2-F01, a stale constructor comment contradicting the nil-collaborator contract, was fixed in Revision 3. Full suite, long tests, and `-race` pass across all seven packages with zero data races. PERF-01 measured a 1.4255 s median against the 10 s target; SCALE-01 verified at 1,000 rows; rapid properties replay at seed 20260906. Five verification limitations are recorded and adjudicated as non-blocking by the independent role, including no injected `os.File.Close` fault in `writeBackup` (no production seam advised) and no live browser for visual/keyboard checks. F-13/F-14/F-15/F-16 are verified corrected; F-04 and F-05 remain deferred.
 
 ## Notes

@@ -1431,3 +1431,41 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-4 scope remains open for admissions until UOW-3 Code Generation completes. No UOW-4 stage started. UOW-3 Code Generation plan remains committed and awaiting approval.
 
 ---
+
+## UOW-3 Code Generation Part 1 — Plan Approved
+**Timestamp**: 2026-09-06T13:50:00Z
+**User Input**: "go ahead with uow-3"
+**Approved Artifact**: `aidlc-docs/construction/plans/transaction-categorization-integration-code-generation-plan.md`
+**Ownership Boundary**: Production files and production documentation only. Verification tests, fixtures, test-only dependencies, benchmarks, and the independent review artifact remain owned by a separate-provider session. The independent role's existing UOW-1 and UOW-2 test files must not be modified.
+**Provider Note**: Claude is authoring UOW-3 production code, so the independent review must run in a different provider's session, as it did for UOW-2.
+**Status**: Approved; Part 2 production generation started.
+
+---
+
+## UOW-3 Code Generation Part 2 — Production Implementation Complete
+**Timestamp**: 2026-09-06T14:30:00Z
+**Baseline Revision**: `25046f5c40bcc539c65e34d34f85b1eb9f1a16c8`
+**Production Files Modified**: `internal/repository/transaction_repo.go`, `internal/service/categorizer.go`, `internal/service/sic_mapping_service.go`, `internal/handler/category_handler.go`, `internal/handler/transaction_handler.go`, `cmd/privateledger/main.go`, `cmd/privateledger/web/templates/transactions.html`, `cmd/privateledger/web/templates/categories.html`, `API_ROUTES.md`
+**Production File Created**: `internal/service/sic_categorizer.go`
+**Production Documentation Created**: `production-summary.md`, `independent-review-handoff.md` under `aidlc-docs/construction/transaction-categorization-integration/code/`
+**AI Response**: "Executed plan Steps 1 through 12. Replaced expanded placeholders with single-parameter JSON set passing in both query builders; added the SIC mapping categorizer implementing UOW-2's collaborator; consolidated priority into one `decide` function with both caches behind one RWMutex and an all-or-nothing reload; routed both recategorize passes through it with split counts; deleted the detached reload goroutine; added the modal mapping endpoint; wired one SIC categorizer instance as both lookup and collaborator, replacing the no-op; and updated both templates and API_ROUTES.md."
+**Verification**: `gofmt`, `go build ./...`, `go vet ./...`, `git diff --check` all clean; `go test -short -count=1 ./...` passes across all seven packages. Template-versus-`app.js` collision sweep clean, run as the plan required rather than from memory.
+**Production Smoke Verification**: Isolated port and temporary database, leaving the user's real database and port 8844 untouched. Seven transactions were inserted directly to exercise the full priority matrix. Results: SIC-only assigned via SIC; a transaction matching both a SIC mapping to Groceries and a text pattern to Travel was assigned Travel, confirming text beats SIC; an empty-category mapping assigned nothing; an unmapped code assigned nothing; a manual assignment was untouched; an already-rule-categorized row was untouched; a no-SIC row was untouched. Counts returned processed 5, categorized 2, pattern 1, SIC 1, so the partition holds and already-categorized rows were excluded by the query rather than examined. Scoped recategorization confirmed the real collaborator replaced the no-op: creating a mapping for 9999 returned `recategorized_rows: 1`, and a CSV merge giving 7011 a real category returned `recategorized_rows: 1`. Modal endpoint returned 422 `no_sic_code` for a transaction without a code and 422 `category_required` without a category. All three pages render 200.
+**Deviation From the Approved Plan**: BR-U3-19 required `LoadPatterns` to become unexported. It was retained as a wrapper delegating to `LoadRules`, because three independent-role test files call it — `import_regression_perf_test.go:87` and `sic_import_e2e_test.go:73,149` — and unexporting broke compilation rather than an assertion, which would have blocked the entire suite including passing tests. Production may not edit those files. Delegating satisfies the rule's purpose, since no exported way to refresh one cache alone now remains, but the literal wording is not met. The plan checkbox is marked deviated rather than complete, and the item is flagged in both the production summary and the handoff for independent adjudication.
+**Ownership**: No test file, fixture, test-only dependency, benchmark, or independent review artifact was created or modified.
+**Not Run, Required From the Independent Role**: race detector, generated properties, NFR-U3-PERF-01 and NFR-U3-PERF-02 benchmarks. The `json_each` query plan was not inspected, so index use is inferred from timing only, and no page JavaScript was executed — the surface where U2-F09 hid.
+**Status**: Production generation complete. Code Generation Part 3 independent review gate required in a separate provider session.
+
+---
+
+## UOW-3 Code Generation Part 2 — Production Commit and Handoff Pinned
+**Timestamp**: 2026-09-06T14:45:00Z
+**User Input**: "commit the change and update the handover doc to start tge next work"
+**Production Revision**: `6833a8d` — "feat: apply SIC mappings during categorization"
+**Production Diff**: `git diff 25046f5..6833a8d` — 10 files, production code only
+**AI Response**: "Committed production separately from documentation, following the UOW-2 precedent, so the diff the independent reviewer examines carries no documentation noise. Verified before committing that no aidlc-docs path was staged. Then pinned the handoff to the resulting revision and added a 'Starting This Review' section."
+**Handoff Additions**: Explicit start sequence — confirm the tree is clean at `6833a8d`; run the existing suite before writing anything so a pre-existing failure is distinguished from one the new tests introduce; adjudicate the `LoadPatterns` deviation early because it may change what production owes; then author tests, run them, and record findings with an explicit PASS/FAIL.
+**Cross-Unit Reminder Added**: UOW-3 completion freezes UOW-4's scope, so the reviewer is asked to raise anything that is a contract amendment or missing capability rather than a UOW-3 regression, allowing admission before the freeze rather than requiring a fifth unit afterwards. The two already-admitted findings U4-01 and U4-02 are named so the reviewer knows what is already captured.
+**Status**: Production committed; handoff ready for the independent provider session. UOW-3 Code Generation Part 3 gate remains open.
+
+---
