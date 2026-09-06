@@ -1320,3 +1320,72 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-3 NFR Requirements COMPLETE. Next stage is NFR Design for UOW-3.
 
 ---
+
+## UOW-3 NFR Design — Plan Created and Blocking Scale Defect Found
+**Timestamp**: 2026-09-06T11:35:00Z
+**User Input**: "proceed"
+**AI Response**: "Started NFR Design for UOW-3 and, while inspecting the query builders this unit will drive, found a blocking scale defect. Measured the driver parameter ceiling empirically against modernc.org/sqlite v1.34.4 rather than assuming it: an UPDATE with an IN clause and two leading arguments succeeds at 32,764 IDs and fails at 32,765 with 'too many SQL variables'. Two existing builders expand one placeholder per element with no batching — `BulkUpdateCategory` at `internal/repository/transaction_repo.go:450` and `GetUncategorizedBySICCodes` at `:346`."
+**Artifact**: `aidlc-docs/construction/plans/transaction-categorization-integration-nfr-design-plan.md`
+**Defect Consequences Recorded**:
+1. `RecategorizeAll` is already broken at scale today, before UOW-3 exists — it groups by category and calls `BulkUpdateCategory` once per category, so any user with more than 32,764 uncategorized transactions matching a single pattern hits it now.
+2. The approved NFR-U3-PERF-01 target of 100,000 uncategorized transactions will hit it deliberately; without batching the benchmark fails on a SQL error rather than on timing.
+3. UOW-2's already-approved PERF-01 benchmark would break once the real collaborator is wired. That fixture uploads 100,000 codes as 25,000 new plus 25,000 changed, which is 50,000 affected codes and past the ceiling for `GetUncategorizedBySICCodes`. It passed during UOW-2 only because the collaborator was a no-op that never issued the query.
+**Significance**: Consequence 3 means the limit is not reached only by unusual data but by an already-approved benchmark the independent role has run and will run again. Surfacing it before code generation avoids discovering it as a benchmark failure during the independent gate.
+**Questions Created**: Q1 where to fix the parameter ceiling (recommend batching inside the repository methods, since the limit is a driver property and the driver-owning layer should absorb it), Q2 reading 100,000 uncategorized transactions (recommend keeping the single read and recording memory), Q3 cache locking and partial reload failure (recommend one RWMutex with an all-or-nothing swap so rules are never half-old), Q4 how the decision function reaches mapping data (recommend injecting a small lookup interface into `Categorizer`).
+**Stage Posture**: Following the direction given during UOW-2 NFR Design, the stated default is the simplest mechanism satisfying each approved requirement — no new configuration surface, background workers, or test-only abstractions.
+**Status**: Awaiting answers to four questions; no UOW-3 NFR design artifact generated yet.
+
+---
+
+## UOW-3 NFR-U3-PERF-01 — Scale Amended from 100,000 to 20,000 Transactions
+**Timestamp**: 2026-09-06T11:50:00Z
+**User Input**: "change 100K transactions to 20K transaction limit. and revise the nfr. you are right -  I think 100K personal finance transaction data is too much at this level."
+**Decision**: NFR-U3-PERF-01 now requires a full "Recategorize All" over 20,000 uncategorized transactions within five seconds on the recorded reference environment, replacing 100,000 within ten seconds. The five-second budget is taken from the smaller-scale option presented at the requirements stage, so the figures are ones the user has already seen paired.
+**Scope of the Change**: Only transaction-scale references were amended. Mapping-count references were deliberately left alone and verified individually — the 100,000-mapping cache evidence in NFR-U3-SCALE-01, the UOW-2 historical measurement of 100,000 mappings in 1.4 s quoted in `business-logic-model.md`, and the UOW-1/UOW-2 precedent rows in the requirements plan all concern mappings or migration rows rather than transactions.
+**Consequence for the NFR Design Defect Analysis**: 20,000 is below the measured 32,764 parameter ceiling, so the amendment removes the transaction-side collision from the benchmark. The NFR Design plan was revised to say so plainly rather than leaving a now-false claim standing: consequence 2, that NFR-U3-PERF-01 would hit the ceiling deliberately, is struck through and marked no longer true, and it was explicitly the strongest argument for Q1. Consequence 1, that `RecategorizeAll` is broken above 32,764 transactions in one category, remains real but now sits outside the measured envelope. Consequence 3, that UOW-2's approved merge fixture produces 50,000 affected codes and exceeds the ceiling for `GetUncategorizedBySICCodes`, is unaffected because it is driven by mapping-code count rather than transaction count.
+**Net Effect on Q1**: Still required, but on the narrower basis of consequence 3 plus latent robustness rather than a benchmark failing on both sides. The plan states this rather than preserving the original framing.
+**Not Done Unilaterally**: UOW-2's approved 100,000-code merge fixture was left unchanged. Reducing it would amend an approved UOW-2 artifact and was flagged for the user's decision instead.
+**Trade Recorded in the Requirement Itself**: NFR-U3-PERF-01 now states that the lower scale weakens the evidence for the Functional Design Q1 B decision — a pass at 20,000 shows the unbounded gate hold is safe at realistic volume but says nothing about a user far outside it — and that the trade is accepted deliberately in exchange for a target somebody might actually reach.
+**Status**: Requirement amended; NFR Design plan revised; four NFR Design questions still awaiting answers.
+
+---
+
+## UOW-3 NFR Design — Answers Analyzed and Artifacts Generated
+**Timestamp**: 2026-09-06T12:05:00Z
+**User Input**: "done"
+**Answers**: Q1 A, Q2 A, Q3 A, Q4 A — all four match the recommended options.
+**Conflict Analysis**: No conflicts and no follow-up required. Q1 A places batching in the repository, which is consistent with Q2 A keeping the single in-memory read in the service; the two divide the ceiling problem from the memory question rather than overlapping. Q3 A's all-or-nothing swap is what makes Q4 A's single decision function safe, since a half-refreshed cache set would let one pass see post-change patterns beside pre-change mappings.
+**Artifacts Generated**:
+- `aidlc-docs/construction/transaction-categorization-integration/nfr-design/nfr-design-patterns.md`
+- `aidlc-docs/construction/transaction-categorization-integration/nfr-design/logical-components.md`
+**Design Detail Found While Writing NFRP-U3-03**: Batching `GetUncategorizedBySICCodes` across chunks breaks its documented `ORDER BY date_posted DESC` contract, because each chunk is ordered internally but the concatenation is not globally ordered. The design requires re-sorting the merged slice rather than silently degrading a documented ordering once an input grows past a threshold, which would be a latent surprise for any future caller that does depend on it. The current consumer does not, but the contract is stated in the method.
+**Design Detail Recorded for BulkUpdateCategory**: Chunks are issued inside one transaction so a category update stays all-or-nothing across chunk boundaries; a partial update would leave transactions categorized by a rule the caller was told had failed.
+**Single-Instance Wiring Rationale**: `main.go` injects one SIC categorizer instance into `Categorizer` as the lookup and passes the same instance to `SICMappingService` as the collaborator, replacing the no-op. One instance serves both roles deliberately — the cache the lookup reads must be the cache the collaborator reloads, or a mapping change would refresh one view and leave the other stale.
+**Stage Posture Maintained**: No new configuration surface, background worker, queue, or test-only abstraction was introduced, following the direction given during UOW-2 NFR Design. UOW-2's collaborator interface is implemented as-is without a context parameter, since a context would describe a cancellation budget the Functional Design deliberately declined.
+**PBT Compliance**: PBT-09 retained with `rapid` unchanged; PBT-02/03 scope as approved; PBT-07/08 carried into execution. No blocking design-stage finding; no execution evidence claimed.
+**Status**: NFR Design ready for explicit approval. Infrastructure Design remains skipped; Code Generation planning follows approval. Documentation only; no production or test code changed.
+
+---
+
+## UOW-3 NFR Design — NFRP-U3-03 Revised from Chunking to JSON Set Passing
+**Timestamp**: 2026-09-06T12:25:00Z
+**User Input**: "agreed - \"he current consumer doesn't care about order, but silently degrading a documented contract at a size threshold is exactly the kind of latent surprise that bites a future caller. \". What should be better?"
+**AI Response**: "Treated the re-sort as a patch rather than a fix and looked for an approach that removes the problem instead of repairing it. Verified empirically that `json_each` is available in `modernc.org/sqlite v1.34.4`, then measured both approaches on the same 200,000-row fixture: updating 100,000 ids took 2.74 s chunked across four statements with up to 32,764 bound parameters each, versus 0.18 s as a single statement with three bound parameters using `IN (SELECT value FROM json_each(?))`. Selecting 50,000 codes took 0.19 s with one bound parameter."
+**Decision**: NFRP-U3-03 now specifies encoding the set once as a JSON array and binding it as a single parameter, replacing chunked placeholder expansion.
+**Why It Is Better Than Chunking**: The documented `ORDER BY date_posted DESC` survives natively because one statement keeps the sort in SQL, so no Go-side re-sort is needed — and no sort is left behind that looks removable to someone who does not know why it exists. Atomicity is intrinsic to a single statement, so no explicit wrapping transaction is required to prevent a mid-batch failure leaving rows categorized by a rule the caller was told had failed. It is roughly fifteen times faster at 100,000 ids, with the gap widening as the set grows.
+**Relationship to the Answered Question**: Q1 A's intent is preserved exactly — the repository absorbs the driver's limitation and callers stay unaware of it. Only the mechanism changed, so this is not an override of the user's answer. The annotation recording that distinction was added beside the answer in the design plan.
+**Implementation Constraints Recorded**: SIC codes must be encoded as JSON strings rather than numbers, because `sic_code` is a TEXT column and `json_each` over `[7011]` yields an INTEGER whose comparison is governed by type affinity while `["7011"]` yields TEXT and matches; transaction IDs are an INTEGER column and are encoded as JSON numbers. An empty set still short-circuits before issuing SQL. The JSON payload is one large string parameter rather than many small ones, which is a memory shape change rather than an increase.
+**Stated Verification Gap**: Whether the `sic_code` index is still chosen with a `json_each` subquery rather than a scan was not verified. The measured timings are consistent with index use, but the design records that the independent role must confirm the query plan rather than infer it from timing.
+**Artifacts Updated**: `nfr-design-patterns.md` (NFRP-U3-03 rewritten, NFRP-U3-08 test requirement restated for set passing), `logical-components.md` (responsibility map, persistence boundary, recategorization flow, traceability), `transaction-categorization-integration-nfr-design-plan.md` (annotation beside the Q1 answer).
+**Status**: NFR Design still awaiting explicit approval.
+
+---
+
+## UOW-3 NFR Design — Explicit Approval
+**Timestamp**: 2026-09-06T12:35:00Z
+**User Input**: "go ahead."
+**Decision**: Approved both UOW-3 NFR design artifacts, including the revised NFRP-U3-03 using single-parameter JSON set passing instead of chunked placeholder expansion.
+**Approved Artifacts**: `aidlc-docs/construction/transaction-categorization-integration/nfr-design/nfr-design-patterns.md`, `logical-components.md`.
+**Status**: UOW-3 NFR Design COMPLETE. Next stage is Code Generation Part 1 planning.
+
+---

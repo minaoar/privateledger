@@ -15,10 +15,14 @@ macOS 15.5, go1.26.0, APPLE SSD AP1024Q NVMe.
 
 ### NFR-U3-PERF-01 — Recategorization measurement (blocking)
 
-Per Q1 A, carry the established 100,000-row / 10-second precedent.
+**Amended 2026-09-06** on user direction: the transaction scale is 20,000, not the 100,000 originally
+carried from the UOW-1 and UOW-2 precedents. Those precedents measured mapping rows and migration rows;
+100,000 *uncategorized transactions* is not a realistic personal-finance volume, and a target nobody
+will reach is weak evidence. The paired budget is five seconds, taken from the smaller-scale option
+presented at the requirements stage.
 
-With 100,000 uncategorized transactions and a populated mapping set, a full "Recategorize All" must
-complete within ten seconds on the recorded reference environment, measured from service entry to
+With 20,000 uncategorized transactions and a populated mapping set, a full "Recategorize All" must
+complete within five seconds on the recorded reference environment, measured from service entry to
 returned result. Fixture construction, database creation, and browser transfer are excluded. Use one
 warm-up run and the median of at least five uninstrumented runs, restoring the same pre-state for each.
 
@@ -34,6 +38,11 @@ no processing deadline for recategorization, so the mapping-mutation gate is hel
 with no upper bound. A pass here is the evidence that the choice is safe. A failure is not only a
 performance finding: it reopens the deadline decision, which is why the contingency was recorded in the
 stage plan before any measurement was taken.
+
+The amendment to 20,000 weakens that evidence and the trade is accepted deliberately. A pass at 20,000
+transactions says the gate hold is safe at realistic volume; it does not establish behaviour for a user
+far outside it. In exchange the target is one somebody might actually reach, so a pass means something
+about real use rather than about a synthetic ceiling.
 
 ### NFR-U3-PERF-02 — Import regression budget (blocking)
 

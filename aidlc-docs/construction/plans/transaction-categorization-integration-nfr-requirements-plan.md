@@ -61,6 +61,12 @@ mapping change and a full "Recategorize All".
 
 [Answer]:A
 
+**Amended after answering, 2026-09-06.** The user reduced the transaction scale from 100,000 to 20,000,
+observing that 100,000 personal-finance transactions is unrealistic at this level. `nfr-requirements.md`
+NFR-U3-PERF-01 now reads 20,000 transactions within five seconds. The answer remains A — the precedent
+was carried, then its scale corrected — rather than being restated as B, whose 20,000/5 s figures this
+amendment adopts.
+
 ### Q2 — Import regression budget with mappings present
 
 UOW-1's ≤10 % budget was measured on a SIC-free fixture. Import now performs a cache lookup per
