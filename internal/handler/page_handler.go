@@ -22,7 +22,13 @@ type PageHandler struct {
 	categoryRepo    *repository.CategoryRepository
 	patternRepo     *repository.CategoryPatternRepository
 	insightsService *service.InsightsService
-	version         string
+
+	// sicMappingService supplies the SIC mapping page's data. The page reads
+	// through the service rather than the repositories, matching how the
+	// dashboard already depends on insightsService.
+	sicMappingService *service.SICMappingService
+
+	version string
 }
 
 // NewPageHandler creates a new PageHandler
@@ -33,17 +39,40 @@ func NewPageHandler(
 	categoryRepo *repository.CategoryRepository,
 	patternRepo *repository.CategoryPatternRepository,
 	insightsService *service.InsightsService,
+	sicMappingService *service.SICMappingService,
 	version string,
 ) *PageHandler {
 	return &PageHandler{
-		files:           files,
-		accountRepo:     accountRepo,
-		transactionRepo: transactionRepo,
-		categoryRepo:    categoryRepo,
-		patternRepo:     patternRepo,
-		insightsService: insightsService,
-		version:         version,
+		files:             files,
+		accountRepo:       accountRepo,
+		transactionRepo:   transactionRepo,
+		categoryRepo:      categoryRepo,
+		patternRepo:       patternRepo,
+		insightsService:   insightsService,
+		sicMappingService: sicMappingService,
+		version:           version,
 	}
+}
+
+// SICMappings renders the SIC mapping management page.
+func (h *PageHandler) SICMappings(c *gin.Context) {
+	pageData, err := h.sicMappingService.GetPageData()
+	if err != nil {
+		c.String(http.StatusInternalServerError, "Error loading SIC mappings: %v", err)
+		return
+	}
+
+	data := gin.H{
+		"Title":       "SIC Mappings",
+		"ActivePage":  "sic-mappings",
+		"Mappings":    pageData.Mappings,
+		"Categories":  pageData.Categories,
+		"MaxUploadMB": model.MaxSICMappingFileSize / (1 << 20),
+		"Version":     h.version,
+	}
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	h.parseTemplate("sic_mappings").ExecuteTemplate(c.Writer, "layout.html", data)
 }
 
 // parseTemplate parses layout.html with a specific page template

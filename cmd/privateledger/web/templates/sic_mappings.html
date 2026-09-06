@@ -1,0 +1,398 @@
+{{define "content"}}
+<div class="row mb-4">
+    <div class="col">
+        <h1 class="h3 mb-0">SIC Mappings</h1>
+        <p class="text-muted mb-0">
+            Map merchant SIC/MCC codes to categories.
+            <a href="/categories">Manage categories</a>
+        </p>
+    </div>
+    <div class="col-auto d-flex align-items-start gap-2">
+        <button type="button" class="btn btn-primary" data-testid="sic-mapping-create-button"
+                onclick="openMappingModal()">
+            <i class="bi bi-plus-circle"></i> Create Mapping
+        </button>
+        <a class="btn btn-outline-secondary" href="/api/sic-mappings/download"
+           data-testid="sic-mapping-download-link">
+            <i class="bi bi-download"></i> Download CSV
+        </a>
+        <input type="file" accept=".csv,text/csv" class="d-none"
+               id="mappingUploadInput" data-testid="sic-mapping-upload-input"
+               onchange="confirmAndUpload(this)">
+        <button type="button" class="btn btn-outline-secondary" data-testid="sic-mapping-upload-button"
+                onclick="document.getElementById('mappingUploadInput').click()">
+            <i class="bi bi-upload"></i> Import / Update Mappings
+        </button>
+    </div>
+</div>
+
+<div id="mappingStatus" data-testid="sic-mapping-status-alert" role="status" aria-live="polite"></div>
+
+<div class="card">
+    <div class="card-body p-0">
+        {{if gt (len .Mappings) 0}}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">SIC Code</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Detail</th>
+                        <th scope="col">Category</th>
+                        <th scope="col" class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Mappings}}
+                    <tr data-testid="sic-mapping-row-{{.SICMappingID}}">
+                        <td class="font-monospace">{{.SICCode}}</td>
+                        <td>{{.Description}}</td>
+                        <td class="text-muted">{{.DescriptionDetail}}</td>
+                        <td>
+                            {{if .CategoryName}}
+                                <span class="badge bg-secondary">{{.CategoryName}}</span>
+                            {{else}}
+                                <span class="text-muted fst-italic">No SIC category</span>
+                            {{end}}
+                        </td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    data-testid="sic-mapping-edit-button-{{.SICMappingID}}"
+                                    data-mapping-id="{{.SICMappingID}}"
+                                    data-sic-code="{{.SICCode}}"
+                                    data-description="{{.Description}}"
+                                    data-description-detail="{{.DescriptionDetail}}"
+                                    data-category-id="{{if .CategoryID}}{{.CategoryID}}{{end}}"
+                                    onclick="openMappingModal(this)">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    data-testid="sic-mapping-delete-button-{{.SICMappingID}}"
+                                    data-mapping-id="{{.SICMappingID}}"
+                                    data-sic-code="{{.SICCode}}"
+                                    onclick="openDeleteModal(this)">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+        {{else}}
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-upc-scan display-4 d-block mb-3"></i>
+            <p class="mb-0">No SIC mappings yet. Create one, or import a CSV.</p>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<!-- Create / Edit modal -->
+<div class="modal fade" id="mappingModal" tabindex="-1" aria-labelledby="mappingModalTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form data-testid="sic-mapping-form" id="mappingForm" onsubmit="submitMapping(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="mappingModalTitle">Create Mapping</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="mappingId">
+                    <div class="mb-3">
+                        <label for="mappingSicCode" class="form-label">SIC Code</label>
+                        <input type="text" class="form-control font-monospace" id="mappingSicCode"
+                               inputmode="numeric" pattern="[0-9]+" required
+                               aria-describedby="mappingSicCodeHelp">
+                        <div id="mappingSicCodeHelp" class="form-text">Digits only.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mappingDescription" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="mappingDescription">
+                    </div>
+                    <div class="mb-3">
+                        <label for="mappingDescriptionDetail" class="form-label">Description Detail</label>
+                        <input type="text" class="form-control" id="mappingDescriptionDetail">
+                    </div>
+                    <div class="mb-3">
+                        <label for="mappingCategory" class="form-label">Category</label>
+                        <select class="form-select" id="mappingCategory">
+                            <option value="">No SIC category</option>
+                            {{range .Categories}}
+                            <option value="{{.CategoryID}}">{{.Name}}</option>
+                            {{end}}
+                        </select>
+                        <div class="form-text">Leaving this empty means this SIC code assigns no category.</div>
+                    </div>
+                    <div id="mappingFormError" class="alert alert-danger d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" data-testid="sic-mapping-form-submit-button"
+                            id="mappingSubmitButton">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteMappingModal" tabindex="-1" aria-labelledby="deleteMappingTitle" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteMappingTitle">Delete Mapping</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Delete the mapping for SIC code <strong id="deleteMappingCode" class="font-monospace"></strong>?</p>
+                <p class="text-muted mb-0">
+                    Categories already assigned to transactions are not cleared.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" data-testid="sic-mapping-delete-confirm-button"
+                        id="deleteMappingConfirm" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const MAX_UPLOAD_MB = {{.MaxUploadMB}};
+let pendingDeleteId = null;
+
+// All result text is written with textContent so mapping values and server
+// diagnostics are never interpreted as markup.
+function setStatus(kind, title, lines) {
+    const host = document.getElementById('mappingStatus');
+    host.innerHTML = '';
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${kind} alert-dismissible`;
+    alert.setAttribute('role', 'alert');
+
+    const heading = document.createElement('strong');
+    heading.textContent = title;
+    alert.appendChild(heading);
+
+    (lines || []).filter(Boolean).forEach(line => {
+        const p = document.createElement('p');
+        p.className = 'mb-0 mt-1';
+        p.textContent = line;
+        alert.appendChild(p);
+    });
+
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'btn-close';
+    close.setAttribute('data-bs-dismiss', 'alert');
+    close.setAttribute('aria-label', 'Close');
+    alert.appendChild(close);
+
+    host.appendChild(alert);
+    host.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+function openMappingModal(trigger) {
+    const form = document.getElementById('mappingForm');
+    form.reset();
+    document.getElementById('mappingFormError').classList.add('d-none');
+
+    if (trigger) {
+        document.getElementById('mappingModalTitle').textContent = 'Edit Mapping';
+        document.getElementById('mappingId').value = trigger.dataset.mappingId;
+        document.getElementById('mappingSicCode').value = trigger.dataset.sicCode;
+        document.getElementById('mappingDescription').value = trigger.dataset.description;
+        document.getElementById('mappingDescriptionDetail').value = trigger.dataset.descriptionDetail;
+        document.getElementById('mappingCategory').value = trigger.dataset.categoryId || '';
+    } else {
+        document.getElementById('mappingModalTitle').textContent = 'Create Mapping';
+        document.getElementById('mappingId').value = '';
+    }
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('mappingModal')).show();
+}
+
+function showFormError(message) {
+    const box = document.getElementById('mappingFormError');
+    box.textContent = message;
+    box.classList.remove('d-none');
+}
+
+async function submitMapping(event) {
+    event.preventDefault();
+    const button = document.getElementById('mappingSubmitButton');
+    const id = document.getElementById('mappingId').value;
+    const categoryValue = document.getElementById('mappingCategory').value;
+
+    const payload = {
+        sic_code: document.getElementById('mappingSicCode').value.trim(),
+        description: document.getElementById('mappingDescription').value,
+        description_detail: document.getElementById('mappingDescriptionDetail').value,
+        category_id: categoryValue === '' ? null : parseInt(categoryValue, 10)
+    };
+
+    button.disabled = true;
+    try {
+        const response = await fetch(id ? `/api/sic-mappings/${id}` : '/api/sic-mappings', {
+            method: id ? 'PUT' : 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const body = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            // Entered values are deliberately left in place so the correction
+            // does not have to be retyped.
+            showFormError(body.error || 'The mapping could not be saved.');
+            return;
+        }
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('mappingModal')).hide();
+        if (body.post_commit_warnings && body.post_commit_warnings.length) {
+            setStatus('warning', 'Mapping saved, with warnings', body.post_commit_warnings);
+            setTimeout(() => window.location.reload(), 2500);
+            return;
+        }
+        window.location.reload();
+    } catch (error) {
+        showFormError('The mapping could not be saved. Please try again.');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function openDeleteModal(trigger) {
+    pendingDeleteId = trigger.dataset.mappingId;
+    document.getElementById('deleteMappingCode').textContent = trigger.dataset.sicCode;
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteMappingModal')).show();
+}
+
+async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    const button = document.getElementById('deleteMappingConfirm');
+    button.disabled = true;
+    try {
+        const response = await fetch(`/api/sic-mappings/${pendingDeleteId}`, {method: 'DELETE'});
+        const body = await response.json().catch(() => ({}));
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteMappingModal')).hide();
+
+        if (!response.ok) {
+            setStatus('danger', 'The mapping was not deleted.', [body.error || '']);
+            return;
+        }
+        if (body.post_commit_warnings && body.post_commit_warnings.length) {
+            setStatus('warning', 'Mapping deleted, with warnings', body.post_commit_warnings);
+            setTimeout(() => window.location.reload(), 2500);
+            return;
+        }
+        window.location.reload();
+    } catch (error) {
+        setStatus('danger', 'The mapping was not deleted.', ['Please try again.']);
+    } finally {
+        button.disabled = false;
+        pendingDeleteId = null;
+    }
+}
+
+function confirmAndUpload(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    const proceed = window.confirm(
+        `Import "${file.name}"?\n\n` +
+        'Codes in this file will be added or updated.\n' +
+        'Codes that are not in the file will be left unchanged - importing never deletes mappings.'
+    );
+    if (!proceed) {
+        input.value = '';
+        return;
+    }
+    uploadMappings(file, input);
+}
+
+// Renders a merge result. Counts come from the server after commit; the
+// recategorized count is deliberately not shown, because at this stage the
+// collaborator is a no-op and a bare zero would read as "nothing matched"
+// rather than "not implemented yet".
+function describeMergeResult(result) {
+    if (result.total_rows === 0) {
+        return ['The file contained only a header, so no mappings changed.'];
+    }
+    return [
+        `Created ${result.created_rows}, updated ${result.updated_rows}, ` +
+        `unchanged ${result.unchanged_rows} of ${result.total_rows} rows.`
+    ];
+}
+
+function describeDiagnostics(result) {
+    const lines = [];
+    const shown = (result.errors || []).length;
+    if (result.diagnostics_truncated) {
+        lines.push(`${result.rejected_rows} rows were rejected. Showing the first ${shown}.`);
+    } else {
+        lines.push(`${result.rejected_rows} rows were rejected.`);
+    }
+    (result.errors || []).forEach(e => {
+        lines.push(`Row ${e.row_number} - ${e.field}: ${e.message}`);
+    });
+    lines.push('No mappings were changed.');
+    return lines;
+}
+
+async function uploadMappings(file, input) {
+    const button = document.querySelector('[data-testid="sic-mapping-upload-button"]');
+    const formData = new FormData();
+    formData.append('file', file);
+
+    button.disabled = true;
+    setStatus('info', 'Importing mappings...', []);
+    try {
+        const response = await fetch('/api/sic-mappings/upload', {method: 'POST', body: formData});
+        const body = await response.json().catch(() => ({}));
+
+        if (response.status === 413) {
+            setStatus('danger', 'That file is too large.', [
+                `The limit is ${MAX_UPLOAD_MB} MiB. Nothing was parsed and no mappings changed.`
+            ]);
+            return;
+        }
+        if (response.status === 422 && body.outcome === 'invalid') {
+            setStatus('danger', 'The file was rejected.', describeDiagnostics(body));
+            return;
+        }
+        if (!response.ok) {
+            const partial = body.result || {};
+            setStatus('danger', 'The import failed.', [
+                body.error || 'No mappings were changed.',
+                partial.backup_warning || ''
+            ]);
+            return;
+        }
+
+        const lines = describeMergeResult(body);
+        if (body.backup_path) {
+            lines.push(`Previous mappings were backed up to ${body.backup_path}`);
+        }
+        const warnings = (body.post_commit_warnings || []).slice();
+        if (body.backup_warning) {
+            warnings.unshift(body.backup_warning);
+        }
+
+        if (warnings.length) {
+            // The merge is already durable here, so the message must not
+            // invite a blind re-upload.
+            setStatus('warning', 'Mappings were saved, with warnings',
+                lines.concat(warnings).concat(['The mappings are saved. Do not re-upload the file.']));
+        } else {
+            setStatus('success', 'Mappings imported', lines);
+        }
+        setTimeout(() => window.location.reload(), 2500);
+    } catch (error) {
+        setStatus('danger', 'The import failed.', ['Please try again.']);
+    } finally {
+        button.disabled = false;
+        input.value = '';
+    }
+}
+</script>
+{{end}}

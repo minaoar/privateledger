@@ -1,10 +1,59 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
+)
+
+// Shared SIC mapping bounds. These live in the domain package so the startup
+// seed, the mapping service, and the HTTP upload boundary all enforce one
+// value without a duplicated literal and without the domain depending on
+// net/http.
+const (
+	// MaxSICMappingFileSize bounds any mapping CSV, whether it arrives as a
+	// startup seed file or an HTTP upload.
+	MaxSICMappingFileSize int64 = 10 << 20 // 10 MiB
+
+	// MaxSICMappingDiagnostics bounds the row diagnostics retained by the
+	// service that produces them, so a large invalid file can neither retain
+	// unbounded diagnostics nor return an unbounded response body.
+	MaxSICMappingDiagnostics = 50
+)
+
+// Stable mapping errors. Handlers map these to transport status codes without
+// matching driver error strings.
+var (
+	// ErrSICMappingDuplicate reports a normalized SIC code collision.
+	ErrSICMappingDuplicate = errors.New("SIC mapping already exists for this code")
+
+	// ErrSICMappingNotFound reports an unknown mapping ID.
+	ErrSICMappingNotFound = errors.New("SIC mapping not found")
+
+	// ErrSICCategoryNotFound reports a category reference that does not resolve.
+	ErrSICCategoryNotFound = errors.New("category not found")
+
+	// ErrSICMappingValidation reports rejected user input, as distinct from an
+	// infrastructure failure. Wrapping keeps the specific reason readable while
+	// letting callers classify the failure without matching message text.
+	ErrSICMappingValidation = errors.New("invalid SIC mapping")
+
+	// ErrSICMappingBusy reports that admission to the mutation gate expired
+	// before this caller acquired it. No backup or mutation was performed.
+	ErrSICMappingBusy = errors.New("SIC mapping service is busy")
+
+	// ErrSICMappingCancelled reports that the caller cancelled before acquiring
+	// admission. No backup or mutation was performed.
+	ErrSICMappingCancelled = errors.New("SIC mapping request cancelled")
+
+	// ErrSICMappingOversized reports input beyond MaxSICMappingFileSize.
+	ErrSICMappingOversized = errors.New("SIC mapping file exceeds the maximum size")
+
+	// ErrSICMappingDatabaseBusy reports that SQLite stayed locked past its busy
+	// timeout before the write committed. It is retryable by the user.
+	ErrSICMappingDatabaseBusy = errors.New("database is busy")
 )
 
 // SICCode is the canonical decimal representation of a positive SIC value.
@@ -107,7 +156,11 @@ type SICMappingImportError struct {
 	Message   string `json:"message"`
 }
 
-// SICMappingImportOutcome identifies the startup seed result.
+// SICMappingImportOutcome identifies a mapping import result. One set is
+// shared by the startup seed and the HTTP upload path so both units speak one
+// vocabulary. "absent" and "skipped_existing" are startup-only; "merged" is
+// upload-only; "imported" denotes an insert-only startup seed and is never
+// emitted by upload.
 type SICMappingImportOutcome string
 
 const (
@@ -117,6 +170,7 @@ const (
 	SICMappingImportOversized         SICMappingImportOutcome = "oversized"
 	SICMappingImportValidated         SICMappingImportOutcome = "validated"
 	SICMappingImportImported          SICMappingImportOutcome = "imported"
+	SICMappingImportMerged            SICMappingImportOutcome = "merged"
 	SICMappingImportReadFailed        SICMappingImportOutcome = "read_failed"
 	SICMappingImportPersistenceFailed SICMappingImportOutcome = "persistence_failed"
 )
@@ -130,5 +184,93 @@ type SICMappingImportReport struct {
 	ImportedRows int                     `json:"imported_rows"`
 	ExistingRows int                     `json:"existing_rows"`
 	Outcome      SICMappingImportOutcome `json:"outcome"`
-	Errors       []SICMappingImportError `json:"errors,omitempty"`
+
+	// Errors is the bounded row diagnostics list. It is capped at
+	// MaxSICMappingDiagnostics entries; RejectedRows remains the authoritative
+	// total regardless of how many diagnostics survived the cap.
+	Errors []SICMappingImportError `json:"errors,omitempty"`
+
+	// DiagnosticsTruncated is true when the cap dropped at least one
+	// diagnostic, so RejectedRows then exceeds len(Errors).
+	DiagnosticsTruncated bool `json:"diagnostics_truncated"`
+}
+
+// AddError appends a row diagnostic under the shared bound. Diagnostics past
+// the cap are counted as truncated rather than retained. Callers must not use
+// len(Errors) to decide whether a row was valid: once the cap is reached the
+// list stops growing while rows keep being rejected.
+func (r *SICMappingImportReport) AddError(row int, field, code, message string) {
+	if r == nil {
+		return
+	}
+	if len(r.Errors) >= MaxSICMappingDiagnostics {
+		r.DiagnosticsTruncated = true
+		return
+	}
+	r.Errors = append(r.Errors, SICMappingImportError{
+		RowNumber: row,
+		Field:     field,
+		Code:      code,
+		Message:   message,
+	})
+}
+
+// SICMappingInput is a transport-neutral create/update command. It never
+// carries joined display fields; update additionally carries the
+// route-resolved mapping ID.
+type SICMappingInput struct {
+	SICCode           string `json:"sic_code"`
+	Description       string `json:"description"`
+	DescriptionDetail string `json:"description_detail"`
+	CategoryID        *int   `json:"category_id"`
+}
+
+// SICMappingPageData carries everything one server render of the mapping page
+// requires. It is assembled by the service, never by the page handler.
+type SICMappingPageData struct {
+	Mappings   []*SICMapping `json:"mappings"`
+	Categories []*Category   `json:"categories"`
+}
+
+// SICMappingMutationResult reports a single CRUD mutation truthfully. Once
+// MappingCommitted is true the write is durable, and any PostCommitWarnings
+// describe follow-up work that failed afterwards - never a reason to retry
+// the mutation.
+type SICMappingMutationResult struct {
+	Mapping            *SICMapping `json:"mapping,omitempty"`
+	MappingCommitted   bool        `json:"mapping_committed"`
+	RecategorizedRows  int         `json:"recategorized_rows"`
+	PostCommitWarnings []string    `json:"post_commit_warnings,omitempty"`
+}
+
+// SICMappingImportResult extends SICMappingImportReport for the upload merge
+// path. Embedding keeps every shared field's UOW-1 meaning and JSON name, so
+// the startup seed can still produce the report shape unchanged. The embedded
+// Errors list is the bounded row diagnostics referenced by the design as
+// "Diagnostics"; no second diagnostic type is introduced.
+//
+// The embedded ImportedRows stays zero on upload: the merge path reports its
+// row breakdown as CreatedRows/UpdatedRows/UnchangedRows instead.
+type SICMappingImportResult struct {
+	SICMappingImportReport
+
+	CreatedRows       int `json:"created_rows"`
+	UpdatedRows       int `json:"updated_rows"`
+	UnchangedRows     int `json:"unchanged_rows"`
+	RecategorizedRows int `json:"recategorized_rows"`
+
+	// BackupPath is non-empty only when the complete backup write succeeded.
+	BackupPath string `json:"backup_path,omitempty"`
+
+	// BackupWarning is non-empty only when the backup failed while processing
+	// continued. Backup failure never blocks the merge.
+	BackupWarning string `json:"backup_warning,omitempty"`
+
+	// MappingCommitted is true only after the SQLite merge commits. It
+	// disambiguates post-commit warnings from a rollback.
+	MappingCommitted bool `json:"mapping_committed"`
+
+	// PostCommitWarnings records cache-reload or collaborator failures that
+	// occurred after a successful commit.
+	PostCommitWarnings []string `json:"post_commit_warnings,omitempty"`
 }

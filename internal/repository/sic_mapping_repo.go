@@ -1,8 +1,10 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/oronno/privateledger/internal/model"
 )
@@ -33,7 +35,7 @@ func (r *SICMappingRepository) Create(mapping *model.SICMapping) error {
 		VALUES (?, ?, ?, ?)
 	`, mapping.SICCode, mapping.Description, mapping.DescriptionDetail, mapping.CategoryID)
 	if err != nil {
-		return fmt.Errorf("failed to create SIC mapping: %w", err)
+		return classifySICMappingError(err, "failed to create SIC mapping")
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
@@ -96,7 +98,7 @@ func (r *SICMappingRepository) GetAll() ([]*model.SICMapping, error) {
 			sm.category_id, sm.created_at, c.name
 		FROM sic_mapping sm
 		LEFT JOIN category c ON sm.category_id = c.category_id
-		ORDER BY sm.sic_code
+		ORDER BY CAST(sm.sic_code AS INTEGER)
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query SIC mappings: %w", err)
@@ -133,14 +135,14 @@ func (r *SICMappingRepository) Update(mapping *model.SICMapping) error {
 		WHERE sic_mapping_id = ?
 	`, mapping.SICCode, mapping.Description, mapping.DescriptionDetail, mapping.CategoryID, mapping.SICMappingID)
 	if err != nil {
-		return fmt.Errorf("failed to update SIC mapping: %w", err)
+		return classifySICMappingError(err, "failed to update SIC mapping")
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get updated SIC mapping count: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("SIC mapping not found")
+		return model.ErrSICMappingNotFound
 	}
 	return nil
 }
@@ -149,14 +151,14 @@ func (r *SICMappingRepository) Update(mapping *model.SICMapping) error {
 func (r *SICMappingRepository) Delete(id int) error {
 	result, err := r.db.Exec("DELETE FROM sic_mapping WHERE sic_mapping_id = ?", id)
 	if err != nil {
-		return fmt.Errorf("failed to delete SIC mapping: %w", err)
+		return classifySICMappingError(err, "failed to delete SIC mapping")
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("failed to get deleted SIC mapping count: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("SIC mapping not found")
+		return model.ErrSICMappingNotFound
 	}
 	return nil
 }
@@ -209,6 +211,81 @@ func (r *SICMappingRepository) withAtomicInsert(mappings []*model.SICMapping, re
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit SIC mappings: %w", err)
+	}
+	committed = true
+	return nil
+}
+
+// classifySICMappingError converts driver errors into stable domain errors so
+// services and handlers never match driver text themselves. String inspection
+// is confined to this layer because the repository is what owns the driver.
+func classifySICMappingError(err error, context string) error {
+	if err == nil {
+		return nil
+	}
+	text := err.Error()
+	if strings.Contains(text, "UNIQUE constraint failed") &&
+		strings.Contains(text, "sic_mapping.sic_code") {
+		return fmt.Errorf("%s: %w", context, model.ErrSICMappingDuplicate)
+	}
+	// SQLite reports lock exhaustion after the driver busy timeout expires.
+	if strings.Contains(text, "database is locked") || strings.Contains(text, "SQLITE_BUSY") {
+		return fmt.Errorf("%s: %w", context, model.ErrSICMappingDatabaseBusy)
+	}
+	return fmt.Errorf("%s: %w", context, err)
+}
+
+// MergeAll inserts new mappings and updates existing ones by canonical SIC
+// code in one transaction. Every row commits or every row rolls back.
+//
+// Codes absent from mappings are left untouched: this is a partial-state merge,
+// never a snapshot replacement, so it must not be routed through ReplaceAll.
+// ON CONFLICT updates in place, which preserves each existing row's mapping ID
+// and created_at so mapping identity survives an upload.
+//
+// An empty mappings slice commits a successful no-change transaction through
+// the same contract, which is what a header-only upload produces.
+func (r *SICMappingRepository) MergeAll(ctx context.Context, mappings []*model.SICMapping) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin SIC mapping merge: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO sic_mapping (sic_code, description, description_detail, category_id)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(sic_code) DO UPDATE SET
+			description = excluded.description,
+			description_detail = excluded.description_detail,
+			category_id = excluded.category_id
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare SIC mapping merge: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, mapping := range mappings {
+		if _, err := stmt.ExecContext(
+			ctx,
+			mapping.SICCode,
+			mapping.Description,
+			mapping.DescriptionDetail,
+			mapping.CategoryID,
+		); err != nil {
+			return classifySICMappingError(err, fmt.Sprintf("failed to merge SIC mapping %q", mapping.SICCode))
+		}
+	}
+	if err := stmt.Close(); err != nil {
+		return fmt.Errorf("failed to close SIC mapping merge: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit SIC mapping merge: %w", err)
 	}
 	committed = true
 	return nil

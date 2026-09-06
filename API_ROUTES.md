@@ -418,6 +418,96 @@ Get the current month period based on config.
 
 ---
 
+## SIC Mappings
+
+Maps merchant SIC/MCC codes to categories. All endpoints are local-only.
+
+### GET /api/sic-mappings
+
+Returns every mapping in ascending numeric SIC order, with joined category display data.
+
+**Response**: `200 OK` — array of mappings.
+
+### POST /api/sic-mappings
+
+Creates one mapping.
+
+**Body**: `{"sic_code": "5412", "description": "Grocery", "description_detail": "stores", "category_id": 1}`
+
+`sic_code` is digits only and is normalized (leading zeros removed). `category_id` may be `null`,
+meaning this SIC code intentionally assigns no category.
+
+**Response**: `201 Created` — `{"mapping": {...}, "mapping_committed": true, "recategorized_rows": 0}`
+
+### PUT /api/sic-mappings/:id
+
+Updates one mapping. The SIC code may change; the mapping ID stays stable and the resulting code
+must remain globally unique.
+
+**Response**: `200 OK` — same shape as create.
+
+### DELETE /api/sic-mappings/:id
+
+Deletes one mapping. Categories already assigned to transactions are **not** cleared. Returns a body
+so post-commit warnings stay visible.
+
+**Response**: `200 OK` — `{"mapping_committed": true, "recategorized_rows": 0}`
+
+### GET /api/sic-mappings/download
+
+Exports all mappings as CSV.
+
+**Response**: `200 OK`, `Content-Disposition: attachment; filename="sic_mappings.csv"`
+
+Columns are exactly `SIC_Code,Description,Description_Detail,Category_Name,Category_ID`. An empty
+database returns the header alone.
+
+### POST /api/sic-mappings/upload
+
+Merges an uploaded mapping CSV. Content-Type `multipart/form-data` with exactly one file field named
+`file`.
+
+Codes in the file are **added or updated**; codes absent from the file are left unchanged. Upload
+never deletes. The whole file is validated first — one invalid row rejects the entire upload with no
+database change. Before merging, the current mappings are backed up to
+`sic_mappings.backup-<UTC timestamp>-<random>.csv` beside the database.
+
+**Response**: `200 OK`
+
+```json
+{
+  "total_rows": 3, "valid_rows": 3, "rejected_rows": 0,
+  "outcome": "merged",
+  "created_rows": 2, "updated_rows": 0, "unchanged_rows": 1,
+  "recategorized_rows": 0,
+  "backup_path": "/path/to/sic_mappings.backup-20260906T061651Z-3379515634.csv",
+  "mapping_committed": true,
+  "diagnostics_truncated": false
+}
+```
+
+`mapping_committed: true` means the merge is durable. Any `post_commit_warnings` or `backup_warning`
+describe follow-up work that failed afterwards and are **not** a reason to re-upload.
+
+Row diagnostics are capped at 50 entries. `rejected_rows` remains the authoritative total, and
+`diagnostics_truncated` is `true` when the cap dropped entries.
+
+### SIC mapping error codes
+
+| Status | `code` | Meaning |
+|---|---|---|
+| 400 | `invalid_request` | Malformed body, bad ID, or not exactly one uploaded file |
+| 404 | `not_found` | Unknown mapping ID |
+| 409 | `duplicate_sic_code` | Normalized SIC code already mapped |
+| 413 | `oversized` | Upload exceeds the 10 MiB limit; nothing was parsed |
+| 422 | `validation_failed` | Rejected SIC code or field input |
+| 422 | `category_not_found` | Referenced category does not exist |
+| 422 | (upload) `outcome: "invalid"` | Row validation failed; no mappings changed |
+| 408 | `request_cancelled` | Caller cancelled before any change was made |
+| 503 | `mapping_busy` | Another mapping change is in progress; sends `Retry-After: 1` |
+| 503 | `database_busy` | SQLite stayed locked past its busy timeout before commit |
+| 500 | `internal_error` | Unexpected failure |
+
 ## Error Responses
 
 All endpoints return consistent error responses:
