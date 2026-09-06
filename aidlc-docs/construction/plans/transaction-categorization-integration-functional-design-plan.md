@@ -75,7 +75,7 @@ under which the mapping commit lands first and a later collaborator failure is a
 success, never a rollback. Choosing all-or-nothing would mean reopening an approved UOW-2 decision. B is
 restated above to match the approved contract.
 
-[Answer]:
+[Answer]:B
 
 ### Q2 — "Recategorize All" blast radius
 
@@ -93,7 +93,7 @@ upgrading, their entire uncategorized backlog becomes eligible for SIC-based ass
   *Note: this contradicts FR6 and application design resolution 6, so it would need a requirement
   amendment rather than just a design decision.*
 
-[Answer]:
+[Answer]:B
 
 ### Q3 — Cache reload concurrency
 
@@ -111,7 +111,7 @@ The existing `go h.categorizer.LoadPatterns()` is a real data race, and UOW-3 ad
   concurrency question entirely at the cost of per-run queries.
   *Would add a query per transaction during import, risking the approved SIC-free import benchmark.*
 
-[Answer]:
+[Answer]:A
 
 ### Q4 — Import-time SIC lookup
 
@@ -127,7 +127,7 @@ that loop.
 - C. Load a mapping snapshot once at the start of each import run.
   *Also correct, but introduces a second, different cache lifecycle alongside the pattern cache.*
 
-[Answer]:
+[Answer]:A
 
 ### Q5 — Modal-created mapping scope
 
@@ -145,7 +145,7 @@ recategorization to mapping changes, so a mapping created this way is a mapping 
   SIC code and let the user decide whether to apply.
   *Better UX in isolation, but adds a round trip and a second decision point mid-categorization.*
 
-[Answer]:
+[Answer]:A
 
 ### Q6 — Property-based testing scope for UOW-3
 
@@ -162,7 +162,7 @@ covered merge idempotency, omission, and counts under the approved Q7 scope.
 - C. Examples only for UOW-3; rely on the property coverage already established in UOW-1 and UOW-2.
   *US-13 explicitly calls for selected property-based tests in this unit.*
 
-[Answer]:
+[Answer]:B
 
 ## Execution Checklist
 
@@ -170,11 +170,11 @@ covered merge idempotency, omission, and counts under the approved Q7 scope.
 - [x] Inspect the current categorizer, transaction repository, handlers, and UOW-2 collaborator seam.
 - [x] Separate decisions already settled by approved artifacts from genuinely open ones.
 - [x] Record the verified starting state, including the two pre-existing defects assigned to this unit.
-- [ ] Receive answers to Q1 through Q6.
-- [ ] Analyze answers for conflicts with approved requirements and raise follow-ups if needed.
-- [ ] Generate `business-logic-model.md`, `business-rules.md`, `domain-entities.md`, and
+- [x] Receive answers to Q1 through Q6. (Q1 B, Q2 B, Q3 A, Q4 A, Q5 A, Q6 B)
+- [x] Analyze answers for conflicts with approved requirements and raise follow-ups if needed. No conflicts; no follow-up required.
+- [x] Generate `business-logic-model.md`, `business-rules.md`, `domain-entities.md`, and
       `frontend-components.md` under `aidlc-docs/construction/transaction-categorization-integration/functional-design/`.
-- [ ] Receive explicit Functional Design approval.
+- [x] Receive explicit Functional Design approval. (2026-09-06, user: "Continue")
 
 ## Out of Scope
 

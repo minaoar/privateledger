@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-08-17T05:48:26Z
-- **Current Stage**: CONSTRUCTION - UOW-3 Functional Design
+- **Current Stage**: CONSTRUCTION - UOW-3 NFR Requirements
 - **Branch**: support-mcc-for-category
 
 ## Workspace State
@@ -59,8 +59,8 @@
 - [x] Code Generation — COMPLETED FOR UOW-2 (independent gate PASS at Revision 3 after post-gate field defect U2-F09)
 
 #### UOW-3 — Transaction Categorization Integration
-- [ ] Functional Design — IN PROGRESS
-- [ ] NFR Requirements — TBD
+- [x] Functional Design — COMPLETED FOR UOW-3 (approved 2026-09-06)
+- [ ] NFR Requirements — IN PROGRESS
 - [ ] NFR Design — TBD
 - [ ] Infrastructure Design — SKIP
 - [ ] Code Generation — EXECUTE (ALWAYS)
@@ -74,9 +74,9 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-3 — Transaction Categorization Integration
-- **Current Stage**: UOW-3 Functional Design — not yet started
-- **Last Completed**: UOW-2 post-gate field defect U2-F09 fixed and independently re-reviewed PASS at Revision 3 (`88213dc`) on 2026-09-06.
-- **Next Step**: UOW-3 — Transaction Categorization Integration. Begin Functional Design planning, then NFR Requirements, NFR Design, and Code Generation. Build and Test follows all three units.
+- **Current Stage**: UOW-3 NFR Requirements — awaiting answers to stage questions
+- **Last Completed**: UOW-3 Functional Design approved by the user on 2026-09-06.
+- **Next Step**: Answer the UOW-3 NFR Requirements stage questions, then generate the NFR requirements and technology-decision artifacts. Infrastructure Design remains skipped.
 - **Status**: UOW-2 Code Generation gate is CLOSED. Independent review (OpenAI/Codex, separate provider) reviewed Revision 1 `ee24446` as BLOCKED with eight findings, then Revision 2 `1c37d22` as PASS with all eight RESOLVED and no Blocking, High, or Medium finding remaining. The single Low finding U2-R2-F01, a stale constructor comment contradicting the nil-collaborator contract, was fixed in Revision 3. Full suite, long tests, and `-race` pass across all seven packages with zero data races. PERF-01 measured a 1.4255 s median against the 10 s target; SCALE-01 verified at 1,000 rows; rapid properties replay at seed 20260906. Five verification limitations are recorded and adjudicated as non-blocking by the independent role, including no injected `os.File.Close` fault in `writeBackup` (no production seam advised) and no live browser for visual/keyboard checks. F-13/F-14/F-15/F-16 are verified corrected; F-04 and F-05 remain deferred.
 
 ## Notes

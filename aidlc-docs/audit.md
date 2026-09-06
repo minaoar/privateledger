@@ -1259,3 +1259,29 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: Six questions still awaiting answers; no UOW-3 design artifact or production code generated.
 
 ---
+
+## UOW-3 Functional Design — Answers Analyzed and Artifacts Generated
+**Timestamp**: 2026-09-06T10:35:00Z
+**User Input**: "answered"
+**Answers**: Q1 B (no processing deadline), Q2 B (warn before Recategorize All and report split counts), Q3 A (synchronous mutex-protected reload), Q4 A (in-memory mapping cache), Q5 A (modal-created mapping behaves as a mapping-page change), Q6 B (priority-matrix plus recategorization-scoping properties). All six match the recommended options.
+**Conflict Analysis**: No conflicts found and no follow-up question required. Q1 B and Q3 A are mutually consistent — reload is synchronous under the gate and recategorization then runs to completion, which is what UOW-2 already does with the no-op collaborator, now doing real work. Q3 A and Q4 A share one cache lifecycle. Q2 B requires extending `RecategorizeResult` with a source breakdown, which is additive and preserves the existing combined total. Q5 A routes modal-created mappings through UOW-2's mapping service so normalization, uniqueness, backup, and recategorization behave identically to the mapping page.
+**Artifacts Generated**:
+- `aidlc-docs/construction/transaction-categorization-integration/functional-design/business-logic-model.md`
+- `aidlc-docs/construction/transaction-categorization-integration/functional-design/business-rules.md`
+- `aidlc-docs/construction/transaction-categorization-integration/functional-design/domain-entities.md`
+- `aidlc-docs/construction/transaction-categorization-integration/functional-design/frontend-components.md`
+**Design Decisions Recorded**: A single decision function serves import, "Recategorize All", and scoped recategorization, so priority cannot drift between entry points; the inline pattern matching in `RecategorizeAll` and `RecategorizeByCategory` is replaced by calls to it. SIC-assigned categories reuse `category_source = 1` rather than introducing a fourth source, which would change the meaning of existing rows and every query filtering on them. `PatternCategorizedCount + SICCategorizedCount == CategorizedCount` partitions the existing total rather than adding to it. BR-U3-35 makes the U2-F09 lesson a standing rule: any new page-level JavaScript name must be checked against `app.js` globals, because `layout.html` loads `app.js` after page content and a colliding name is silently overwritten at runtime.
+**Q1 Rationale Preserved**: The absence of a processing deadline is documented in the design as a deliberate decision with its evidence, not an omission, since UOW-2's NFR Design explicitly assigned the budget/cancellation choice to this unit.
+**Status**: UOW-3 Functional Design complete; awaiting explicit user approval before NFR Requirements. No production code or test changed.
+
+---
+
+## UOW-3 Functional Design — User Approval
+**Timestamp**: 2026-09-06T10:45:00Z
+**User Input**: "Continue"
+**Decision**: Approved the four UOW-3 functional-design artifacts.
+**Approved Artifacts**: `business-logic-model.md`, `business-rules.md`, `domain-entities.md`, `frontend-components.md` under `aidlc-docs/construction/transaction-categorization-integration/functional-design/`.
+**Carried Forward to NFR Requirements**: Q1 B chose no processing deadline for recategorization, so the mapping-mutation gate is held for its full duration with no upper bound. The supporting evidence was UOW-2's merge benchmark and the fact that the scoped query is indexed; recategorization itself has not been measured against a large transaction set. NFR Requirements must set a real target and, if the measurement is unfavourable, Q1 is cheaper to revisit now than after code generation.
+**Status**: UOW-3 Functional Design COMPLETE. Next stage is NFR Requirements for UOW-3.
+
+---
