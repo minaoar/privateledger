@@ -550,13 +550,39 @@ the independent role did not edit the template or other production files.
 | `go test ./cmd/privateledger -run '^(TestReviewU2DeleteHandlerIsNotShadowedBySharedScript\|TestReviewU2PageScaleAndEscaping)$' -count=1 -v` | PASS on pinned Revision 3 |
 | `go test -count=1 ./...` | PASS; service package including long tests completed in 39.105 s |
 | `go test -race -short -count=1 ./...` | PASS for all packages; no data race report |
-| Browser connection/discovery | Unavailable; runtime returned no available browser sessions |
+| Browser connection/discovery | Initially unavailable; later connected and exercised as recorded below |
 
 ## Revision 3 Gate Decision
 
 U2-F09 is RESOLVED. The regression test covering the exact global-name collision passes, the full
-and race suites pass, and no unresolved Blocking or High finding remains. The inability to run a
-live browser remains a test-environment limitation, with the cross-file integration contract now
+and race suites pass, and no unresolved Blocking or High finding remains. A later connected-browser
+pass directly exercised the corrected interaction, with the cross-file integration contract also
 pinned independently.
 
 **Final status: PASS (Revision 3 independent gate).**
+
+## Live Browser Verification — Revision 3
+
+Date: 2026-09-06. Provider: OpenAI / GPT-6 (Codex), independent review/test role. Browser:
+connected Chrome extension against the running local application at
+`http://127.0.0.1:8844/sic-mappings`.
+
+- Loaded the real SIC mapping page with 981 rows and verified the navigation, table, create,
+  download, and import controls were available.
+- Created temporary uncategorized mapping SIC `9223372036854775001`, then verified its rendered
+  code, description, detail, and intentional `No SIC category` state.
+- Edited the description and verified the reloaded row displayed the new value.
+- Attempted a duplicate create and observed `A mapping already exists for that SIC code.` while
+  the correction modal remained open.
+- Triggered Download CSV and observed a browser download event.
+- Opened the mapping's delete modal and verified the correct SIC code, one visible Bootstrap modal,
+  and no native JavaScript confirmation. The user performed the destructive confirmation click;
+  the page reloaded, the temporary row disappeared, and the modal closed without a second prompt.
+- The final row count returned to 981, proving the browser test left no temporary mapping behind.
+- No browser console errors were captured during the completed flows.
+
+Chrome exposed the import file chooser, but the extension rejected programmatic file selection
+because file-URL access is disabled. Browser-driven upload submission therefore remains unexecuted.
+The independently enabled HTTP/service upload tests still cover exact size bounds, invalid CSV,
+merge results, backup feedback, extra file parts, atomicity, and cleanup. This browser-extension
+permission limitation does not change the Revision 3 PASS decision.
