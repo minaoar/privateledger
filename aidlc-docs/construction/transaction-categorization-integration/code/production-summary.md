@@ -174,3 +174,78 @@ direct evidence for U3-F01 and the third for U3-F02.
 Benchmarks beyond the isolated PERF-02 re-run, browser execution of the modal disable/restore behaviour
 required by U3-F05's acceptance condition, and the query plan under `json_each` — which the reviewer has
 now confirmed uses `idx_txn_sic`.
+
+---
+
+# Revision 3 — U3-R2-F01 and U3-R2-F02
+
+Date: 2026-09-06. Responds to the Revision 2 re-review (FAIL: one High, one Medium).
+
+## U3-R2-F02 — resolved
+
+The rule-source follow-up write after a committed mapping was logged but omitted from the response, so
+a caller could not tell that the requested BR-U3-31 outcome had not been applied. Both the failed read
+and the failed update now append a post-commit warning to the committed result, matching the
+committed-with-warning model used elsewhere. `TestReviewU3RuleSourceWriteFailureIsReported` and the
+original happy-path test both pass.
+
+## U3-R2-F01 — acceptance condition implemented, and it conflicts with an existing review test
+
+The acceptance condition was implemented literally: replacement patterns are now published only after
+the mapping reload succeeds, so a reload that later fails can never expose them.
+`TestReviewU3FallbackFailedReloadNeverPublishesPatterns` passes.
+
+`TestReviewU3RuleCachesPublishAtomically` now fails:
+
+```text
+observed mixed cache generation category 20; valid old/new results are 30 or 1
+```
+
+### The two tests are contradictory for a non-staging lookup
+
+Both fakes block inside `ReloadMappings`, and production cannot know which outcome is coming.
+
+| Test | Reload outcome | Requires during the pending window |
+|---|---|---|
+| `...PublishAtomically` | succeeds | patterns **already published** |
+| `...NeverPublishesPatterns` | fails | patterns **not published** |
+
+`...PublishAtomically` accepts only `30` (complete old) or the new pattern's category (complete new).
+Complete-old is unreachable for a non-stager: `stagedUOW3Lookup.ReloadMappings` sets `current = next`
+before it blocks, so the mapping side has already changed and no snapshot of it exists on the
+categorizer. That leaves complete-new, which requires publishing patterns during the window — exactly
+what U3-R2-F01 forbids.
+
+Blocking readers resolves the conflict and the newer test explicitly permits it, but
+`...PublishAtomically` calls `Categorize` on the main goroutine after `<-lookup.started`, so blocking
+deadlocks it.
+
+### Production is unaffected either way
+
+`*SICMappingCategorizer` implements `prepareMappings`/`commitMappings`, and `main.go` wires exactly that
+type, so shipped code always takes the staged path: both sets are built first and published together
+under one write lock. Neither failure scenario is reachable in production. Both concern the
+compatibility fallback for a lookup that cannot stage, which no shipped code uses.
+
+### Why the failing test was left failing
+
+Reverting would restore behaviour the reviewer correctly identified as wrong — publishing rules from a
+reload that fails. Keeping the correct behaviour and reporting the conflict seemed better than turning
+a suite green by reintroducing a known defect.
+
+Suggested resolutions, for the reviewer to choose:
+
+1. Have `stagedUOW3Lookup` implement `prepareMappings`/`commitMappings`, so the test exercises the path
+   production actually takes.
+2. Have the fake swap `current` when its mappings are committed rather than at reload entry, so
+   complete-old is observable.
+3. Call `Categorize` in a goroutine, as `...NeverPublishesPatterns` does, allowing the blocking
+   resolution.
+
+## Verification
+
+`gofmt`, `go build ./...`, `go vet ./...`, `git diff --check` clean.
+`go test -count=1 ./...`: six of seven packages pass; `internal/service` fails on
+`TestReviewU3RuleCachesPublishAtomically` alone, for the reason above. Every other Revision 1 and
+Revision 2 test passes, including the retained Rapid replay, the 50,000-code cross-unit fixture, the
+standalone fallback test, and the performance fixtures.

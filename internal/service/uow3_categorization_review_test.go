@@ -282,6 +282,52 @@ func TestReviewU3ScopedEmptySetDoesNoWork(t *testing.T) {
 	}
 }
 
+// UOW-2 may construct the mapping collaborator without attaching it to the
+// main Categorizer. That compatibility path must still apply SIC mappings and
+// preserve manual or existing assignments.
+func TestReviewU3StandaloneSICCategorizerFallback(t *testing.T) {
+	db, txnRepo, _, sicRepo, _, _, accountID := newUOW3ServiceHarness(t)
+	mappedCategory := createUOW3Category(t, db, "Standalone mapping")
+	protectedCategory := createUOW3Category(t, db, "Protected")
+	if err := sicRepo.Create(model.NewSICMapping("5812", "", "", &mappedCategory)); err != nil {
+		t.Fatalf("create mapping: %v", err)
+	}
+
+	eligible := createUOW3Txn(t, txnRepo, accountID, "standalone-eligible", "HOTEL", "5812", nil, model.CategorySourceNone)
+	existing := createUOW3Txn(t, txnRepo, accountID, "standalone-existing", "HOTEL", "5812", &protectedCategory, model.CategorySourceNone)
+	manual := createUOW3Txn(t, txnRepo, accountID, "standalone-manual", "HOTEL", "5812", &protectedCategory, model.CategorySourceManual)
+
+	standalone := NewSICMappingCategorizer(sicRepo, txnRepo)
+	if err := standalone.ReloadMappings(); err != nil {
+		t.Fatalf("reload mappings: %v", err)
+	}
+	count, err := standalone.RecategorizeBySICCodes([]model.SICCode{"5812"})
+	if err != nil {
+		t.Fatalf("standalone recategorization: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("standalone recategorized=%d, want 1", count)
+	}
+
+	for _, check := range []struct {
+		txn      *model.Transaction
+		category int
+		source   model.CategorySource
+	}{
+		{eligible, mappedCategory, model.CategorySourceRule},
+		{existing, protectedCategory, model.CategorySourceNone},
+		{manual, protectedCategory, model.CategorySourceManual},
+	} {
+		stored, err := txnRepo.GetByID(check.txn.TransactionID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if stored.CategoryID == nil || *stored.CategoryID != check.category || stored.CategorySource != check.source {
+			t.Fatalf("transaction %s stored=%+v, want category=%d source=%v", check.txn.FitID, stored, check.category, check.source)
+		}
+	}
+}
+
 // TestReviewU3ScopedRecategorizationUsesSharedPriority is intentionally
 // load-bearing: BR-U3-01/04/05 require a matching text pattern to beat SIC even
 // when a mapping mutation starts the scoped pass.
@@ -346,6 +392,21 @@ type stagedUOW3Lookup struct {
 	next    int
 	started chan struct{}
 	release chan struct{}
+}
+
+type blockingFailedUOW3Lookup struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (l *blockingFailedUOW3Lookup) LookupCategory(model.SICCode) (int, bool) {
+	return 0, false
+}
+
+func (l *blockingFailedUOW3Lookup) ReloadMappings() error {
+	close(l.started)
+	<-l.release
+	return errors.New("forced delayed mapping reload failure")
 }
 
 func (l *stagedUOW3Lookup) LookupCategory(model.SICCode) (int, bool) {
@@ -413,6 +474,53 @@ func TestReviewU3FailedMappingReloadKeepsPatternCache(t *testing.T) {
 	txn := &model.Transaction{TransactionDetails: "OLD"}
 	if !categorizer.Categorize(txn) || txn.CategoryID == nil || *txn.CategoryID != 7 {
 		t.Fatalf("failed reload replaced old pattern cache: category=%v", txn.CategoryID)
+	}
+}
+
+// TestReviewU3FallbackFailedReloadNeverPublishesPatterns checks the non-staged
+// lookup path while its mapping reload is still pending. A reload that later
+// fails must never expose its replacement patterns, even temporarily.
+func TestReviewU3FallbackFailedReloadNeverPublishesPatterns(t *testing.T) {
+	db, _, patternRepo, _, _, _, _ := newUOW3ServiceHarness(t)
+	newCategory := createUOW3Category(t, db, "Replacement")
+	if err := patternRepo.Create(&model.CategoryPattern{PatternName: "NEW", CategoryID: newCategory}); err != nil {
+		t.Fatalf("create replacement pattern: %v", err)
+	}
+
+	lookup := &blockingFailedUOW3Lookup{started: make(chan struct{}), release: make(chan struct{})}
+	categorizer := &Categorizer{
+		patternRepo: patternRepo,
+		patterns:    []*model.CategoryPattern{{PatternName: "OLD", CategoryID: newCategory}},
+		sicLookup:   lookup,
+	}
+	loadDone := make(chan error, 1)
+	go func() { loadDone <- categorizer.LoadRules() }()
+	<-lookup.started
+
+	txn := &model.Transaction{TransactionDetails: "NEW"}
+	decisionDone := make(chan bool, 1)
+	go func() { decisionDone <- categorizer.Categorize(txn) }()
+
+	var earlyDecision *bool
+	select {
+	case categorized := <-decisionDone:
+		earlyDecision = &categorized
+	case <-time.After(100 * time.Millisecond):
+		// Holding the cache lock until the reload outcome is known is valid.
+	}
+	close(lookup.release)
+	if err := <-loadDone; err == nil {
+		t.Fatal("LoadRules succeeded despite forced mapping reload failure")
+	}
+
+	if earlyDecision != nil {
+		if *earlyDecision || txn.CategoryID != nil {
+			t.Fatalf("pending failed reload exposed replacement pattern: categorized=%v category=%v", *earlyDecision, txn.CategoryID)
+		}
+		return
+	}
+	if categorized := <-decisionDone; categorized || txn.CategoryID != nil {
+		t.Fatalf("failed reload exposed replacement pattern: categorized=%v category=%v", categorized, txn.CategoryID)
 	}
 }
 

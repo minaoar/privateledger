@@ -99,11 +99,15 @@ func TestUOW3BrowserFixtureServer(t *testing.T) {
 	router.GET("/transactions", pageHandler.Transactions)
 	router.GET("/categories", pageHandler.Categories)
 	router.PATCH("/api/transactions/:id/category", func(c *gin.Context) {
-		time.Sleep(750 * time.Millisecond)
+		time.Sleep(3 * time.Second)
 		transactionHandler.UpdateTransactionCategory(c)
 	})
 	router.POST("/api/transactions/:id/sic-mapping", func(c *gin.Context) {
-		time.Sleep(750 * time.Millisecond)
+		time.Sleep(3 * time.Second)
+		if c.Param("id") == fmt.Sprint(bareTxn) {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "forced browser-review failure"})
+			return
+		}
 		transactionHandler.CreateSICMappingForTransaction(c)
 	})
 	router.POST("/api/categories/:id/patterns", categoryHandler.AddPattern)

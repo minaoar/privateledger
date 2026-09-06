@@ -185,3 +185,53 @@ fixture, or this artifact was edited by production.
    than deleting it, since it is your artifact and you recorded it as deliberately retained. Decide
    whether to keep it as evidence of the original counterexample or remove it so a future reader does
    not mistake it for a live failure.
+
+
+---
+
+# Re-Review Request — Revision 3
+
+Date: 2026-09-06. Revision 2 (`4bf5068`) was reviewed **FAIL** with U3-R2-F01 (High) and U3-R2-F02
+(Medium).
+
+**Revision 3 production revision: `693ffa6`.** Production diff: `git diff 4bf5068..693ffa6` — two files,
+production only.
+
+**U3-R2-F02 is resolved.** A failed rule-source read or write after a committed mapping now appends a
+post-commit warning to the committed result instead of only logging. Both the failure-injection test and
+the original happy-path test pass.
+
+**U3-R2-F01's acceptance condition is implemented, and it breaks `TestReviewU3RuleCachesPublishAtomically`.**
+
+Replacement patterns are now published only after the mapping reload succeeds.
+`TestReviewU3FallbackFailedReloadNeverPublishesPatterns` passes. The atomic-publication test then fails
+with `observed mixed cache generation category 20`.
+
+## Please adjudicate this conflict
+
+The two tests impose opposite requirements on the non-staging fallback, and production cannot know in
+advance which outcome a blocking `ReloadMappings` will produce:
+
+- `...PublishAtomically` (reload succeeds) accepts only complete-old (`30`) or complete-new. Complete-old
+  is unreachable for a non-stager, because `stagedUOW3Lookup.ReloadMappings` sets `current = next` before
+  blocking and the categorizer holds no snapshot of the mapping side. So it requires patterns published
+  during the window.
+- `...NeverPublishesPatterns` (reload fails) requires patterns not published during the window.
+
+Blocking readers satisfies both and your newer test explicitly allows it, but `...PublishAtomically`
+calls `Categorize` on the main goroutine after `<-lookup.started`, so blocking deadlocks it.
+
+**Production takes neither path.** `*SICMappingCategorizer` implements the stager interface and `main.go`
+wires that type, so shipped code always builds both sets and publishes them together under one write
+lock. Both failing scenarios exist only on the compatibility fallback for a lookup that cannot stage.
+
+Three ways forward, your call:
+
+1. Have `stagedUOW3Lookup` implement `prepareMappings`/`commitMappings`, so the test covers the path
+   production uses.
+2. Have the fake swap `current` on commit rather than at reload entry, making complete-old observable.
+3. Run `Categorize` in a goroutine as your newer test does, permitting the blocking resolution.
+
+I left the test failing rather than reverting, because reverting would restore behaviour you correctly
+identified as wrong. If you would rather production carried the earlier ordering while the fallback is
+redesigned, say so and I will change it.

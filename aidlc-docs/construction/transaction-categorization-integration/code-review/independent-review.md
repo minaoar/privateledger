@@ -15,7 +15,7 @@ The review used `PROJECT_GUIDELINES.md`, `aidlc-docs/aidlc-state.md`, the approv
 US-02/03/06/12/13, all UOW-3 functional-design and NFR artifacts, the code-generation plan, and the
 independent-review handoff. No production file was changed by this role.
 
-## Gate Result
+## Revision 1 Gate Result
 
 **FAIL.** Four High production findings remain open, required example and property tests fail, and the
 full race-mode suite exits non-zero because it includes those correctness failures. NFR-U3-TEST-05
@@ -253,3 +253,149 @@ this review should be admitted to `aidlc-docs/construction/uow-4-findings-regist
 Return U3-F01 through U3-F06 to the production provider. Re-review must run the complete ordinary and
 race suites and confirm all new independent tests pass. The gate remains **FAIL** until the four High
 findings are closed, required tests are green, and the approved reload API is restored.
+
+---
+
+## Revision 2 Re-Review
+
+### Scope and Result
+
+- Revision 2 production commit: `4bf5068` (`fix: address UOW-3 review findings U3-F01 through U3-F06`)
+- Re-review working-tree HEAD before independent test additions: `da7ba64`
+- Production patch inspected with `git show 4bf5068`: five production files, no test or fixture changes
+- Provider separation remains intact: Claude authored production; OpenAI Codex authored and ran this re-review
+- Re-review date: 2026-09-06
+
+**REVISION 2: FAIL.** U3-F01, U3-F02, U3-F05, and U3-F06 are resolved. U3-F03 is only partially
+resolved because `LoadRules` retains a fallback that exposes a partial cache generation. U3-F04's happy
+path is resolved, but its new post-commit source write silently fails without warning. One High and one
+Medium Revision 2 finding remain, and the independent tests demonstrating them fail.
+
+### Revision 1 Finding Disposition
+
+| Finding | Revision 2 result | Evidence |
+|---|---|---|
+| U3-F01 — scoped priority | **RESOLVED** | `RecategorizeBySICCodes` calls the attached shared decider; example and Rapid priority/scoping tests pass. |
+| U3-F02 — existing-category overwrite | **RESOLVED** | Query requires both `category_source = 0` and `category_id IS NULL`; example and retained Rapid replay pass. |
+| U3-F03 — atomic cache publication | **PARTIALLY RESOLVED / HIGH REMAINS** | The concrete staged path and original atomic-publication test pass. The non-staged fallback violates the same all-or-nothing contract; see U3-R2-F01. |
+| U3-F04 — current row remains manual | **HAPPY PATH RESOLVED** | The original Change Category integration test passes and leaves the selected category rule-sourced. A post-commit write failure is hidden; see U3-R2-F02. |
+| U3-F05 — controls enabled in flight | **RESOLVED** | Executing-browser checks cover both forms during requests and restoration after success and HTTP failure. |
+| U3-F06 — exported `LoadPatterns` | **RESOLVED** | `LoadPatterns` is removed; `LoadRules` is the only exported categorizer reload entry point. |
+
+The standalone `SICMappingCategorizer` compatibility behavior called out in the handoff is accepted.
+`TestReviewU3StandaloneSICCategorizerFallback` proves that it assigns an eligible SIC-mapped row while
+preserving manual and existing categories. The 50,000-code UOW-2 merge regression also passes through
+the real collaborator.
+
+### U3-R2-F01 — Fallback reload temporarily publishes patterns from a reload that fails
+
+- Severity: **High**
+- Production reference: `internal/service/categorizer.go:109-147`
+- Acceptance trace: NFRP-U3-02, NFR-U3-CON-01, NFR-U3-REL-01, NFR-U3-TEST-01/03,
+  BR-U3-16 through BR-U3-19
+- Independent test: `TestReviewU3FallbackFailedReloadNeverPublishesPatterns` at
+  `internal/service/uow3_categorization_review_test.go:483`
+
+The concrete `sicMappingStager` path prepares mappings and publishes both sets while the categorizer
+write lock is held. That path satisfies the atomic-observation contract. The fallback path instead
+publishes replacement patterns at lines 134-137, releases the lock, and then calls `ReloadMappings`.
+If mapping reload blocks and later fails, concurrent categorization can use replacement patterns that
+the method subsequently rolls back.
+
+The new test pauses a fallback mapping reload before its forced failure. During that pending reload,
+`Categorize` assigns the replacement `NEW` pattern. This is observable partial publication from a reload
+whose final result is failure, contrary to the approved rule that neither cache changes if either build
+fails.
+
+Acceptance condition: remove the non-atomic fallback or keep replacement patterns unpublished until the
+mapping reload succeeds. While a reload is pending, categorization may see the complete old generation
+or block; it must never see rules from a reload that later fails. The new independent test must pass.
+
+### U3-R2-F02 — Rule-source write failure is logged but omitted from the committed response
+
+- Severity: **Medium**
+- Production reference: `internal/handler/transaction_handler.go:137-153`
+- Acceptance trace: BR-U3-31, US-12, NFR-U3-UX-01, and the committed-with-warning failure model
+- Independent test: `TestReviewU3RuleSourceWriteFailureIsReported` at
+  `internal/handler/uow3_modal_review_test.go:167`
+
+The happy path correctly changes the current row from manual to rule source when its stored category
+matches the requested mapping category. If the follow-up `GetByID` or `UpdateCategory` fails after the
+mapping commits, the handler only logs the failure and still returns the original successful mutation
+result without a post-commit warning.
+
+The new test injects a SQLite trigger that rejects only the rule-source update. The mapping remains
+durable and the endpoint returns HTTP 200 with `mapping_committed:true`, but
+`post_commit_warnings` is absent and the current row remains manual. The response therefore hides that
+the requested BR-U3-31 outcome was not completed.
+
+Acceptance condition: preserve the durable mapping result and report a post-commit warning when the
+source read or write cannot complete. A caller must be able to distinguish full success from a committed
+mapping whose current-transaction rule source was not applied.
+
+### Revision 2 Verification
+
+The complete ordinary suite was run before adding the two new failure-path tests and passed across all
+seven packages (`internal/service` 129.799s). This confirms all Revision 1 tests, the retained Rapid
+replay, the 50,000-code cross-unit fixture, and the performance fixtures were green against Revision 2.
+
+After adding the new tests:
+
+| Check | Revision 2 result |
+|---|---|
+| `go test -short -count=1 ./...` | **FAIL** only on U3-R2-F01 and U3-R2-F02 tests |
+| `go test -race -short -count=1 ./...` | **FAIL** on the same two correctness tests; zero `WARNING: DATA RACE` reports |
+| Focused `-race` over concurrent categorize/reload, original atomic publication, and standalone collaborator | PASS |
+| `go build ./...` | PASS |
+| `go vet ./...` | PASS |
+| `gofmt` and `git diff --check` | PASS |
+| `EXPLAIN QUERY PLAN` | PASS; still reports `SEARCH ledger_transaction USING INDEX idx_txn_sic (sic_code=?)` |
+
+The full race command does not satisfy NFR-U3-TEST-03 because its exit status is non-zero, even though
+the race detector itself reports no data race.
+
+### Revision 2 Performance and Scale
+
+The reference environment is unchanged. Measurements were run isolated from the race suite.
+
+- NFR-U3-PERF-01 full recategorization: 20,000 transactions, 1,000 mappings, 100 categories, 100% SIC,
+  4,386,816-byte database; samples 833.594ms, 818.704ms, 804.680ms, 909.958ms, 790.454ms; median
+  **818.704ms** against the five-second limit — **PASS**.
+- Scoped recategorization: 100 affected codes and 2,000 matching transactions in **166.686ms** — **PASS**.
+- NFR-U3-PERF-02 SIC-free import median **4.713760s**; SIC-bearing median **4.873574s**; ratio
+  **1.0339** or 3.39% overhead against the 10% limit — **PASS**.
+- NFR-U3-SCALE-01: 100,000 mappings increased observed heap by **22,694,984 bytes**
+  (3,333,040 to 26,028,024 bytes); informational — **PASS**.
+
+### Revision 2 Browser Evidence
+
+The production templates and handlers ran against the reviewer-owned isolated fixture on
+`127.0.0.1:18843`; no user database or application process was used.
+
+- Change Category: select, mapping toggle, and submit button were all disabled during the delayed
+  request and all restored after success.
+- Change Category with a forced mapping HTTP failure: all three controls were disabled in flight and
+  restored afterwards.
+- Create Pattern SIC path: both rule radios, category select, and submit button were disabled in flight.
+  With a forced HTTP failure, controls were restored and the modal stayed open.
+- SIC/text switching still disables the inapplicable pattern field, and existing display/fallback tests
+  remain green.
+
+This closes U3-F05's required executing-browser acceptance condition.
+
+### Rapid Replay Decision
+
+Keep the retained `.fail` file under
+`internal/service/testdata/rapid/TestReviewU3ScopedRecategorizationProperty/`. It is a regression corpus
+entry carrying the shrunk Revision 1 counterexample and recorded seed `20260906`; Rapid replays it green
+on Revision 2. Keeping a formerly failing minimized case is useful evidence and does not mark the current
+test as failed.
+
+### Revision 2 Ownership and Cross-Unit Assessment
+
+This re-review modified only independent test files, the browser fixture, and this review artifact.
+Production files remain untouched. No new UOW-4 candidate was found: both Revision 2 findings concern
+already-approved UOW-3 cache and modal-result behavior.
+
+Return U3-R2-F01 and U3-R2-F02 to the production provider. The UOW-3 independent gate remains
+**REVISION 2 FAIL** until both tests pass and the complete ordinary and race suites return success.

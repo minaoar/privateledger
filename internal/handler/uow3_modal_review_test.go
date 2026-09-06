@@ -160,3 +160,36 @@ func TestReviewU3ChangeCategoryWithMappingUsesRuleSource(t *testing.T) {
 		t.Fatalf("change+mapping left current transaction outside rule semantics: %s", body)
 	}
 }
+
+// A mapping commit cannot be rolled back when the follow-up source restatement
+// fails. The success response must therefore disclose that committed partial
+// outcome instead of silently claiming the requested rule semantics.
+func TestReviewU3RuleSourceWriteFailureIsReported(t *testing.T) {
+	f := newUOW3ModalFixture(t)
+	txn := f.createTransaction(t, "source-write-failure", "5812")
+	path := fmt.Sprintf("/api/transactions/%d", txn.TransactionID)
+	if w := f.request(http.MethodPatch, path+"/category", fmt.Sprintf(`{"category_id":%d}`, f.categoryA)); w.Code != http.StatusOK {
+		t.Fatalf("PATCH category: %d %s", w.Code, w.Body.String())
+	}
+	if _, err := f.db.Exec(fmt.Sprintf(`
+		CREATE TRIGGER fail_rule_source
+		BEFORE UPDATE OF category_source ON ledger_transaction
+		WHEN OLD.transaction_id = %d AND NEW.category_source = 1
+		BEGIN
+			SELECT RAISE(ABORT, 'forced rule-source write failure');
+		END`, txn.TransactionID)); err != nil {
+		t.Fatalf("create failure trigger: %v", err)
+	}
+
+	w := f.request(http.MethodPost, path+"/sic-mapping", fmt.Sprintf(`{"category_id":%d}`, f.categoryA))
+	var result model.SICMappingMutationResult
+	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response %d %q: %v", w.Code, w.Body.String(), err)
+	}
+	if !result.MappingCommitted {
+		t.Fatalf("mapping was not committed: %d %s", w.Code, w.Body.String())
+	}
+	if len(result.PostCommitWarnings) == 0 {
+		t.Fatalf("committed rule-source failure was not reported: %d %s", w.Code, w.Body.String())
+	}
+}
