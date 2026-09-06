@@ -141,3 +141,61 @@ called for deleting the duplicated literals, and `maxSICSeedDiagnostics` was ini
 `main.go`, which broke compilation of an existing test that referenced it. It was restored as an alias of
 the shared constant, which satisfies the single-source-of-truth intent without deleting an identifier
 existing tests use.
+
+---
+
+# Revision 2 — Independent Review Findings Addressed
+
+Date: 2026-09-06. Responds to `code-review/independent-review.md` (gate BLOCKED, findings U2-F01
+through U2-F08, all OPEN). Every finding was reproduced against the reviewer's tests before being
+fixed. No test file, fixture, or the review artifact was modified by the production role.
+
+| Finding | Severity | Resolution |
+|---|---|---|
+| U2-F01 | Medium | The upload handler now counts file parts across **every** form file field and requires exactly one, in `file`. Previously it inspected only `MultipartForm.File["file"]`, so a second upload under another field name passed through. |
+| U2-F02 | Medium | `Download` renders into a buffer and only commits headers and a 200 after the export succeeds; a repository failure now returns 500 with no attachment. My original comment claiming headers were already committed was wrong — no response bytes are written on that path. |
+| U2-F03 | Medium | Added `ensureActive` checks at the approved phase boundaries: before the write in create, update, and delete, and in merge after validation and again before the backup. A caller who gave up while blocked on a database connection no longer mutates, and a merge cancelled during validation no longer leaves a backup file. |
+| U2-F04 | Medium | `NewSICMappingManagementService` now panics on a nil collaborator instead of substituting the no-op. The design requires that nil never masquerade as successful work; the substitution would have hidden a UOW-3 wiring error. The UOW-1 compatibility constructor still passes an explicit no-op, and `main.go` still wires the checkpoint explicitly. |
+| U2-F05 | Medium | The three `fetch` catch paths now report an **unknown** outcome via `setUnknownOutcome`, stating the change may or may not have been saved and directing the user to refresh and check before retrying. A lost response says nothing about whether the server committed. |
+| U2-F06 | Medium | Removed every timed `window.location.reload`. Results persist until dismissed, with an explicit "Refresh the mapping list" control. Clean CRUD success still reloads immediately because there is nothing to preserve. The failed-merge branch now also surfaces `backup_path`, not just `backup_warning`. |
+| U2-F07 | Low | Classification now uses the driver's typed `*sqlite.Error` result codes (`SQLITE_CONSTRAINT_UNIQUE`, `SQLITE_CONSTRAINT_PRIMARYKEY`, `SQLITE_BUSY`) instead of English substrings, and `MergeAll` routes its `BeginTx`, `Prepare`, `Close`, and `Commit` failures through the same classifier. |
+| U2-F08 | Low | Added `logSavedOutcome`, which records a committed change through `slog` when the caller's context is already done, so a durable result whose response was never delivered still leaves a record. Only operation, counts, and safe outcome fields are logged. |
+
+## Files Modified in Revision 2
+
+- `internal/service/sic_mapping_service.go` — phase-boundary cancellation, nil-collaborator rejection, saved-outcome logging
+- `internal/handler/sic_mapping_handler.go` — buffered download, cross-field file counting
+- `internal/repository/sic_mapping_repo.go` — typed driver-code classification, consistent `MergeAll` boundaries
+- `cmd/privateledger/web/templates/sic_mappings.html` — unknown-outcome reporting, persistent results, backup path on failed merge
+
+## Revision 2 Verification
+
+| Command | Result |
+|---|---|
+| `gofmt -l ./cmd ./internal` | clean |
+| `go build ./...`, `go vet ./...` | pass |
+| `go test -short -count=1 ./...` | **all packages pass** |
+| `go test -count=1 ./...` (long suite included) | **all packages pass** |
+| `go test -race -short -count=1 ./...` | **all packages pass, no data races** |
+
+The five previously failing top-level tests now pass unmodified:
+`TestReviewU2HandlerUploadBoundaries/extra_other_field`, `TestReviewU2HandlerDownloadFailure`,
+`TestReviewU2CancelledValidationDoesNotBackup`,
+`TestReviewU2CRUDCancellationBeforePersistence/create` and `/update`,
+`TestReviewU2NilCollaboratorIsNotSilentSuccess`.
+
+Smoke re-verified on an isolated port: page render 200, download 200, create 201, upload 200, and a
+request carrying a second file under `other` correctly rejected with 400.
+
+## Notes for Re-Review
+
+- U2-F04 is resolved by panicking at construction. The reviewer's test accepts either construction
+  rejection or a use-time error; a panic was chosen because nil wiring is a programmer error
+  discoverable at startup rather than a runtime condition to be reported per request.
+- U2-F07 declares the three SQLite result codes as local named constants rather than importing the
+  driver's large platform-specific constants package. The values are stable SQLite C API codes.
+  `internal/repository` now imports `modernc.org/sqlite` directly, which is a new import for that
+  package though not a new module dependency.
+- Verification gaps 1 through 5 in the review remain open and are unchanged by this revision. Gap 1
+  (a real `writeBackup` Close fault) would need the small writer/closer seam the review describes;
+  it was not added, since the review assigns that decision to production only "if needed".

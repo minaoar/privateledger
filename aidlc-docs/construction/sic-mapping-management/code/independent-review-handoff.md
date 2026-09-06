@@ -124,3 +124,49 @@ final PASS/FAIL in:
 `aidlc-docs/construction/sic-mapping-management/code-review/independent-review.md`
 
 Production fixes return to the production role. Do not modify production files.
+
+
+---
+
+# Re-Review Request — Revision 2
+
+Date: 2026-09-06. Revision 1 (`ee24446`) was reviewed as **BLOCKED** with findings U2-F01 through
+U2-F08, all OPEN. Production has addressed all eight.
+
+Please re-review the new production revision, verify each finding independently rather than trusting
+this summary, and update `independent-review.md` with a Revision 2 section and an explicit PASS/FAIL.
+
+## What changed
+
+| Finding | Where to look |
+|---|---|
+| U2-F01 extra files | `internal/handler/sic_mapping_handler.go` — file parts counted across all form fields |
+| U2-F02 download failure | `internal/handler/sic_mapping_handler.go` — export buffered before headers commit |
+| U2-F03 phase cancellation | `internal/service/sic_mapping_service.go` — `ensureActive` before each write, and in merge after validation and before backup |
+| U2-F04 nil collaborator | `internal/service/sic_mapping_service.go` — `NewSICMappingManagementService` panics on nil |
+| U2-F05 blind retry | `sic_mappings.html` — `setUnknownOutcome` on every transport failure |
+| U2-F06 lost warnings | `sic_mappings.html` — timed reloads removed, explicit refresh control, backup path on failed merge |
+| U2-F07 driver strings | `internal/repository/sic_mapping_repo.go` — typed `*sqlite.Error` codes; `MergeAll` boundaries classified |
+| U2-F08 saved-outcome logging | `internal/service/sic_mapping_service.go` — `logSavedOutcome` |
+
+## Production verification claimed
+
+`gofmt`, `go build`, `go vet` clean. `go test -short -count=1 ./...`, the full `go test -count=1 ./...`
+including long tests, and `go test -race -short -count=1 ./...` all pass with no data races. The five
+previously failing top-level tests pass unmodified. No test file, fixture, test-only dependency, or
+this review artifact was edited by production.
+
+## Points deserving independent judgement
+
+1. **U2-F04 resolution shape.** Production chose to panic at construction. Confirm that is acceptable
+   for a wiring error, or require a use-time error instead.
+2. **U2-F07 constant declaration.** The three SQLite result codes are declared locally rather than
+   imported from the driver's platform-specific constants package, and `internal/repository` now
+   imports `modernc.org/sqlite` directly. Confirm both choices.
+3. **U2-F03 coverage.** Verify the cancellation checks sit at every boundary the design intends, not
+   only the ones the existing tests exercise, and that a committed write is still never reported as
+   cancelled.
+4. **U2-F06 behaviour.** Clean CRUD success still reloads immediately. Confirm nothing is lost there
+   and that the persistent-result path is reachable for every outcome carrying a backup path or warning.
+5. **Verification gaps 1-5 from Revision 1 remain open.** Gap 1 in particular: the writer/closer seam
+   for a real `writeBackup` Close fault was not added. Advise whether production should add it.

@@ -165,7 +165,12 @@ let pendingDeleteId = null;
 
 // All result text is written with textContent so mapping values and server
 // diagnostics are never interpreted as markup.
-function setStatus(kind, title, lines) {
+// Results stay on screen until the user dismisses them. Backup paths and
+// post-commit warnings are the only record of what happened, so the page must
+// not reload them away on a timer - anyone reading a longer warning, or using
+// assistive technology, would lose the information mid-sentence.
+function setStatus(kind, title, lines, options) {
+    const opts = options || {};
     const host = document.getElementById('mappingStatus');
     host.innerHTML = '';
     const alert = document.createElement('div');
@@ -183,6 +188,16 @@ function setStatus(kind, title, lines) {
         alert.appendChild(p);
     });
 
+    if (opts.refresh) {
+        const refresh = document.createElement('button');
+        refresh.type = 'button';
+        refresh.className = 'btn btn-sm btn-outline-dark mt-2';
+        refresh.setAttribute('data-testid', 'sic-mapping-refresh-button');
+        refresh.textContent = 'Refresh the mapping list';
+        refresh.onclick = () => window.location.reload();
+        alert.appendChild(refresh);
+    }
+
     const close = document.createElement('button');
     close.type = 'button';
     close.className = 'btn-close';
@@ -192,6 +207,17 @@ function setStatus(kind, title, lines) {
 
     host.appendChild(alert);
     host.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+// A lost response says nothing about whether the server committed the change,
+// so the page must not claim failure or invite an immediate retry: repeating
+// the request could duplicate a create, report a misleading delete error, or
+// overwrite an edit that landed in between.
+function setUnknownOutcome(action) {
+    setStatus('warning', 'The result of this change is unknown.', [
+        `The connection failed while ${action}. It may or may not have been saved.`,
+        'Refresh the mapping list and check before trying again.'
+    ], {refresh: true});
 }
 
 function openMappingModal(trigger) {
@@ -249,13 +275,15 @@ async function submitMapping(event) {
         }
         bootstrap.Modal.getOrCreateInstance(document.getElementById('mappingModal')).hide();
         if (body.post_commit_warnings && body.post_commit_warnings.length) {
-            setStatus('warning', 'Mapping saved, with warnings', body.post_commit_warnings);
-            setTimeout(() => window.location.reload(), 2500);
+            setStatus('warning', 'Mapping saved, with warnings',
+                body.post_commit_warnings.concat(['The mapping is saved. Do not save it again.']),
+                {refresh: true});
             return;
         }
         window.location.reload();
     } catch (error) {
-        showFormError('The mapping could not be saved. Please try again.');
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('mappingModal')).hide();
+        setUnknownOutcome('saving the mapping');
     } finally {
         button.disabled = false;
     }
@@ -281,13 +309,15 @@ async function confirmDelete() {
             return;
         }
         if (body.post_commit_warnings && body.post_commit_warnings.length) {
-            setStatus('warning', 'Mapping deleted, with warnings', body.post_commit_warnings);
-            setTimeout(() => window.location.reload(), 2500);
+            setStatus('warning', 'Mapping deleted, with warnings',
+                body.post_commit_warnings.concat(['The mapping is deleted. Do not delete it again.']),
+                {refresh: true});
             return;
         }
         window.location.reload();
     } catch (error) {
-        setStatus('danger', 'The mapping was not deleted.', ['Please try again.']);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteMappingModal')).hide();
+        setUnknownOutcome('deleting the mapping');
     } finally {
         button.disabled = false;
         pendingDeleteId = null;
@@ -361,9 +391,12 @@ async function uploadMappings(file, input) {
             return;
         }
         if (!response.ok) {
+            // A backup may have been written before the merge failed, so
+            // report it either way rather than losing the only pointer to it.
             const partial = body.result || {};
             setStatus('danger', 'The import failed.', [
                 body.error || 'No mappings were changed.',
+                partial.backup_path ? `Existing mappings were backed up to ${partial.backup_path}` : '',
                 partial.backup_warning || ''
             ]);
             return;
@@ -382,13 +415,13 @@ async function uploadMappings(file, input) {
             // The merge is already durable here, so the message must not
             // invite a blind re-upload.
             setStatus('warning', 'Mappings were saved, with warnings',
-                lines.concat(warnings).concat(['The mappings are saved. Do not re-upload the file.']));
+                lines.concat(warnings).concat(['The mappings are saved. Do not re-upload the file.']),
+                {refresh: true});
         } else {
-            setStatus('success', 'Mappings imported', lines);
+            setStatus('success', 'Mappings imported', lines, {refresh: true});
         }
-        setTimeout(() => window.location.reload(), 2500);
     } catch (error) {
-        setStatus('danger', 'The import failed.', ['Please try again.']);
+        setUnknownOutcome('importing the mappings');
     } finally {
         button.disabled = false;
         input.value = '';

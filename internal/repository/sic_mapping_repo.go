@@ -3,10 +3,11 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/oronno/privateledger/internal/model"
+	"modernc.org/sqlite"
 )
 
 // SICMappingRepository persists SIC-to-category mappings in SQLite.
@@ -216,21 +217,32 @@ func (r *SICMappingRepository) withAtomicInsert(mappings []*model.SICMapping, re
 	return nil
 }
 
+// SQLite result codes used for classification. These are stable values from
+// the SQLite C API, declared here so the driver's large platform-specific
+// constants package does not have to be imported.
+const (
+	sqliteBusy                = 5    // SQLITE_BUSY
+	sqliteConstraintUnique    = 2067 // SQLITE_CONSTRAINT_UNIQUE
+	sqliteConstraintPrimaryKe = 1555 // SQLITE_CONSTRAINT_PRIMARYKEY
+)
+
 // classifySICMappingError converts driver errors into stable domain errors so
-// services and handlers never match driver text themselves. String inspection
-// is confined to this layer because the repository is what owns the driver.
+// services and handlers never match driver text themselves.
+//
+// Classification uses the driver's typed result code rather than its message,
+// so it does not depend on the wording or language of an error string.
 func classifySICMappingError(err error, context string) error {
 	if err == nil {
 		return nil
 	}
-	text := err.Error()
-	if strings.Contains(text, "UNIQUE constraint failed") &&
-		strings.Contains(text, "sic_mapping.sic_code") {
-		return fmt.Errorf("%s: %w", context, model.ErrSICMappingDuplicate)
-	}
-	// SQLite reports lock exhaustion after the driver busy timeout expires.
-	if strings.Contains(text, "database is locked") || strings.Contains(text, "SQLITE_BUSY") {
-		return fmt.Errorf("%s: %w", context, model.ErrSICMappingDatabaseBusy)
+	var sqliteErr *sqlite.Error
+	if errors.As(err, &sqliteErr) {
+		switch sqliteErr.Code() {
+		case sqliteConstraintUnique, sqliteConstraintPrimaryKe:
+			return fmt.Errorf("%s: %w", context, model.ErrSICMappingDuplicate)
+		case sqliteBusy:
+			return fmt.Errorf("%s: %w", context, model.ErrSICMappingDatabaseBusy)
+		}
 	}
 	return fmt.Errorf("%s: %w", context, err)
 }
@@ -248,7 +260,7 @@ func classifySICMappingError(err error, context string) error {
 func (r *SICMappingRepository) MergeAll(ctx context.Context, mappings []*model.SICMapping) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin SIC mapping merge: %w", err)
+		return classifySICMappingError(err, "failed to begin SIC mapping merge")
 	}
 	committed := false
 	defer func() {
@@ -266,7 +278,7 @@ func (r *SICMappingRepository) MergeAll(ctx context.Context, mappings []*model.S
 			category_id = excluded.category_id
 	`)
 	if err != nil {
-		return fmt.Errorf("failed to prepare SIC mapping merge: %w", err)
+		return classifySICMappingError(err, "failed to prepare SIC mapping merge")
 	}
 	defer stmt.Close()
 
@@ -282,10 +294,10 @@ func (r *SICMappingRepository) MergeAll(ctx context.Context, mappings []*model.S
 		}
 	}
 	if err := stmt.Close(); err != nil {
-		return fmt.Errorf("failed to close SIC mapping merge: %w", err)
+		return classifySICMappingError(err, "failed to close SIC mapping merge")
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit SIC mapping merge: %w", err)
+		return classifySICMappingError(err, "failed to commit SIC mapping merge")
 	}
 	committed = true
 	return nil

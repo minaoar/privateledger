@@ -2,8 +2,8 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -479,7 +479,7 @@ func TestSICMappingRepository_UniqueCodeRejected(t *testing.T) {
 	if err == nil {
 		t.Fatalf("a duplicate SIC mapping was accepted")
 	}
-	if !strings.Contains(strings.ToUpper(err.Error()), "UNIQUE") {
+	if !errors.Is(err, model.ErrSICMappingDuplicate) {
 		t.Errorf("expected a uniqueness error, got %v", err)
 	}
 	count, _ := repo.Count()

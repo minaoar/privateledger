@@ -129,7 +129,8 @@ func TestStartupDiagnosticVolumeForLargeInvalidSeed(t *testing.T) {
 	// handler and identical path so the byte comparison is apples to apples.
 	baseline := &volumeWriter{}
 	baselineLogger := slog.New(slog.NewJSONHandler(baseline, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	for _, validationErr := range report.Errors {
+	for row := 2; row <= invalidSeedRows+1; row++ {
+		validationErr := model.SICMappingImportError{RowNumber: row, Field: "SIC_Code", Code: "invalid_sic"}
 		baselineLogger.Warn("Rejected SIC mapping seed row",
 			slog.String("path", seedPath),
 			slog.Int("row", validationErr.RowNumber),
@@ -164,7 +165,7 @@ func TestStartupDiagnosticVolumeForLargeInvalidSeed(t *testing.T) {
 		t.Errorf("bounded output %d bytes still amplifies the %d-byte seed", current.bytes, seedBytes)
 	}
 	// Every retained diagnostic must still be accounted for in the summary.
-	if len(report.Errors) != invalidSeedRows {
+	if len(report.Errors) != model.MaxSICMappingDiagnostics || !report.DiagnosticsTruncated {
 		t.Errorf("report retained %d diagnostics for %d rejected rows", len(report.Errors), invalidSeedRows)
 	}
 
@@ -178,7 +179,7 @@ func TestStartupDiagnosticVolumeForLargeInvalidSeed(t *testing.T) {
 	t.Logf("  byte reduction:                %.1fx", float64(baseline.bytes)/float64(current.bytes))
 	t.Logf("  Revision 2 output / seed size: %.4f%%", 100*float64(current.bytes)/float64(seedBytes))
 	t.Logf("  diagnostics retained in memory: %d (%d reported, %d omitted)",
-		len(report.Errors), maxSICSeedDiagnostics, len(report.Errors)-maxSICSeedDiagnostics)
+		len(report.Errors), maxSICSeedDiagnostics, report.RejectedRows-len(report.Errors))
 
 	// Guard the privacy boundary at volume: no seed payload in the output.
 	var sample bytes.Buffer
@@ -192,16 +193,8 @@ func TestStartupDiagnosticVolumeForLargeInvalidSeed(t *testing.T) {
 	}
 }
 
-// TestStartupDiagnosticRetentionForLargeInvalidSeed measures the residual side
-// of F-03. Revision 2 bounds diagnostic *output* at the startup boundary, but
-// SICMappingImportReport.Errors still accumulates one entry per rejected row
-// during validation, so the retained diagnostic set remains proportional to the
-// rejected-row count rather than to the reporting bound.
-//
-// This is a measurement, not a pass/fail contract: no approved artifact places
-// a numeric ceiling on retained diagnostics, and NFRP-U1-04 bounds the input at
-// 10 MiB. The numbers are recorded so the production role can judge whether the
-// retention deserves a cap of its own.
+// TestStartupDiagnosticRetentionForLargeInvalidSeed verifies the UOW-2 BR-U2-40
+// cap while preserving authoritative counts and no-persistence behavior.
 func TestStartupDiagnosticRetentionForLargeInvalidSeed(t *testing.T) {
 	if testing.Short() {
 		t.Skip("retention measurement skipped in -short mode")
@@ -235,21 +228,19 @@ func TestStartupDiagnosticRetentionForLargeInvalidSeed(t *testing.T) {
 	runtime.ReadMemStats(&after)
 	retainedBytes := int64(after.HeapAlloc) - int64(before.HeapAlloc)
 
-	if len(report.Errors) != invalidSeedRows {
-		t.Fatalf("retained %d diagnostics, expected one per rejected row (%d)",
+	if len(report.Errors) != model.MaxSICMappingDiagnostics || !report.DiagnosticsTruncated {
+		t.Fatalf("retained %d diagnostics, expected bounded/truncated diagnostics for rejected rows (%d)",
 			len(report.Errors), invalidSeedRows)
 	}
 
-	perError := float64(retainedBytes) / float64(len(report.Errors))
-	limitRows := float64(10<<20) / 14.0 // 14-byte rows fill the 10 MiB allowance
-	t.Logf("F-03 residual retention measurement")
-	t.Logf("  seed size:                      %d bytes (%d rows, all rejected)", seedBytes, invalidSeedRows)
-	t.Logf("  diagnostics retained:           %d", len(report.Errors))
-	t.Logf("  diagnostics reported at startup: %d", maxSICSeedDiagnostics)
-	t.Logf("  heap retained by the report:    %d bytes (%.1f MiB)", retainedBytes, float64(retainedBytes)/(1<<20))
-	t.Logf("  per retained diagnostic:        %.1f bytes", perError)
-	t.Logf("  extrapolated at the 10 MiB seed limit (~%.0f rows): %.1f MiB retained",
-		limitRows, perError*limitRows/(1<<20))
+	if report.RejectedRows != invalidSeedRows || report.ImportedRows != 0 || report.ValidRows != 0 {
+		t.Fatalf("invalid counts: %+v", report)
+	}
+	count, err := repository.NewSICMappingRepository(db).Count()
+	if err != nil || count != 0 {
+		t.Fatalf("persisted %d mappings: %v", count, err)
+	}
+	t.Logf("F-13 fixed: seed=%d bytes, rejected=%d, retained=%d, heap delta=%d bytes (informational)", seedBytes, report.RejectedRows, len(report.Errors), retainedBytes)
 
 	// runtime.KeepAlive-style guard: the report must still be live at the
 	// second measurement for the delta to mean anything.

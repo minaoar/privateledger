@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -117,8 +118,12 @@ func NewSICMappingManagementService(
 	if admissionTimeout <= 0 {
 		admissionTimeout = defaultSICAdmissionTimeout
 	}
+	// A missing collaborator is a wiring mistake, not a default. Substituting
+	// the no-op here would let a UOW-3 integration error look like successful
+	// recategorization; callers that genuinely want the checkpoint behaviour
+	// pass NewNoopSICRecategorizationCollaborator() explicitly.
 	if collaborator == nil {
-		collaborator = NewNoopSICRecategorizationCollaborator()
+		panic("service: SICMappingService requires an explicit recategorization collaborator")
 	}
 	return &SICMappingService{
 		sicRepo:          sicRepo,
@@ -490,6 +495,9 @@ func (s *SICMappingService) CreateMapping(ctx context.Context, input model.SICMa
 	if existing != nil {
 		return nil, model.ErrSICMappingDuplicate
 	}
+	if err := ensureActive(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.sicRepo.Create(candidate); err != nil {
 		return nil, err
 	}
@@ -500,6 +508,8 @@ func (s *SICMappingService) CreateMapping(ctx context.Context, input model.SICMa
 		affected = []model.SICCode{candidate.SICCode}
 	}
 	s.runPostCommit(affected, &result.RecategorizedRows, &result.PostCommitWarnings)
+	logSavedOutcome(ctx, "create_sic_mapping",
+		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
 }
 
@@ -535,6 +545,9 @@ func (s *SICMappingService) UpdateMapping(ctx context.Context, id int, input mod
 			return nil, model.ErrSICMappingDuplicate
 		}
 	}
+	if err := ensureActive(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.sicRepo.Update(candidate); err != nil {
 		return nil, err
 	}
@@ -550,6 +563,8 @@ func (s *SICMappingService) UpdateMapping(ctx context.Context, id int, input mod
 		affected = []model.SICCode{candidate.SICCode}
 	}
 	s.runPostCommit(affected, &result.RecategorizedRows, &result.PostCommitWarnings)
+	logSavedOutcome(ctx, "update_sic_mapping",
+		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
 }
 
@@ -562,11 +577,16 @@ func (s *SICMappingService) DeleteMapping(ctx context.Context, id int) (*model.S
 	}
 	defer release()
 
+	if err := ensureActive(ctx); err != nil {
+		return nil, err
+	}
 	if err := s.sicRepo.Delete(id); err != nil {
 		return nil, err
 	}
 	result := &model.SICMappingMutationResult{MappingCommitted: true}
 	s.runPostCommit(nil, &result.RecategorizedRows, &result.PostCommitWarnings)
+	logSavedOutcome(ctx, "delete_sic_mapping",
+		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
 }
 
@@ -576,6 +596,21 @@ func (s *SICMappingService) DeleteMapping(ctx context.Context, id int) (*model.S
 //
 // A reload failure skips recategorization: handing codes to a collaborator
 // working from stale rules would categorize against the pre-change state.
+// logSavedOutcome records a durable result whose caller has disconnected.
+// Without this the only record of a committed change would be a response
+// nobody received. Only counts and safe outcome fields are logged - never
+// uploaded rows, descriptions, or financial data.
+func logSavedOutcome(ctx context.Context, operation string, attrs ...any) {
+	if ctx.Err() == nil {
+		return
+	}
+	slog.Warn("SIC mapping change committed but the response could not be delivered",
+		append([]any{
+			slog.String("operation", operation),
+			slog.Bool("mapping_committed", true),
+		}, attrs...)...)
+}
+
 func (s *SICMappingService) runPostCommit(affected []model.SICCode, recategorized *int, warnings *[]string) {
 	if err := s.collaborator.ReloadMappings(); err != nil {
 		*warnings = append(*warnings,
@@ -592,6 +627,16 @@ func (s *SICMappingService) runPostCommit(affected []model.SICCode, recategorize
 		return
 	}
 	*recategorized = count
+}
+
+// ensureActive reports whether the caller is still waiting for this result.
+// It is checked at phase boundaries after any blocking read, so work that was
+// abandoned while waiting on a database connection does not go on to mutate.
+func ensureActive(ctx context.Context) error {
+	if ctx.Err() != nil {
+		return model.ErrSICMappingCancelled
+	}
+	return nil
 }
 
 func sameCategoryID(a, b *int) bool {
@@ -712,6 +757,13 @@ func (s *SICMappingService) MergeUpload(ctx context.Context, reader io.Reader) (
 		return &model.SICMappingImportResult{SICMappingImportReport: *report}, nil
 	}
 
+	// Validation consumes the whole upload, so re-check before doing anything
+	// with side effects. A caller who gave up during validation must not leave
+	// a backup file behind.
+	if err := ensureActive(ctx); err != nil {
+		return nil, err
+	}
+
 	result := &model.SICMappingImportResult{SICMappingImportReport: *report}
 
 	// One snapshot serves both the diff and the backup, so a backup failure
@@ -727,6 +779,10 @@ func (s *SICMappingService) MergeUpload(ctx context.Context, reader io.Reader) (
 	}
 
 	created, updated, unchanged, affected := diffSICMappings(previous, candidates)
+
+	if err := ensureActive(ctx); err != nil {
+		return nil, err
+	}
 
 	if backupPath, backupErr := s.writeBackup(preState); backupErr != nil {
 		result.BackupWarning = fmt.Sprintf("Existing mappings could not be backed up: %v", backupErr)
@@ -746,6 +802,12 @@ func (s *SICMappingService) MergeUpload(ctx context.Context, reader io.Reader) (
 	result.UnchangedRows = unchanged
 
 	s.runPostCommit(affected, &result.RecategorizedRows, &result.PostCommitWarnings)
+	logSavedOutcome(ctx, "merge_sic_mappings",
+		slog.Int("created_rows", result.CreatedRows),
+		slog.Int("updated_rows", result.UpdatedRows),
+		slog.Int("unchanged_rows", result.UnchangedRows),
+		slog.Bool("backup_written", result.BackupPath != ""),
+		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
 }
 

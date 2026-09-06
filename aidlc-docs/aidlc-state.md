@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-08-17T05:48:26Z
-- **Current Stage**: CONSTRUCTION - UOW-2 Code Generation Part 3 (independent review gate)
+- **Current Stage**: CONSTRUCTION - UOW-2 Code Generation Part 3 (independent RE-review of Revision 2)
 - **Branch**: support-mcc-for-category
 
 ## Workspace State
@@ -67,10 +67,10 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-2 — SIC Mapping Management
-- **Current Stage**: Code Generation Part 3 — independent review and test authorship required in a different provider session
-- **Last Completed**: UOW-2 Code Generation Part 2 production implementation, committed as `ee24446` (2026-09-06). Plan approved by the user ("approved").
-- **Next Step**: Run the independent review and test authorship in a different provider session using `aidlc-docs/construction/sic-mapping-management/code/independent-review-handoff.md`. Production for UOW-2 was authored by Claude, so Claude cannot close this gate. Three pre-existing UOW-1 tests fail against deliberately changed behavior and need independent adjudication.
-- **Status**: UOW-2 production code is implemented against the approved design: constructor-injected five-second admission gate (capacity-one channel, no config.json field), bounded multipart intake using the shared 10 MiB constant with temporary-file cleanup, one pre-state snapshot feeding both diff and backup, prepared atomic `INSERT ... ON CONFLICT` merge, exclusive-creation 0600 backup with checked write/flush/close and partial cleanup, 50-entry diagnostic cap with an independent row-validity flag and `DiagnosticsTruncated`, and saved-state/committed-with-warning result semantics. `gofmt`, `go build`, `go vet`, and `git diff --check` pass. Production smoke verification on an isolated port confirmed page render, CRUD status mapping, numeric ordering, merge counts, omission preservation, idempotency, header-only no-op, backup mode and collision resistance, the 80-invalid-row validity case, and 413 on oversized upload. No verification test was authored: all UOW-2 test ownership belongs to the independent provider session. Three pre-existing UOW-1 tests fail because they assert behavior the approved design replaces (driver-text uniqueness matching, and two that assert the unbounded diagnostic retention F-13 closes); no test file was modified. F-13, F-14, F-15, and F-16 corrections are implemented and pending independent verification; F-04 and F-05 remain deferred.
+- **Current Stage**: Code Generation Part 3 — Revision 1 reviewed BLOCKED; Revision 2 production fixes complete and awaiting independent re-review
+- **Last Completed**: UOW-2 production Revision 2 addressing all eight independent findings U2-F01 through U2-F08 (2026-09-06). Revision 1 was `ee24446`.
+- **Next Step**: Independent re-review of Revision 2 in a different provider session, using the Re-Review Request appended to `aidlc-docs/construction/sic-mapping-management/code/independent-review-handoff.md`. Claude authored production and cannot close this gate.
+- **Status**: Independent review of Revision 1 (`ee24446`) returned BLOCKED with eight open findings (six Medium, two Low) and five failing tests. The independent role also corrected the three superseded UOW-1 tests with justification and authored six new test files plus property and benchmark coverage; PERF-01 measured a 1.404 s median against the 10 s target, and no data races were found. Production Revision 2 has addressed all eight findings: cross-field upload file counting, buffered download so an export failure returns 500, cancellation checks at service phase boundaries, rejection of nil collaborator wiring, unknown-outcome reporting on transport failure, removal of timed reloads that discarded backup paths and warnings, typed SQLite result-code classification, and logging of committed outcomes whose response could not be delivered. `gofmt`, `go build`, `go vet`, the short suite, the full long suite, and `-race` all pass; the five previously failing tests pass unmodified and no test file was edited by production. Revision 1 verification gaps 1-5 remain open, including the writer/closer seam for a real backup Close fault. F-04 and F-05 remain deferred.
 
 ## Notes
 - Production code and verification tests have mandatory cross-provider ownership. Each role runs in a separate session, the handoff is manual and artifact-based, and the independent review must report PASS before Code Generation completes.

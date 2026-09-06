@@ -1148,3 +1148,29 @@ batch would make legacy database startup fail before the column migration ran.
 **Context**: CONSTRUCTION / UOW-2 SIC Mapping Management / Code Generation Part 2 — production revision pinned for independent review
 
 ---
+
+## UOW-2 Code Generation Part 3 — Independent Review Result (Revision 1)
+**Timestamp**: 2026-09-06T07:20:00Z
+**User Input**: "check the Review report (aidlc-docs/construction/sic-mapping-management/code-review/independent-review.md)"
+**Independent Provider**: OpenAI / GPT-6 (Codex), independent review/test role — a separate provider from the Claude production session, satisfying the cross-provider ownership rule.
+**Reviewed Revision**: `ee24446e669c6892f73cd3448776c9f95a2d1e58`
+**Gate**: BLOCKED (FAIL)
+**Findings**: 0 Blocking, 0 High, 6 Medium (U2-F01 extra uploaded files under another field accepted; U2-F02 database export failure returned a successful empty download; U2-F03 missing pre-persistence cancellation checks; U2-F04 nil collaborator silently became a successful no-op; U2-F05 network errors invited blind mutation retries; U2-F06 automatic reload discarded warnings and backup paths), 2 Low (U2-F07 repository classification matched driver message strings and MergeAll boundaries bypassed the classifier; U2-F08 saved outcomes on disconnected requests were not logged).
+**Independent Test Work**: Six new test files across service, repository, handler, and cmd; rapid property coverage with replay seed 20260906; the approved PERF-01 benchmark measuring a 1.404 s median against the 10 s target on the recorded UOW-1 reference environment; a 1,000-row embedded page render for SCALE-01; no data races under `-race`.
+**Existing Tests Adjudicated**: The independent role confirmed and corrected the three superseded UOW-1 tests that production had reported rather than edited — the driver-text uniqueness assertion now uses `errors.Is(err, model.ErrSICMappingDuplicate)`, and both diagnostic-volume tests now require 50 retained diagnostics with `DiagnosticsTruncated` while preserving the 100,000 rejected-row, zero-imported, zero-persisted assertions. Production's reading of all three was upheld.
+**Verification Gaps Recorded**: real `writeBackup` Close fault not injected; no browser available for interactive usability; no exhaustive injected prepare/commit/cleanup failure matrix; no boundary test for a timer expiring simultaneously with gate release; UOW-3 integration out of scope.
+**Context**: CONSTRUCTION / UOW-2 / Code Generation Part 3 — gate BLOCKED, all findings returned to the production role
+
+---
+
+## UOW-2 Code Generation Part 3 — Production Revision 2
+**Timestamp**: 2026-09-06T07:40:00Z
+**User Input**: "(no user input — production role resolving independent findings)"
+**AI Response**: "Reproduced all five failing tests before changing anything, confirmed each of the eight findings against the approved artifacts, and fixed all eight in production. U2-F01: upload now counts file parts across every form file field. U2-F02: download renders into a buffer so a repository failure returns 500 instead of a successful empty attachment — the original comment claiming headers were already committed was wrong. U2-F03: added `ensureActive` phase-boundary checks before each write and, in merge, after validation and before the backup. U2-F04: `NewSICMappingManagementService` now panics on a nil collaborator rather than substituting the no-op. U2-F05: the three fetch catch paths report an unknown outcome and direct the user to refresh and check before retrying. U2-F06: removed every timed reload, added an explicit refresh control so results persist until dismissed, and surfaced `backup_path` on the failed-merge branch. U2-F07: classification now uses the driver's typed `*sqlite.Error` result codes and MergeAll routes BeginTx/Prepare/Close/Commit through the same classifier. U2-F08: added `logSavedOutcome` for committed changes whose response cannot be delivered."
+**Production Files Modified**: `internal/service/sic_mapping_service.go`, `internal/handler/sic_mapping_handler.go`, `internal/repository/sic_mapping_repo.go`, `cmd/privateledger/web/templates/sic_mappings.html`
+**Verification**: `gofmt -l ./cmd ./internal` clean; `go build ./...` and `go vet ./...` pass; `go test -short -count=1 ./...` all packages pass; full `go test -count=1 ./...` including long tests all pass; `go test -race -short -count=1 ./...` all pass with no data races. The five previously failing top-level tests pass unmodified. Smoke re-verified on an isolated port: page 200, download 200, create 201, upload 200, and a second file under `other` rejected with 400.
+**Ownership**: No test file, fixture, test-only dependency, or the independent review artifact was modified by the production role.
+**Open**: Revision 1 verification gaps 1-5 remain, including the writer/closer seam for a real backup Close fault, which the review assigns to production only if judged necessary. F-04 and F-05 remain deferred.
+**Status**: Revision 2 complete; independent re-review required in a different provider session before the gate can close.
+
+---

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -112,14 +113,21 @@ func (h *SICMappingHandler) Delete(c *gin.Context) {
 // Download streams the authoritative mapping set as a CSV attachment.
 // GET /api/sic-mappings/download
 func (h *SICMappingHandler) Download(c *gin.Context) {
-	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", `attachment; filename="sic_mappings.csv"`)
-	if err := h.sicMappingService.ExportCSV(c.Writer); err != nil {
-		// Headers are already committed, so the status cannot be changed here.
-		// Log through Gin's error trail rather than emitting a misleading body.
-		_ = c.Error(err)
+	// Render into a buffer first. Writing straight to the response would
+	// commit a 200 and an attachment before a repository failure surfaced,
+	// so a failed export would download as an empty but apparently valid
+	// backup file. A valid empty export still carries the header row.
+	var buf bytes.Buffer
+	if err := h.sicMappingService.ExportCSV(&buf); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to export SIC mappings. No file was produced.",
+			"code":  "internal_error",
+		})
 		return
 	}
+
+	c.Header("Content-Disposition", `attachment; filename="sic_mappings.csv"`)
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
 }
 
 // Upload merges an uploaded mapping CSV into the existing mappings.
@@ -152,10 +160,17 @@ func (h *SICMappingHandler) Upload(c *gin.Context) {
 	}
 	defer h.cleanupMultipart(c)
 
+	// Count parts across every file field, not just "file". Checking only the
+	// expected field would silently accept a request carrying additional
+	// uploads under other names.
+	totalFiles := 0
+	for _, parts := range c.Request.MultipartForm.File {
+		totalFiles += len(parts)
+	}
 	files := c.Request.MultipartForm.File["file"]
-	if len(files) != 1 {
+	if totalFiles != 1 || len(files) != 1 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Exactly one CSV file must be uploaded in the \"file\" field",
+			"error": "Exactly one CSV file must be uploaded, in the \"file\" field",
 			"code":  "invalid_request",
 		})
 		return
