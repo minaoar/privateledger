@@ -56,7 +56,7 @@
 - [x] NFR Requirements — COMPLETED FOR UOW-2 (approved 2026-09-06)
 - [x] NFR Design — COMPLETED FOR UOW-2 (approved 2026-09-06)
 - [ ] Infrastructure Design — SKIP
-- [x] Code Generation — COMPLETED FOR UOW-2 (independent gate PASS; approved 2026-09-06)
+- [x] Code Generation — COMPLETED FOR UOW-2 (independent gate PASS at Revision 3 after post-gate field defect U2-F09)
 
 #### UOW-3 — Transaction Categorization Integration
 - [ ] Functional Design — IN PROGRESS
@@ -75,7 +75,7 @@
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-3 — Transaction Categorization Integration
 - **Current Stage**: UOW-3 Functional Design — not yet started
-- **Last Completed**: UOW-2 Code Generation approved by the user on 2026-09-06 after the independent gate returned PASS on Revision 2 (`1c37d22`), with Revision 3 closing the Low finding U2-R2-F01.
+- **Last Completed**: UOW-2 post-gate field defect U2-F09 fixed and independently re-reviewed PASS at Revision 3 (`88213dc`) on 2026-09-06.
 - **Next Step**: UOW-3 — Transaction Categorization Integration. Begin Functional Design planning, then NFR Requirements, NFR Design, and Code Generation. Build and Test follows all three units.
 - **Status**: UOW-2 Code Generation gate is CLOSED. Independent review (OpenAI/Codex, separate provider) reviewed Revision 1 `ee24446` as BLOCKED with eight findings, then Revision 2 `1c37d22` as PASS with all eight RESOLVED and no Blocking, High, or Medium finding remaining. The single Low finding U2-R2-F01, a stale constructor comment contradicting the nil-collaborator contract, was fixed in Revision 3. Full suite, long tests, and `-race` pass across all seven packages with zero data races. PERF-01 measured a 1.4255 s median against the 10 s target; SCALE-01 verified at 1,000 rows; rapid properties replay at seed 20260906. Five verification limitations are recorded and adjudicated as non-blocking by the independent role, including no injected `os.File.Close` fault in `writeBackup` (no production seam advised) and no live browser for visual/keyboard checks. F-13/F-14/F-15/F-16 are verified corrected; F-04 and F-05 remain deferred.
 

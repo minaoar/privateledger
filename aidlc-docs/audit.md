@@ -1233,3 +1233,18 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: Fixed. UOW-2 requires an independent re-review pass covering this change before the unit is considered closed again. UOW-3 Functional Design remains paused with its six questions unanswered.
 
 ---
+
+## UOW-2 Revision 3 — Independent Re-Review Result and Hygiene Fix
+**Timestamp**: 2026-09-06T09:30:00Z
+**User Input**: "review done. check"
+**Independent Provider**: OpenAI / GPT-6 (Codex), independent review/test role.
+**Reviewed Revision**: `88213dc45cc0bab199d1ac5ac49e1fd91adecf02`
+**Gate**: PASS
+**Finding Resolved**: U2-F09 (High) — the delete confirmation resolved to `app.js`'s global `confirmDelete` instead of the page's, so the UI could not delete at all. The independent role classified it High on user impact, confirmed the page-specific rename resolves it, and added regression `TestReviewU2DeleteHandlerIsNotShadowedBySharedScript` at `cmd/privateledger/sic_mapping_page_review_test.go:87`, which reads both embedded sources, extracts the actual confirmation handler name, and fails if the shared script declares the same global.
+**Independent Root-Cause Acknowledgement**: The review records that the Revision 2 miss was an independent-review coverage gap, not an API or logging failure — handler and service tests exercised the Go endpoint directly, and the rendered-page test asserted markup without executing scripts or comparing page function names against shared globals.
+**Verification Reported**: Targeted regression and page tests PASS on the pinned revision; `go test -count=1 ./...` PASS including long tests; `go test -race -short -count=1 ./...` PASS with no data races. Browser remained unavailable.
+**Additional Production Hygiene Fix (this session)**: `.gitignore` did not cover the SIC mapping backups UOW-2 introduced, although it already ignores `*.db`, `config.json`, and `server.log` — every other local runtime artifact the app writes beside its binary. Because `main.go` uses the executable directory as the data directory, a user running the app from a checkout accumulates `sic_mappings.backup-*.csv` files holding their real category mappings, retained indefinitely by approved design (NFR-U2-REL-02 / Q4 B). One such 66 KB file containing real mappings was present untracked in the repository root. Verified via `git log --all --diff-filter=A` that no backup file was ever committed. Added `sic_mappings.backup-*.csv` to `.gitignore`; the existing file is now ignored and was left in place because it is the user's data, not a build artifact.
+**Scope Note**: The `.gitignore` change alters no runtime behavior and no production Go, template, or SQL file, so it does not reopen the behavioral gate.
+**Status**: UOW-2 Code Generation is complete with the independent gate PASS at Revision 3. UOW-3 Functional Design remains paused with its six questions unanswered.
+
+---

@@ -1,11 +1,12 @@
 # Independent Review — UOW-2 SIC Mapping Management
 
-## Gate: PASS — Revision 2
+## Gate: PASS — Revision 3
 
-Review date: 2026-09-06. Revision 2 passes the independent Code Generation Part 3 gate.
-All required tests pass and no Blocking or High finding remains. The original Revision 1
-review is retained below as historical evidence; the current decision and resolution record
-are in the Revision 2 section at the end. No production file was modified by this review.
+Review date: 2026-09-06. Revision 3 passes the independent Code Generation Part 3 gate after
+correcting the field-reported delete interaction defect U2-F09. All required tests pass and no
+Blocking or High finding remains. Earlier review sections are retained as historical evidence;
+the current decision and resolution record are at the end. No production file was modified by
+this review.
 
 ## Revision 1 Identity and Revision (Historical)
 
@@ -478,3 +479,84 @@ clean, and there is no unresolved Blocking or High finding. U2-R2-F01 is a Low d
 for the production provider and does not change the executable contract.
 
 **Final status: PASS (Revision 2 independent gate).**
+
+---
+
+# Post-Gate Field Finding and Revision 3 Re-Review
+
+## Field Finding U2-F09 — High: delete confirmation called the wrong global function
+
+Affected production revision: `8f51c4b` and the underlying Revision 2 template.
+
+Locations before the fix:
+
+- `cmd/privateledger/web/templates/sic_mappings.html:156,298`
+- `cmd/privateledger/web/static/js/app.js:59–61`
+- `cmd/privateledger/web/templates/layout.html:87–95`
+
+The SIC mapping page used the global name `confirmDelete` for its async function that sends
+`DELETE /api/sic-mappings/:id`. The shared `app.js`, loaded after the page content, declares a
+second global `confirmDelete` that only calls the browser's native `confirm()`. That later
+declaration replaced the page function.
+
+The observed sequence follows directly:
+
+1. The mapping page opened its Bootstrap delete modal.
+2. Its Delete button resolved `confirmDelete()` to the shared helper, causing a second native
+   confirmation prompt.
+3. The shared helper returned a boolean to a `type="button"` inline handler. It never issued the
+   fetch request, so the mapping remained and no page error appeared.
+4. No server or request log existed because no HTTP DELETE reached the application. No JavaScript
+   catch path ran either, because the wrong function executed successfully.
+
+- Trace: US-04 deletion acceptance path; NFR-U2-UX-01; NFR-U2-TEST-01/04.
+- Severity rationale: the dedicated UI could not perform deletion at all, although the service and
+  HTTP API remained correct.
+- Status on Revision 2: OPEN and gate-invalidating.
+
+## Why Revision 2 Tests Missed It
+
+The handler and service deletion tests called the Go endpoint directly. They established correct
+delete persistence, not browser event dispatch. The rendered-page test asserted that the button,
+modal, labels, escaping, ordering, and feedback code existed, but it did not execute scripts or
+compare page-level function names with globals from the shared script. The browser runtime was
+unavailable during Revision 2 review and that limitation was recorded, but source inspection also
+failed to perform this cross-file collision check. That was an independent-review coverage gap,
+not an API logging failure.
+
+## Revision 3 Resolution
+
+Production revision reviewed: `88213dc45cc0bab199d1ac5ac49e1fd91adecf02`.
+
+`cmd/privateledger/web/templates/sic_mappings.html:156,302` now uses the page-specific name
+`confirmDeleteMapping`. The shared helper remains `confirmDelete`, so loading `app.js` afterward no
+longer changes the button's target. The change is narrow and preserves the existing modal, request,
+response, warning, and refresh behavior.
+
+The independent regression `TestReviewU2DeleteHandlerIsNotShadowedBySharedScript` in
+`cmd/privateledger/sic_mapping_page_review_test.go:87` reads both embedded sources, extracts the
+actual confirmation button handler, verifies that the page defines it as an async function, and
+fails if the shared script declares the same global. This checks the integration boundary that the
+Revision 2 static render test omitted.
+
+The test content was authored in this independent provider session before Revision 3 was pinned.
+The production commit incorporated the shared working-tree test along with the production rename;
+the independent role did not edit the template or other production files.
+
+## Revision 3 Verification
+
+| Command | Result |
+|---|---|
+| `go test ./cmd/privateledger -run '^(TestReviewU2DeleteHandlerIsNotShadowedBySharedScript\|TestReviewU2PageScaleAndEscaping)$' -count=1 -v` | PASS on pinned Revision 3 |
+| `go test -count=1 ./...` | PASS; service package including long tests completed in 39.105 s |
+| `go test -race -short -count=1 ./...` | PASS for all packages; no data race report |
+| Browser connection/discovery | Unavailable; runtime returned no available browser sessions |
+
+## Revision 3 Gate Decision
+
+U2-F09 is RESOLVED. The regression test covering the exact global-name collision passes, the full
+and race suites pass, and no unresolved Blocking or High finding remains. The inability to run a
+live browser remains a test-environment limitation, with the cross-file integration contract now
+pinned independently.
+
+**Final status: PASS (Revision 3 independent gate).**
