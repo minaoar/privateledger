@@ -53,7 +53,7 @@ The unit is complete when SIC data survives import and database round trips, mig
 
 ### Outcome
 
-Users can safely manage, download, and atomically replace SIC mappings through a dedicated local configuration workflow.
+Users can safely manage, download, and atomically merge SIC mappings through a dedicated local configuration workflow.
 
 ### Responsibilities
 
@@ -63,9 +63,9 @@ Users can safely manage, download, and atomically replace SIC mappings through a
 - Provide the dedicated SIC mapping page and REST endpoints.
 - Expose current categories through `SICMappingService.GetPageData` so handlers do not bypass the service layer.
 - Export valid `sic_mappings.csv`, including headers when no mappings exist.
-- Validate an entire uploaded file before mutation, back up current mappings beside the database, and atomically replace mappings.
+- Validate an entire uploaded file before mutation, attempt to back up current mappings beside the database, and atomically merge new/matching codes without deleting omitted mappings.
 - Reload mapping caches and request SIC-scoped recategorization for affected non-empty post-upload mappings through the categorization contract implemented by UOW-3.
-- Add CRUD, validation, CSV round-trip, backup, atomic overwrite, and handler tests.
+- Add CRUD, validation, CSV round-trip, backup-outcome, atomic merge/upsert, and handler tests.
 
 ### Primary Components
 
@@ -81,11 +81,11 @@ Users can safely manage, download, and atomically replace SIC mappings through a
 - US-04 — Manage SIC mappings in a separate configuration page
 - US-05 — Prevent duplicate SIC mappings
 - US-10 — Download current SIC mappings
-- US-11 — Upload SIC mappings and overwrite existing mappings
+- US-11 — Upload SIC mappings and merge with existing mappings
 
 ### Completion Boundary
 
-The unit is complete when mapping administration works through service-mediated APIs/UI, CSV overwrite is all-or-nothing with a durable backup, and resulting mapping changes can invoke the categorization integration contract. Transaction modal behavior is excluded from this unit.
+The unit is complete when mapping administration works through service-mediated APIs/UI, CSV merge is validate-before-mutate and atomic, backup success or failure is clearly reported, and resulting mapping changes can invoke the categorization integration contract. Transaction modal behavior is excluded from this unit.
 
 ## UOW-3 — Transaction Categorization Integration
 

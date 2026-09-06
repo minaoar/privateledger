@@ -46,7 +46,7 @@ On first startup with the SIC feature, the application must check for an existin
 - The import must be idempotent and safe to run repeatedly: repeated startups must never duplicate, revert, or overwrite existing mappings.
 - User edits after import live in SQLite and are authoritative. The file on disk goes stale as soon as the user edits mappings in the UI, so it must never be re-applied over those edits on a later startup.
 - The mapping file acts as an import/export interchange format, not the only runtime source of truth.
-- The mapping file format is CSV with columns: `SIC_Code`, `Description`, `Description_Detail`, `Category_Name`, and `Category_ID`. There is no internal/import ID column — internal primary keys serve no purpose in an interchange file and are reassigned on overwrite anyway.
+- The mapping file format is CSV with columns: `SIC_Code`, `Description`, `Description_Detail`, `Category_Name`, and `Category_ID`. There is no internal/import ID column — normalized SIC code is the interchange identity and internal primary keys serve no purpose in the file.
 - Category references resolve by `Category_Name` first, with `Category_ID` as a tiebreaker/hint. Rows where the two disagree must be rejected. Resolving by ID alone is unsafe: a category that was deleted and recreated leaves a stale ID that still resolves to a valid but wrong category, so an upload would silently mis-map every affected row.
 - `Description` and `Description_Detail` are stored with SIC mappings for display/help text.
 
@@ -90,7 +90,7 @@ The page should support at minimum:
 - Selecting the target user-defined category, or leaving the category empty to intentionally avoid SIC-based categorization for that code.
 - Showing all current categories from the Categories page as mapping targets, including categories created or updated after application startup.
 - Downloading the current SIC-to-category mappings as `sic_mappings.csv`.
-- Uploading a CSV SIC-to-category mapping file that overwrites the existing mappings in SQLite.
+- Uploading a CSV SIC-to-category mapping file that atomically adds new mappings and updates matching mappings in SQLite without deleting codes omitted from the file.
 
 ### FR10 — Show SIC in transaction categorization modals
 The Transactions table should not add a prominent new SIC column.
@@ -134,7 +134,14 @@ Recommended minimum endpoints:
 - `GET /api/sic-mappings/download`
 - `POST /api/sic-mappings/upload`
 
-API responses should include joined category display fields where useful. Upload must validate the entire mapping file before replacing existing mappings.
+API responses should include joined category display fields where useful. Upload must validate the entire mapping file before atomically merging it into existing mappings.
+
+Upload merge rules:
+- New normalized SIC codes are inserted.
+- Existing normalized SIC codes are overwritten with the uploaded row values.
+- Existing database codes omitted from the CSV remain unchanged; deletion requires an explicit delete action.
+- A header-only CSV is a valid no-op.
+- The service attempts a timestamped pre-upload backup. Backup failure does not block the merge, but the response must prominently report the warning and omit the backup path.
 
 ### FR14 — Re-categorization after SIC mapping changes
 When a SIC mapping is created or updated from the dedicated SIC mapping page or file upload:
@@ -178,7 +185,7 @@ No global state or singleton should be introduced.
 Startup migration and optional SIC mapping file import must be safe to run repeatedly. Missing mapping files must not prevent application startup.
 
 ### NFR5 — Testability
-The feature must include example-based tests for parser extraction, repository behavior, categorization priority, migration, mapping file import, mapping file download, and overwrite behavior where practical.
+The feature must include example-based tests for parser extraction, repository behavior, categorization priority, migration, mapping file import, mapping file download, and atomic merge/upsert behavior where practical.
 
 ### NFR6 — Property-based testing partial enforcement
 Property-based testing is partially enabled. Enforced PBT rules are:
@@ -200,7 +207,7 @@ Potential PBT candidates include SIC normalization/validation invariants and ide
 - Separate import history counts for text-pattern vs SIC auto-categorization.
 - Cloud-based SIC/MCC lookup.
 - Non-numeric SIC values from OFX/QFX. Supporting them would require extracting `<SIC>` before `ofxgo` parses the file, since `ofxgo` rejects a non-numeric `<SIC>` for the whole file.
-- Server-side upload preview state. Upload validates and replaces in one request; the browser confirms beforehand.
+- Server-side upload preview state. Upload validates and merges in one request; the browser confirms beforehand.
 - Automatically clearing categories when SIC mappings are deleted.
 
 ## Acceptance Criteria
@@ -215,7 +222,7 @@ Potential PBT candidates include SIC normalization/validation invariants and ide
 8. Existing SIC mapping files are loaded into SQLite when present and the mapping table is empty, skipped when mappings already exist, and ignored safely when absent — so repeated startups never duplicate or revert mappings.
 9. Users can view and manage SIC mappings from a separate configuration page.
 10. Users can download the current CSV mapping file as `sic_mappings.csv`.
-11. Users can upload a CSV mapping file that overwrites existing mappings after validation.
+11. Users can upload a CSV mapping file that atomically adds new mappings and updates matching mappings after validation, without deleting omitted mappings.
 12. All existing and newly created/updated categories are available as mapping targets.
 13. Change Category and Create Categorization Pattern modals show SIC code and description when available.
 14. Modal-created SIC mappings use a selected non-empty category and follow the requested modal behavior.

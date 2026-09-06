@@ -174,13 +174,19 @@ Carries validation and startup diagnostics without mutating persistence.
 | RejectedRows | Rows with one or more errors |
 | Errors | Row number, field/code, and safe diagnostic message |
 | ImportedRows | Zero unless the complete candidate set commits |
-| Outcome | Absent, SkippedExisting, Invalid, Imported, or PersistenceFailed |
+| Outcome | One of the shared `SICMappingImportOutcome` set: Absent, SkippedExisting, Invalid, Oversized, Validated, Imported, ReadFailed, PersistenceFailed, or Merged |
 
 ### Invariants
 
 - Any rejected row makes `ImportedRows = 0` for startup seeding.
 - Diagnostics do not contain full financial transaction data.
 - A valid report does not imply persistence until atomic commit succeeds.
+
+> **Amendment (2026-09-06, UOW-2 Functional Design)**: the outcome list above previously named five
+> values while the UOW-1 implementation declared eight, recorded as independent review finding F-16.
+> The list is now the single shared set used by both units. `Merged` is added by UOW-2's upload path;
+> `Absent` and `SkippedExisting` remain startup-seed-only; `Imported` denotes the insert-only startup
+> seed and is never emitted by upload. See UOW-2 `business-rules.md` BR-U2-42.
 
 ## Repository Contracts
 

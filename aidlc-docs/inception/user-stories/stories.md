@@ -206,21 +206,24 @@ Stories are ordered using the approved hybrid Journey + Feature-Based approach. 
 
 ---
 
-## US-11 — Upload SIC mappings and overwrite existing mappings
+## US-11 — Upload SIC mappings and merge with existing mappings
 
 **As a** Local Personal Finance User,
-**I want** to upload a SIC-to-category mapping file that replaces existing mappings,
+**I want** to upload a SIC-to-category mapping file that adds new mappings and updates matching mappings,
 **so that** I can restore or bulk update mapping configuration efficiently.
 
 **Personas**: Local Personal Finance User
 
 **Acceptance Criteria**:
-- **Given** I select a SIC-to-category CSV mapping file, **when** I choose upload, **then** I confirm the overwrite before anything is sent, and the app then validates and replaces in a single request.
-- **Given** a valid upload, **when** overwrite runs, **then** a backup of the previous mappings is written beside the database as `sic_mappings.backup-<timestamp>.csv`, its path is reported back to me, and existing mappings in SQLite are replaced by the uploaded mappings.
-- **Given** the uploaded file is invalid, **when** validation runs, **then** existing mappings are not overwritten and I receive a per-row report of what failed.
+- **Given** I select a SIC-to-category CSV mapping file, **when** I choose upload, **then** I confirm the import/update before anything is sent, and the app then validates and merges in a single request.
+- **Given** a valid upload, **when** merge runs, **then** new codes are inserted, matching codes are updated, and database codes omitted from the file remain unchanged.
+- **Given** the uploaded file contains only the required header, **when** merge runs, **then** it succeeds as a no-op and does not delete mappings.
+- **Given** the uploaded file is invalid, **when** validation runs, **then** existing mappings are not changed and I receive a per-row report of what failed.
+- **Given** an upload is ready to merge, **when** backup succeeds, **then** its path is reported; if backup fails, **then** the merge may continue but the result prominently reports the backup warning.
 - **Given** the uploaded file contains duplicate SIC codes, **when** validation runs, **then** the upload is rejected.
 - **Given** the uploaded file references categories by `Category_Name` with `Category_ID` as a tiebreaker, **when** validation runs, **then** valid resolvable references and omitted category values are accepted, and rows where name and ID disagree are rejected.
 - **Given** the uploaded file contains a SIC entry with an omitted category, **when** the upload succeeds, **then** matching transactions are not categorized by SIC for that entry.
+- **Given** a mapping is absent from the uploaded file, **when** the upload succeeds, **then** that mapping remains until I explicitly delete it.
 
 **Requirement Mapping**: FR8, FR9, FR11, FR13
 
@@ -258,7 +261,7 @@ Stories are ordered using the approved hybrid Journey + Feature-Based approach. 
 
 **Acceptance Criteria**:
 - **Given** the feature is implemented, **when** code is reviewed, **then** dependencies still follow handler → service → repository → SQLite layering.
-- **Given** parser, repository, categorizer, migration, mapping file import/export, and overwrite behavior exist, **when** tests run, **then** key scenarios are covered by example-based tests.
+- **Given** parser, repository, categorizer, migration, mapping file import/export, and merge/upsert behavior exist, **when** tests run, **then** key scenarios are covered by example-based tests.
 - **Given** SIC validation/normalization and idempotent mapping file import have clear properties, **when** property-based tests are feasible, **then** partial PBT expectations are addressed with an appropriate Go PBT framework or documented rationale.
 - **Given** implementation is complete, **when** `go test ./...` runs, **then** all tests pass.
 

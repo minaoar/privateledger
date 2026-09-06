@@ -57,9 +57,9 @@ Updates SIC code, descriptions, and nullable category.
 ### `SICMappingRepository.Delete(id int) error`
 Deletes one mapping.
 
-### `SICMappingRepository.ReplaceAll(mappings []*model.SICMapping) error`
-Atomically replaces all mappings for upload overwrite, inside a single `database/sql` transaction
-(delete-all then insert-all, commit or rollback).
+### `SICMappingRepository.MergeAll(mappings []*model.SICMapping) (*SICMappingMergeCounts, error)`
+Atomically inserts new normalized SIC codes and updates matching codes inside one `database/sql`
+transaction. Codes omitted from the input remain unchanged; a header-only input is a no-op.
 
 ### `SICMappingRepository.Count() (int, error)`
 Returns mapping count. Its specific purpose is gating the startup CSV import: the import runs only
@@ -166,14 +166,14 @@ reachable through every upload.
 A single rejected row fails the whole upload (nothing is mutated) — the exact reporting format is
 deferred to Functional Design.
 
-### `(*SICMappingService) ReplaceFromCSV(r io.Reader) (*SICMappingImportResult, error)`
-One-request overwrite: calls `ValidateCSV`, aborts on any validation failure, writes a backup via
-`ExportCSV` to `sic_mappings.backup-<timestamp>.csv` in the application data directory, calls
-`SICMappingRepository.ReplaceAll`, reloads SIC mappings, diffs the pre- and post-overwrite mapping
-sets to derive the affected SIC codes, runs `Categorizer.RecategorizeBySICCodes(affected)` per FR14,
-and returns the summary including the recategorized count and the backup file path.
+### `(*SICMappingService) MergeFromCSV(r io.Reader) (*SICMappingImportResult, error)`
+One-request merge: calls `ValidateCSV`, aborts on any validation failure, attempts a backup via
+`ExportCSV`, then calls `SICMappingRepository.MergeAll`. It reloads SIC mappings, derives affected
+codes from created or category-changed non-empty mappings, invokes the injected SIC-scoped
+recategorization collaborator, and returns created/updated/unchanged counts, recategorized count,
+and either the backup path or a prominent backup warning.
 
-The pre-overwrite mappings are already in hand from building the backup, so the diff costs no extra
+The pre-upload mappings are already in hand from export/backup preparation, so the diff costs no extra
 query. `RecategorizeAll` must **not** be used here: it would also categorize transactions via text
 patterns and via SIC mappings this upload never touched, which is outside FR14's scope. See
 `services.md` → Affected-code diff for the exact affected/not-affected rules. Replaces the earlier `ReplaceFromPreview(previewID)`, which required a server-side preview
@@ -210,8 +210,8 @@ modal-created mappings are not permanently description-less in the mapping page 
 ### `SICMappingHandler.UploadMappings(c *gin.Context)`
 `POST /api/sic-mappings/upload`
 
-Single-step: validate the entire file, back up, overwrite, reload. Returns a JSON summary
-(counts, rejected rows, backup file path). The browser confirms with the user before POSTing; the
+Single-step: validate the entire file, attempt a backup, atomically merge/upsert, and reload. Returns a JSON summary
+(created/updated/unchanged counts, rejected rows, recategorized count, backup path or warning). The browser confirms with the user before POSTing; the
 server never holds partial upload state. Matches the endpoint list in FR13.
 
 ### `SICMappingHandler.UpsertFromTransaction(c *gin.Context)`

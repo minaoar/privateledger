@@ -21,7 +21,7 @@
 | US-08 — Initialize SIC mappings from an existing mapping file | UOW-1 — SIC Import and Storage | Optional startup seed, empty-table gate, local category resolution | Produces mappings later managed by UOW-2 and consumed by UOW-3 |
 | US-09 — Preserve local-only privacy | UOW-1 — SIC Import and Storage | Establish local-only data and processing boundary | Constraint inherited by UOW-2 and UOW-3 |
 | US-10 — Download current SIC mappings | UOW-2 — SIC Mapping Management | CSV export of authoritative SQLite mappings | Uses UOW-1 persistence/data-directory contract |
-| US-11 — Upload SIC mappings and overwrite existing mappings | UOW-2 — SIC Mapping Management | Whole-file validation, backup, atomic replacement, affected-code handoff | Uses UOW-1 repository; invokes UOW-3 scoped recategorization |
+| US-11 — Upload SIC mappings and merge with existing mappings | UOW-2 — SIC Mapping Management | Whole-file validation, best-effort backup, atomic merge/upsert, affected-code handoff | Uses UOW-1 repository; invokes UOW-3 scoped recategorization |
 | US-12 — Create SIC mappings from transaction categorization modals | UOW-3 — Transaction Categorization Integration | Modal prompts, mapping upsert, rule-source assignment, pattern suppression | Calls UOW-2 service contract |
 | US-13 — Maintain reliable implementation boundaries and tests | UOW-3 — Transaction Categorization Integration | Cross-unit layering, regression suite, concurrency safety, selected PBT | Verifies contracts delivered by all three units |
 
@@ -48,15 +48,15 @@
 | US-04 | FR8, FR9, FR11, FR13, FR14 | Dedicated page lists current mappings/categories; CRUD supports categorized and intentionally unmapped codes; service layer mediates repository access |
 | US-05 | FR8, FR11 | Whitespace normalization; empty/non-digit/overlength rejection; database-backed global uniqueness; empty category accepted |
 | US-10 | FR9, FR13 | Download filename and five-column schema correct; current SQLite state exported; empty database yields header-only CSV |
-| US-11 | FR8, FR9, FR11, FR13 | Browser confirmation precedes request; full validation precedes mutation; duplicates and category conflicts reject whole upload; durable backup path returned; replacement atomic |
+| US-11 | FR8, FR9, FR11, FR13 | Browser confirmation precedes request; full validation precedes mutation; duplicates and category conflicts reject whole upload; backup outcome reported; merge/upsert atomic; omitted mappings retained |
 
 ### UOW-2 Exit Evidence
 
 - CRUD service/repository and API response tests.
 - Exhaustive category name/ID CSV resolution-table tests.
 - CSV export/import round-trip and header-only export tests.
-- Invalid-upload no-mutation and valid-upload atomic replacement tests.
-- Backup creation and returned-path tests.
+- Invalid-upload no-mutation and valid-upload atomic merge/upsert tests, including retention of omitted mappings.
+- Backup success-path and non-blocking warning-path tests.
 
 ## UOW-3 Story Detail — Transaction Categorization Integration
 

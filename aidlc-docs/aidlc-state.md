@@ -43,11 +43,22 @@
 - [x] Units Generation — COMPLETED
 
 ### 🟢 CONSTRUCTION PHASE
+
+#### UOW-1 — SIC Import and Storage
 - [x] Functional Design — COMPLETED FOR UOW-1
 - [x] NFR Requirements — COMPLETED FOR UOW-1
 - [x] NFR Design — COMPLETED FOR UOW-1
 - [ ] Infrastructure Design — SKIP
 - [x] Code Generation — COMPLETED FOR UOW-1
+
+#### UOW-2 — SIC Mapping Management
+- [x] Functional Design — COMPLETED FOR UOW-2 (approved 2026-09-06)
+- [ ] NFR Requirements — EXECUTE
+- [ ] NFR Design — EXECUTE
+- [ ] Infrastructure Design — SKIP
+- [ ] Code Generation — EXECUTE (ALWAYS)
+
+#### After all units
 - [ ] Build and Test — EXECUTE (ALWAYS)
 
 ### 🟡 OPERATIONS PHASE
@@ -56,10 +67,10 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-2 — SIC Mapping Management
-- **Current Stage**: Functional Design — ready to plan for UOW-2
-- **Last Completed**: UOW-1 Code Generation approved on 2026-09-05 after independent Revision 2 gate PASS
-- **Next Step**: Create and present the UOW-2 Functional Design plan for approval
-- **Status**: UOW-1 Code Generation complete; its five non-blocking Low findings (F-04, F-05, F-13, F-14, F-15) are deferred to follow-up work; UOW-2 is ready to begin
+- **Current Stage**: NFR Requirements — UOW-2 Functional Design approved; NFR Requirements not yet started
+- **Last Completed**: UOW-2 Functional Design approved on 2026-09-06 after a consistency pass against the amended requirements and shipped UOW-1 code
+- **Next Step**: Execute NFR Requirements for UOW-2. Carry forward the open input recorded in `business-logic-model.md`: the mutation mutex spans a call into the UOW-3 collaborator, so hold time is unbounded from UOW-2's side and sits above UOW-1's SQLite busy timeout — NFR Design must set timeout/contention handling accordingly.
+- **Status**: UOW-2 Functional Design approved with atomic merge/upsert semantics, explicit-only deletion, best-effort backup, serialized mutations, committed-with-warning results, and a checkpoint no-op recategorization collaborator. Independent review findings F-13, F-14, and F-16 are closed by design amendments (BR-U2-39, BR-U2-40, BR-U2-42); F-04, F-05, and F-15 remain deferred.
 
 ## Notes
 - Production code and verification tests have mandatory cross-provider ownership. Each role runs in a separate session, the handoff is manual and artifact-based, and the independent review must report PASS before Code Generation completes.

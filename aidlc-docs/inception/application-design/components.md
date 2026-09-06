@@ -87,11 +87,11 @@ mapping values to the positive `int64` domain so every mapping code can match pa
 - CRUD mappings.
 - Rely on the schema `UNIQUE` constraint for global SIC uniqueness and translate the constraint violation into a domain error.
 - Support nullable category IDs.
-- Replace all mappings atomically for upload overwrite, inside a single `database/sql` transaction (delete-all + insert-all, commit or rollback).
+- Merge uploaded mappings atomically inside a single `database/sql` transaction (upsert each validated normalized code, commit or rollback); never delete omitted mappings.
 - Query by normalized SIC code for categorization.
 
 **Note**: transactions store `sic_code` as a value, not a foreign key to `sic_mapping`, so
-`ReplaceAll` reassigning mapping primary keys cannot orphan or corrupt transaction rows.
+Merging mappings cannot orphan or corrupt transaction rows.
 
 ### Categorizer Extension Point
 **Location**: `internal/service/categorizer.go`
@@ -128,14 +128,14 @@ mapping values to the positive `int64` domain so every mapping code can match pa
 **Responsibilities**:
 - Create/update/delete SIC mappings.
 - Validate SIC mapping data (normalize, reject empty, reject non-digit characters per FR11, enforce max length).
-- Validate, import, export, and overwrite `sic_mappings.csv`.
-- Write a backup file before overwrite: `sic_mappings.backup-<timestamp>.csv` in the application data directory, returning its path. The backup is a file on disk rather than response bytes, because one HTTP response cannot be both a JSON result and a file attachment — and a disk backup survives the user closing the tab.
-- After a confirmed CSV overwrite, reload mappings, diff the pre/post mapping sets, and re-categorize via `Categorizer.RecategorizeBySICCodes(affected)`. FR14 requires re-categorization for mappings created or updated "from the dedicated SIC mapping page **or file upload**", but scoped to transactions matching those codes — a full `RecategorizeAll` would also categorize transactions via text patterns and via SIC mappings this upload never touched.
+- Validate, import, export, and merge `sic_mappings.csv`.
+- Attempt a backup before merge as `sic_mappings.backup-<timestamp>.csv` in the application data directory. Return its path on success; on failure continue the merge and return a prominent warning with no path.
+- After a confirmed CSV merge, reload mappings, identify created or category-changed non-empty mappings, and re-categorize via `Categorizer.RecategorizeBySICCodes(affected)`. Omitted mappings are unchanged and explicit deletion is the only removal path.
 - Import the optional startup mapping file **only when the mapping table is empty** (`SICMappingRepository.Count() == 0`). An unconditional upsert-on-boot would silently revert every mapping the user edited in the UI the next time the app restarted, since the file on disk is stale by then.
 - Handle modal-driven SIC mapping creation/update.
 - Trigger rule reload/recategorization through `Categorizer` or `SICMappingCategorizer` as needed.
 
-**Upload shape**: validation and replacement happen in a **single request**. An earlier draft used a
+**Upload shape**: validation and merge/upsert happen in a **single request**. An earlier draft used a
 `ValidateCSV → previewID → ReplaceFromPreview` handshake, which would have introduced server-side
 ephemeral state (a preview map needing a TTL, eviction, and leak handling) into an application that
 has no session store and exactly one local user. The browser confirms before POSTing instead; the
@@ -149,7 +149,7 @@ server still validates the whole file before mutating anything.
 **Responsibilities**:
 - Expose CRUD endpoints.
 - Expose download endpoint returning CSV.
-- Expose a single upload endpoint that validates the whole file, backs up, and overwrites.
+- Expose a single upload endpoint that validates the whole file, attempts a backup, and atomically merges it.
 - Depend on `SICMappingService` only. The service already performs the category joins the handler needs, so a direct repository dependency alongside it would give the same data two owners.
 - Coordinate with `SICMappingService` for mapping changes, CSV workflows, and recategorization side effects.
 
@@ -163,7 +163,7 @@ server still validates the whole file before mutating anything.
 - Create/update/delete mappings.
 - Show all current categories as mapping targets.
 - Provide download CSV action.
-- Provide upload CSV action: confirm in the browser, then one POST that validates, backs up, and overwrites; render the returned summary and backup path.
+- Provide an "Import / Update Mappings" CSV action: confirm in the browser, then one POST that validates, attempts a backup, and merges; render created/updated/unchanged counts plus the backup path or warning.
 
 ### Transaction Categorization Modal Enhancements
 **Location**: `cmd/privateledger/web/templates/transactions.html`
@@ -227,10 +227,10 @@ A row carrying `Category_ID` with no `Category_Name` is **rejected**, not resolv
 enforcement of FR4's "resolving by ID alone is unsafe" — without an explicit rejection the unsafe path
 remains reachable on every upload. Enforced in `SICMappingService.ValidateCSV`.
 
-There is **no mapping-ID column** — internal primary keys buy nothing in an interchange file and
-`ReplaceAll` reassigns them anyway.
+There is **no mapping-ID column** — normalized SIC code is the stable interchange identity and
+internal primary keys buy nothing in an interchange file.
 
-**Why not `Category_ID` alone**: upload does a full `ReplaceAll`. If the user deletes and recreates
+**Why not `Category_ID` alone**: if the user deletes and recreates
 categories between download and upload, a stale `Category_ID` still resolves to a valid but *wrong*
 category, so validation passes and every mapping lands on the wrong category silently. Resolving by
 `Category_Name` first, with `Category_ID` as a tiebreaker and rejecting rows where the two disagree,

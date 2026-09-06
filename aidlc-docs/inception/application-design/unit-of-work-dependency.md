@@ -7,7 +7,7 @@
 | UOW-1 — SIC Import and Storage | Existing PrivateLedger architecture | Foundation | Existing transaction import, startup migration, repository, and local-data conventions |
 | UOW-2 — SIC Mapping Management | UOW-1 | Hard | `sic_mapping` schema/model/repository, normalization, category foreign-key semantics, application data directory |
 | UOW-3 — Transaction Categorization Integration | UOW-1 | Hard | Stored transaction `sic_code`, SIC-aware transaction reads, `GetUncategorizedBySICCodes`, migration/index support |
-| UOW-3 — Transaction Categorization Integration | UOW-2 | Hard | Mapping CRUD/read contracts, CSV-overwrite affected-code handoff, reloadable mapping source, modal upsert service contract |
+| UOW-3 — Transaction Categorization Integration | UOW-2 | Hard | Mapping CRUD/read contracts, CSV-merge affected-code handoff, reloadable mapping source, modal upsert service contract |
 
 ## Dependency Direction
 
@@ -72,7 +72,7 @@ UOW-3 provides the recategorization implementation invoked after eligible UOW-2 
 | Shared Component | UOW-1 Responsibility | UOW-2 Responsibility | UOW-3 Responsibility |
 |---|---|---|---|
 | `model.SICMapping` / normalization | Define data and normalization contract | Validate management and CSV input using it | Match transaction codes using it |
-| `SICMappingRepository` | Define schema-backed persistence primitives | Use CRUD and atomic replacement | Supply cached mapping reads |
+| `SICMappingRepository` | Define schema-backed persistence primitives | Use CRUD and atomic merge/upsert | Supply cached mapping reads |
 | `TransactionRepository` | Persist/select SIC and add SIC-scoped query | No direct handler access | Consume scoped query and joined description |
 | `SICMappingService` | Startup import portion | CRUD, page data, CSV import/export/backup | Recategorization and modal integration collaboration |
 | Application wiring | Initialize schema/repositories/startup import | Add page/API handler and routes | Connect categorizer extension and transaction modal routes |

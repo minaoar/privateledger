@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design adds SIC-based categorization while preserving PrivateLedger’s local-only single-binary clean architecture. The existing `Categorizer` remains focused on categorization orchestration, `SICMappingCategorizer` becomes a SIC-specific categorization extension, and `SICMappingService` owns SIC mapping management workflows such as CSV import/export and upload overwrite.
+This design adds SIC-based categorization while preserving PrivateLedger’s local-only single-binary clean architecture. The existing `Categorizer` remains focused on categorization orchestration, `SICMappingCategorizer` becomes a SIC-specific categorization extension, and `SICMappingService` owns SIC mapping management workflows such as CSV import/export and upload merge/upsert.
 
 ## Key Design Decisions
 
@@ -12,7 +12,7 @@ This design adds SIC-based categorization while preserving PrivateLedger’s loc
 - Category references: `Category_Name` is the only resolver; `Category_ID` only confirms it. Rows where name and ID disagree are rejected, **and so is a row carrying `Category_ID` with no `Category_Name`** — ID-only matching is unsafe because a deleted-and-recreated category leaves a stale ID that still resolves to a valid but wrong category. See `component-methods.md` → `ValidateCSV` for the exhaustive rule table.
 - Empty category: omit/empty `Category_ID`; persisted as nullable `category_id`.
 - Startup mapping file location: `sic_mappings.csv` beside `config.json` and `privateledger.db` in the application data directory.
-- Upload overwrite: a single request validates the entire file, writes a timestamped backup CSV beside the database, then atomically replaces all mappings. The browser confirms before POSTing; no server-side preview/token state is introduced.
+- Upload merge: a single request validates the entire file, attempts a timestamped backup CSV beside the database, then atomically inserts new codes and updates matching codes while retaining omitted mappings. Backup failure is returned as a prominent warning but does not block the merge. The browser confirms before POSTing; no server-side preview/token state is introduced.
 - Backup delivery: backup is written to `sic_mappings.backup-<timestamp>.csv` in the application data directory and its path is returned in the JSON response (one HTTP response cannot be both JSON and a file attachment).
 - Startup mapping file import: runs only when the SIC mapping table is empty, so user edits made in the UI are never reverted by a stale file on restart.
 - SIC normalization: `model.NormalizeSICCode` is the single owner; every write and lookup path goes through it. Global uniqueness is enforced by a DB `UNIQUE` constraint, not by application checks alone.
@@ -68,8 +68,8 @@ The SICMappingService will:
 
 1. Import the optional startup CSV mapping file, only when the mapping table is empty.
 2. Validate an entire uploaded CSV before any mutation.
-3. Export CSV for downloads and for pre-overwrite backups.
-4. Atomically replace mappings in one request after validation and backup.
+3. Export CSV for downloads and best-effort pre-upload backups.
+4. Atomically merge mappings in one request after validation; deletion remains explicit.
 5. Create/update mappings from transaction modals.
 6. Trigger SIC mapping reload/recategorization through the categorization components.
 
@@ -80,7 +80,7 @@ See `component-methods.md` for high-level method signatures.
 Notable new methods include:
 
 - `model.NormalizeSICCode`
-- `SICMappingRepository.ReplaceAll`
+- `SICMappingRepository.MergeAll`
 - `TransactionRepository.GetUncategorizedBySICCodes`
 - `Categorizer.RecategorizeBySICCodes`
 - `Categorizer.LoadRules`
@@ -88,7 +88,7 @@ Notable new methods include:
 - `SICMappingCategorizer.Match`
 - `SICMappingService.ExportCSV`
 - `SICMappingService.ValidateCSV`
-- `SICMappingService.ReplaceFromCSV`
+- `SICMappingService.MergeFromCSV`
 - `SICMappingService.ImportFileIfPresent`
 - `SICMappingService.CreateOrUpdateFromTransaction`
 - `SICMappingHandler.UploadMappings`
@@ -115,7 +115,7 @@ The parser feeds `model.Transaction` into the existing import service. The categ
 | Empty-category mappings | nullable `category_id`; categorizer no-op behavior |
 | Text pattern priority | Categorizer ordering |
 | Mapping CSV startup import | `SICMappingService.ImportFileIfPresent` from app data directory, gated on empty mapping table |
-| Download/upload overwrite | SICMappingService CSV export, single-request validate + backup + replace all |
+| Download/upload merge | SICMappingService CSV export, single-request validate + best-effort backup + atomic merge/upsert |
 | Text pattern priority in bulk recategorization | `Categorizer.RecategorizeAll` / `RecategorizeByCategory` refactored onto `Categorize` |
 | SIC normalization and uniqueness | `model.NormalizeSICCode` + DB `UNIQUE` constraint |
 | Modal SIC behavior | transaction template + upsert-from-transaction endpoint |

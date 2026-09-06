@@ -947,3 +947,72 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-1 Code Generation complete; workflow advances to UOW-2 — SIC Mapping Management / Functional Design.
 
 ---
+
+## UOW-2 Functional Design — Plan and Clarification Questions Created
+**Timestamp**: 2026-09-05T23:53:12Z
+**User Input**: "commit and proceed"
+**Artifact**: `aidlc-docs/construction/plans/sic-mapping-management-functional-design-plan.md`
+**Scope**: UOW-2 mapping CRUD, dedicated UI, CSV download/upload, backup and atomic replacement, and the UOW-3 affected-code collaborator boundary.
+**Technology Constraint**: Preserve the existing Go/Gin/Bootstrap/HTMX/vanilla JavaScript/SQLite stack and avoid new production libraries or drastic technology changes.
+**Status**: Awaiting answers to seven functional-design questions; no UOW-2 design or production code generated.
+
+---
+
+## UOW-2 Functional Design — Upload Contract Follow-up Requested
+**Timestamp**: 2026-09-05T23:53:12Z
+**User Input**: "answered"
+**Answer Analysis**: Q1-Q4 and Q7 are complete. Q5-Q6 propose merge/upsert uploads that retain omitted mappings and do not block on backup failure, materially changing the approved whole-set replacement and required-backup contract.
+**Follow-up Artifact**: `aidlc-docs/construction/plans/sic-mapping-management-functional-design-plan.md`
+**Status**: Awaiting two explicit follow-up answers before amending requirements/stories/application design or generating Functional Design artifacts.
+
+---
+
+## UOW-2 Upload Contract — Amendment Approved and Functional Design Generated
+**Timestamp**: 2026-09-06T03:13:32Z
+**User Response**: "sounds good"
+**Decision**: Approved recommended follow-up answers A/A: atomic merge/upsert retains omitted mappings and treats header-only CSV as a no-op; backup is attempted but failure does not block merge and must be prominently reported.
+**Amended Artifacts**: Requirements, user stories, execution plan, application design, unit definitions/story map/dependencies, component, method, service, and dependency descriptions.
+**Generated Artifacts**: `business-logic-model.md`, `business-rules.md`, `domain-entities.md`, and `frontend-components.md` under `aidlc-docs/construction/sic-mapping-management/functional-design/`.
+**Technology Constraint**: Existing Go/Gin/Bootstrap/HTMX/vanilla JavaScript/SQLite stack preserved; no new production technology introduced.
+**Status**: UOW-2 Functional Design complete; awaiting explicit user approval before NFR Requirements.
+
+---
+
+## UOW-2 Functional Design — Consistency Review Corrections
+**Timestamp**: 2026-09-06T03:30:11Z
+**User Input**: "update those for consistency"
+**Corrections**: Removed stale overwrite/replacement terminology from governing requirements, stories, execution/UOW plans, and test expectations; defined a production no-op recategorization collaborator until UOW-3 supplies the real adapter; defined post-commit reload/collaborator failures as successful committed-with-warning results with `MappingCommitted=true`.
+**Concurrency Boundary**: Added an instance-owned service mutation lock invariant covering CRUD and upload state transitions; timeout/contention behavior and verification are assigned to UOW-2 NFR Design.
+**Status**: Functional Design remains complete and awaiting explicit user approval.
+
+---
+
+## UOW-2 Functional Design — Review Findings and Amendments Drafted
+**Timestamp**: 2026-09-06T03:24:21Z
+**User Input**: "review the current AI DLC state because it has progressed in other sessions. Then let me know what is the next step?" / "yes" / "draft ammendmentws for 1-3"
+**AI Response**: "Reviewed the four UOW-2 functional-design artifacts against the amended requirements, stories, and application design, and against shipped UOW-1 code. Design found internally consistent on merge semantics, best-effort backup, explicit-only deletion, and story traceability. Four issues raised; the user asked for amendments to the first three, which were drafted: (1) ValidateCSV contract collision — the design implied a diagnostics-returning call while the shipped signature is ValidateCSV(io.Reader) ([]*model.SICMapping, *model.SICMappingImportReport, error), and UOW-2 had defined parallel SICMappingImportDiagnostic and SICMappingImportResult types duplicating SICMappingImportError and SICMappingImportReport; (2) F-16 outcome divergence — implementation declared eight outcomes against five in the approved UOW-1 design, with UOW-2's merge adding created/updated/unchanged vocabulary; (3) no upload size bound was stated anywhere, and the diagnostic cap maxSICSeedDiagnostics = 50 lives in cmd/privateledger/main.go:30 and caps startup logging only, so the HTTP upload path inherits no bound while now returning diagnostics in a response body."
+**Amended Artifacts**: `aidlc-docs/construction/sic-mapping-management/functional-design/domain-entities.md` (row diagnostics reuse UOW-1 SICMappingImportError; SICMappingImportResult declared an extension of SICMappingImportReport with shared field semantics; new Outcome vocabulary subsection), `business-logic-model.md` (size rejection added as upload step 2 with steps renumbered, ValidateCSV reuse made explicit, oversized row added to the Failure Ordering table), `business-rules.md` (new Shared Contract and Resource Rules section BR-U2-39 through BR-U2-43; BR-U2-13 amended so size rejection precedes validation), `frontend-components.md` (truncated-diagnostics and oversized-upload UI states), and `aidlc-docs/construction/sic-import-and-storage/functional-design/domain-entities.md` (UOW-1 outcome list amended from five values to the shared set, with a dated amendment note resolving F-16).
+**Findings Closed by Amendment**: F-13 via BR-U2-40, F-14 via BR-U2-39, F-16 via BR-U2-42 and the UOW-1 amendment note.
+**Not Amended**: Issue 4 — services.md couples the affected-code diff to ExportCSV's read of pre-upload mappings — addressed defensively by BR-U2-43 in the functional design, but `aidlc-docs/inception/application-design/services.md` itself is unchanged. The nil-collaborator wiring note for UOW-2-before-UOW-3 build order was also not added.
+**Status**: Amendments drafted and unreviewed; UOW-2 Functional Design still awaiting explicit user approval.
+
+---
+
+## UOW-2 Functional Design — Consistency Pass After User Edits
+**Timestamp**: 2026-09-06T04:39:04Z
+**User Input**: "I've modified few things. anything inconsistent now?" / "ok"
+**AI Response**: "Reviewed the user's additions (BR-U2-44 mutex serialization, BR-U2-45 committed-with-warning, BR-U2-46 no-op checkpoint collaborator, the MappingCommitted and PostCommitWarnings result fields, the UOW-2 Checkpoint Collaborator and Mutation Consistency sections, two new Failure Ordering rows, and frontend step 9). Those additions are internally coherent. Four inconsistencies were reported and three fixed on approval: (1) three documents referenced a truncation flag that no result field carried — added `DiagnosticsTruncated` to SICMappingImportResult and pointed business-rules.md, domain-entities.md, and frontend-components.md at it by name; (2) business-logic-model.md described mutation serialization through 'the singleton service instance' while NFR3 at requirements.md:182 forbids introducing a singleton — reworded to 'the single injected service instance' and stated explicitly that constructor injection in main.go satisfies NFR3; (3) frontend step 4 displayed RecategorizedRows unconditionally, which at the checkpoint is structurally zero under BR-U2-46 and would read as 'nothing matched' rather than 'not yet implemented' — the count is now shown only when a real collaborator is wired, with a matching clause added to BR-U2-46. (4) The mutex spans the UOW-3 collaborator call, so hold time is unbounded from UOW-2's side and sits above UOW-1's SQLite busy timeout; both documents already defer contention handling to NFR Design, so this was left as a design decision and recorded as an explicit note for the NFR Design stage rather than changed."
+**Amended Artifacts**: `domain-entities.md`, `business-logic-model.md`, `business-rules.md`, and `frontend-components.md` under `aidlc-docs/construction/sic-mapping-management/functional-design/`.
+**Status**: UOW-2 Functional Design still awaiting explicit user approval; no production code or test changed.
+
+---
+
+## UOW-2 Functional Design — User Approval
+**Timestamp**: 2026-09-06T04:44:38Z
+**User Input**: "commit this and approve the functional design"
+**Decision**: Approved UOW-2 Functional Design, including the amendments drafted this session and the user's own additions (BR-U2-44 through BR-U2-46, MappingCommitted/PostCommitWarnings, the UOW-2 Checkpoint Collaborator and Mutation Consistency sections).
+**Approved Artifacts**: `aidlc-docs/construction/sic-mapping-management/functional-design/business-logic-model.md`, `business-rules.md`, `domain-entities.md`, `frontend-components.md`.
+**Carried Forward**: The mutation mutex spans a call into the UOW-3 collaborator, so hold time is unbounded from UOW-2's side and sits above UOW-1's SQLite busy timeout; NFR Design must specify timeout and contention handling. Independent review findings F-04, F-05, and F-15 remain deferred.
+**Status**: UOW-2 Functional Design COMPLETE. Next stage is NFR Requirements for UOW-2, which has not been started.
+
+---

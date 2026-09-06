@@ -77,15 +77,15 @@ SICMappingHandler.DownloadMappings
 
 Upload (single request):
 SICMappingHandler.UploadMappings
-  -> SICMappingService.ReplaceFromCSV
+  -> SICMappingService.MergeFromCSV
        -> ValidateCSV (CategoryRepository resolves Category_Name, Category_ID tiebreaker)
        -> abort with per-row report if invalid; nothing mutated
-       -> ExportCSV -> sic_mappings.backup-<timestamp>.csv on disk
-       -> SICMappingRepository.ReplaceAll (single SQL transaction)
+       -> ExportCSV -> best-effort sic_mappings.backup-<timestamp>.csv on disk
+       -> SICMappingRepository.MergeAll (single SQL transaction; omitted codes retained)
        -> SICMappingCategorizer.LoadMappings
        -> diff pre/post mappings -> affected SIC codes
        -> Categorizer.RecategorizeBySICCodes(affected) (FR14; uncategorized only)
-  -> JSON summary + recategorized count + backup path
+  -> JSON summary + recategorized count + backup path or warnings
 ```
 
 ## Startup Flow
@@ -107,6 +107,11 @@ once, already reflecting any startup import. There is no dependency cycle —
 `Categorizer -> SICMappingCategorizer` and `SICMappingService -> {Categorizer, SICMappingCategorizer}`
 form a DAG, so `SICMappingCategorizer` is constructed first, then `Categorizer`, then
 `SICMappingService`.
+
+For the UOW-2 checkpoint, `SICMappingService` receives a local no-op implementation of the narrow
+SIC recategorization collaborator; it returns zero and performs no transaction work. UOW-3 replaces
+that constructor argument with the real `Categorizer` adapter. Independent UOW-2 tests inject a fake
+to verify affected-code selection without pulling UOW-3 behavior into this unit.
 
 ## Modal Flow
 
@@ -133,7 +138,7 @@ transactions.html modal
 - `sic_mapping.sic_code` uniqueness is enforced by a schema `UNIQUE` constraint, not application checks alone.
 - `Categorizer` owns categorization orchestration only.
 - `SICMappingCategorizer` owns SIC matching.
-- `SICMappingService` owns SIC CRUD, CSV import/export, upload overwrite, startup import, and modal-created mapping workflows.
+- `SICMappingService` owns SIC CRUD, CSV import/export, upload merge/upsert, startup import, and modal-created mapping workflows.
 - Empty-category mappings must use nullable `category_id`; do not create sentinel categories.
 - Mapping file category references resolve by `Category_Name` only; `Category_ID` merely confirms it. Rows where the two disagree are rejected, and a row with `Category_ID` but no `Category_Name` is rejected rather than resolved by ID (FR4).
-- Transactions reference SIC by value (`sic_code`), never by foreign key to `sic_mapping`, so `ReplaceAll` cannot orphan transaction rows.
+- Transactions reference SIC by value (`sic_code`), never by foreign key to `sic_mapping`, so merge/upsert and explicit deletion cannot orphan transaction rows.

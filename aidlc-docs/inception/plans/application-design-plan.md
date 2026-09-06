@@ -100,7 +100,7 @@ X) Other (please describe after [Answer]: tag below)
 [Answer]: A
 
 ### Question 5
-Which component should own SIC mapping import/export and upload-overwrite orchestration?
+Which component should own SIC mapping import/export and upload merge/update orchestration?
 
 A) A dedicated `SICMappingService` in `internal/service`, used by startup, handler, and categorizer coordination
 
@@ -115,7 +115,7 @@ X) Other (please describe after [Answer]: tag below)
 **Design Adjustment**: After review, SIC mapping management is split out of the core `Categorizer`. The final design uses `SICMappingCategorizer` as the categorizer extension for SIC matching and `SICMappingService` for CSV/import/export/CRUD workflows.
 
 ### Question 6
-How should upload overwrite be exposed to users at the application-design level?
+How should upload import/update be exposed to users at the application-design level?
 
 A) Upload immediately overwrites after server-side validation succeeds
 
@@ -168,7 +168,7 @@ Will define:
 
 ### `services.md`
 Will define:
-- Service orchestration patterns for import-time categorization, mapping CRUD, startup import, download, upload overwrite, and recategorization.
+- Service orchestration patterns for import-time categorization, mapping CRUD, startup import, download, upload merge/update, and recategorization.
 
 ### `component-dependency.md`
 Will define:

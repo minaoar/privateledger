@@ -6,7 +6,7 @@ The design separates categorization from SIC mapping management:
 
 - `Categorizer` remains the high-level transaction categorization orchestrator.
 - `SICMappingCategorizer` is a SIC-specific extension used by `Categorizer` after text patterns fail.
-- `SICMappingService` owns SIC mapping CRUD, CSV import/export, upload overwrite, startup file import, and modal-driven mapping workflows.
+- `SICMappingService` owns SIC mapping CRUD, CSV import/export, upload merge/upsert, startup file import, and modal-driven mapping workflows.
 
 ### Categorizer Responsibilities
 
@@ -29,10 +29,14 @@ The design separates categorization from SIC mapping management:
 - Validate and persist SIC mappings (normalize via `model.NormalizeSICCode`, reject empty, reject non-digit characters per FR11, cap length).
 - Export and import SIC mapping CSV files.
 - Import optional startup `sic_mappings.csv`, only when the mapping table is empty.
-- Coordinate validation, backup, and overwrite within a single upload request.
+- Coordinate validation, best-effort backup, and atomic merge/upsert within a single upload request.
 - Support modal-driven SIC mapping creation/update.
 - Serve the SIC mapping page's initial render data via `GetPageData`, so `PageHandler` never assembles a joined view from repositories itself (NFR3).
 - Trigger SIC mapping reload and eligible recategorization through the categorization components.
+
+At the UOW-2 checkpoint, the recategorization dependency is a narrow injected interface backed by a
+production no-op returning zero. UOW-3 replaces it with the real Categorizer adapter; UOW-2 tests use
+a fake to verify affected-code selection without implementing transaction behavior early.
 
 ## Import-Time Categorization Flow
 
@@ -69,7 +73,7 @@ CRUD actions
 |---|---|
 | Mapping created/updated (page or modal) | `Categorizer.RecategorizeBySICCode` over `TransactionRepository.GetUncategorizedBySICCode` — uncategorized only |
 | Mapping deleted | reload cache only; existing assignments untouched (FR14) |
-| CSV upload overwrite | reload cache, then `Categorizer.RecategorizeBySICCodes(affected)` where `affected` is the pre/post mapping diff — uncategorized only. FR14 covers "created or updated from the dedicated SIC mapping page **or file upload**", but scopes the sweep to transactions matching the SIC codes the upload actually created or updated |
+| CSV upload merge | reload cache, then invoke the SIC-scoped recategorization collaborator for created or category-changed non-empty codes — uncategorized behavior is completed by UOW-3 |
 | Categories page "Recategorize All" | `Categorizer.RecategorizeAll`, now text-pattern-first then SIC, uncategorized only |
 | Startup file import | load mappings only; **no** automatic sweep. FR14 scopes re-categorization to page/upload/modal triggers, and a startup sweep would silently rewrite categories on every boot of a fresh install. A user with pre-existing transactions applies them via the Categories page "Recategorize All" action. |
 
@@ -103,25 +107,29 @@ where the two disagree are rejected, and so is a row carrying `Category_ID` with
 
 ## Mapping File Upload Flow
 
-Upload is a **single request** with validate-before-mutate and backup-before-overwrite semantics.
+Upload is a **single request** with validate-before-mutate, best-effort backup, and atomic merge/upsert semantics.
 
 ```text
 User selects CSV
-  -> browser confirms overwrite (client-side dialog)
+  -> browser confirms import/update (client-side dialog)
   -> POST /api/sic-mappings/upload
-       -> SICMappingService.ReplaceFromCSV
+       -> SICMappingService.MergeFromCSV
             -> ValidateCSV (normalize, resolve categories, per-row report)
             -> abort with report if any row invalid; nothing mutated
-            -> ExportCSV -> write sic_mappings.backup-<timestamp>.csv beside the DB
-            -> SICMappingRepository.ReplaceAll (single SQL transaction)
+            -> ExportCSV -> attempt sic_mappings.backup-<timestamp>.csv beside the DB
+                 -> on failure: retain warning and continue
+            -> SICMappingRepository.MergeAll (single SQL transaction; no deletion)
             -> SICMappingCategorizer.LoadMappings
             -> diff pre/post mappings -> affected SIC codes
             -> Categorizer.RecategorizeBySICCodes(affected)
                  (FR14: uncategorized only, manual preserved)
-  -> JSON summary: imported count, rejected rows, recategorized count, backup file path
+  -> JSON summary: created/updated/unchanged counts, rejected rows, recategorized count, backup path or warning
 ```
 
-Validation must complete before any mutation, and `ReplaceAll` must be atomic.
+Validation must complete before any mutation, and `MergeAll` must be atomic. A header-only file is a successful no-op.
+Once `MergeAll` commits, any cache-reload or collaborator failure is a committed-with-warning success,
+not a rollback-style error. The response states that mappings were saved and must not encourage a
+blind retry.
 
 **Why not a preview/confirm handshake**: a `validate → previewID → confirm` pair requires the server
 to hold parsed uploads between requests — a map with a TTL, eviction, and leak handling — in an
@@ -129,11 +137,11 @@ application with no session store and exactly one local user. A client-side conf
 protection with none of that state. Whole-file validation still happens server-side before mutation.
 
 **Why the backup is a file, not response bytes**: one HTTP response cannot be both a JSON summary and
-a file attachment, and a disk backup survives the user closing the tab. The path is returned in the
-JSON so the UI can show it.
+a file attachment. Its path is returned on success. Backup is best-effort because merge never deletes
+omitted mappings; failure must remain visible in the response because matching mappings can still be overwritten.
 
 **Why the diff, and not `RecategorizeAll`**: an earlier revision used `RecategorizeAll` here on the
-grounds that an overwrite can change every mapping anyway. That was wrong. `RecategorizeAll` sweeps
+grounds that an upload can change many mappings. That was wrong. `RecategorizeAll` sweeps
 the entire uncategorized set, so it would also categorize transactions via **text patterns** and via
 **SIC mappings the upload never touched** — turning a mapping upload into a trigger for unrelated
 categorization. FR14 scopes the sweep to transactions matching the SIC codes the upload created or
@@ -141,7 +149,7 @@ updated, so the diff is a behavioral requirement, not an optimization.
 
 ### Affected-code diff
 
-`ReplaceFromCSV` already holds the pre-overwrite mappings — `ExportCSV` reads them to build the
+`MergeFromCSV` already holds the pre-upload mappings — `ExportCSV` reads them to build the
 backup — so the diff needs no extra query. A SIC code is **affected** when:
 
 - it is absent from the pre-set and present in the post-set with a non-empty category, **or**
@@ -151,7 +159,8 @@ A code is **not** affected when:
 
 - its category is unchanged — it was not created or updated by this upload,
 - its post-state category is empty/`NULL` — an empty-category mapping never assigns anything, **or**
-- it was removed by the overwrite — FR14 keeps deletion from clearing existing assignments.
+- it is omitted from the upload — merge leaves it unchanged, or
+- it is explicitly deleted — FR14 keeps deletion from clearing existing assignments.
 
 `RecategorizeBySICCodes` then routes each candidate transaction through `Categorize`, so
 text-pattern-first priority still holds for the transactions it does touch. The set it touches is

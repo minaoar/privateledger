@@ -8,7 +8,7 @@
 - **Primary Changes**:
   - Parse and store OFX/QFX `<SIC>` values.
   - Add SIC-to-category mapping persistence and APIs.
-  - Add a separate SIC mapping UI with create/update/delete, download, and upload-overwrite workflows.
+  - Add a separate SIC mapping UI with create/update/delete, download, and upload merge/update workflows.
   - Initialize mappings from an optional local mapping file on startup.
   - Extend categorization rules so text patterns run before SIC mappings.
   - Preserve existing local databases through startup migration.
@@ -60,7 +60,7 @@ Startup
 
 - **Risk Level**: Medium
 - **Rollback Complexity**: Moderate — schema migration and new persisted mappings require care, but changes are additive.
-- **Testing Complexity**: Moderate — parser, migration, categorization priority, import/export overwrite, and UI/API workflows need coverage.
+- **Testing Complexity**: Moderate — parser, migration, categorization priority, import/export merge, and UI/API workflows need coverage.
 
 ### Module Update Strategy
 
@@ -75,7 +75,7 @@ Startup
   - The selected production provider implements production code only for each unit.
   - A separate provider session independently reviews the production diff and authors the unit's tests.
   - Parser/model/repository tests after UOW-1 production changes.
-  - CRUD, CSV, backup, overwrite, and API tests after UOW-2 production changes.
+  - CRUD, CSV, backup, atomic merge/upsert, and API tests after UOW-2 production changes.
   - Categorization, preservation, modal, concurrency, and property-based tests after UOW-3 production changes.
   - Production findings are fixed by the original production provider and re-reviewed by the independent provider.
   - Full `go test ./...` and manual UI smoke test after templates/routes.
@@ -172,11 +172,11 @@ flowchart TD
 ### 🟢 CONSTRUCTION PHASE
 
 - [ ] Functional Design — IN PROGRESS PER UNIT
-  - **Rationale**: Categorization priority, overwrite semantics, mapping file validation, and startup import behavior need detailed business logic design.
+  - **Rationale**: Categorization priority, merge/upsert semantics, mapping file validation, and startup import behavior need detailed business logic design.
 - [ ] NFR Requirements — EXECUTE
   - **Rationale**: Partial PBT is enabled and requires framework selection/documentation; privacy and migration idempotency need explicit validation.
 - [ ] NFR Design — EXECUTE
-  - **Rationale**: Incorporate PBT, local-only, idempotent import, and safe overwrite patterns into the implementation design.
+  - **Rationale**: Incorporate PBT, local-only, idempotent import, and safe atomic merge patterns into the implementation design.
 - [ ] Infrastructure Design — SKIP
   - **Rationale**: No cloud, deployment, networking, or external infrastructure changes; app remains local single binary + SQLite.
 - [ ] Code Generation — EXECUTE
@@ -196,7 +196,7 @@ flowchart TD
 | 1 | `internal/database`, `internal/model` | Major additive | Schema/model fields are prerequisites for persistence and services. |
 | 2 | `internal/parser` | Minor additive | Needs model SIC field to populate parsed value. |
 | 3 | SIC mapping repository/model | New component | Required before categorizer and API can use mappings. |
-| 4 | Mapping file import/export service | New component | Shared by startup import, download, and upload overwrite. |
+| 4 | Mapping file import/export service | New component | Shared by startup import, download, and upload merge/update. |
 | 5 | `internal/service/categorizer.go` | Moderate logic change | Depends on mapping repository and loaded mappings. |
 | 6 | Handlers/API routes | New endpoints | Depend on repositories/services. |
 | 7 | Pages/templates/navigation | UI additions | Depend on API contract and category list behavior. |
