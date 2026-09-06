@@ -1285,3 +1285,38 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-3 Functional Design COMPLETE. Next stage is NFR Requirements for UOW-3.
 
 ---
+
+## UOW-3 NFR Requirements — Plan and Clarification Questions Created
+**Timestamp**: 2026-09-06T10:55:00Z
+**User Input**: "Continue"
+**AI Response**: "Started NFR Requirements for UOW-3. Identified the NFR surfaces new to this unit relative to UOW-1 and UOW-2: the categorization decision now sits in the import hot path with a per-transaction cache lookup that has never been measured with mappings populated; the UOW-2 collaborator was a no-op returning instantly and now performs real work while the mapping-mutation gate is held; 'Recategorize All' now applies SIC across the entire uncategorized backlog; the full mapping set is resident in memory for the process lifetime with no ceiling on stored mapping count; and race-detector evidence, conditional in UOW-1, is now unambiguously required because the unit deliberately introduces two guarded caches. Created five questions, each with a recommended option and its reason."
+**Artifact**: `aidlc-docs/construction/plans/transaction-categorization-integration-nfr-requirements-plan.md`
+**Contingency Recorded Before Measurement**: The plan states, ahead of any benchmark, that Functional Design Q1 B chose no processing deadline on the strength of UOW-2's merge benchmark and an indexed scoped query, while recategorization itself has never been measured against a large transaction set. If the Q1 measurement lands unfavourably, revisiting Q1 is cheap now and expensive after code generation. Recording it in advance makes that a planned branch rather than a surprise.
+**Recommendations**: Q1 A (carry the 100,000-row / 10-second precedent, since a pass at that bar is what would make the unbounded gate hold defensible), Q2 A (keep the SIC-free regression check and add a mappings-populated fixture under the same 10% budget), Q3 A (no cache size limit, record expected memory), Q4 A (recategorization and import targets blocking, page and modal advisory), Q5 A (correctness, the Q6 B properties, race evidence, and benchmark evidence on the recorded reference environment).
+**Status**: Awaiting answers to five questions; no UOW-3 NFR artifact generated yet.
+
+---
+
+## UOW-3 NFR Requirements — Answers Analyzed and Artifacts Generated
+**Timestamp**: 2026-09-06T11:10:00Z
+**User Input**: "doe" (read as "done"; all five [Answer] tags were completed in the plan)
+**Answers**: Q1 A, Q2 A, Q3 A, Q4 A, Q5 A — all five match the recommended options.
+**Conflict Analysis**: No conflicts and no follow-up required. Q1 A and Q4 A agree that the recategorization target is blocking, which is what makes it capable of validating the Functional Design Q1 B decision. Q2 A adds a second import fixture without altering UOW-1's existing SIC-free check, so the earlier precedent stays comparable. Q3 A is consistent with Functional Design Q4 A, which already chose an in-memory cache; imposing eviction here would have reopened it. Q5 A matches the verification depth applied to UOW-1 and UOW-2.
+**Artifacts Generated**:
+- `aidlc-docs/construction/transaction-categorization-integration/nfr-requirements/nfr-requirements.md`
+- `aidlc-docs/construction/transaction-categorization-integration/nfr-requirements/tech-stack-decisions.md`
+**Key Requirement Framing**: NFR-U3-PERF-01 is written to state explicitly that it validates a design decision rather than merely bounding latency — because Functional Design Q1 B declined a processing deadline, the mapping-mutation gate is held for the full duration of recategorization, and a pass at 100,000 rows within ten seconds is the evidence that this is safe. A failure is recorded in the requirement itself as reopening the deadline decision, not just as a performance finding.
+**Technology Decisions**: No dependency added, removed, or upgraded. TD-U3-01 implements UOW-2's existing collaborator interface without renaming it or adding a context parameter, on the grounds that a context would describe a cancellation budget Q1 B deliberately declined; revisiting the signature is tied to a PERF-01 failure rather than done pre-emptively. TD-U3-03 records why SIC assignments reuse `category_source = rule` instead of a fourth value, which would change the meaning of existing rows and of every query filtering on that column, including the already-shipped uncategorized-dashboard work. TD-U3-04 confirms no new persistence is required because UOW-1 already provides the column, index, join, and scoped query.
+**PBT Compliance**: PBT-09 satisfied by retaining `rapid v1.1.0` unchanged; PBT-02/03 scope set by Functional Design Q6 B and restated as NFR-U3-TEST-02; PBT-07/08 carried into execution. No blocking stage finding.
+**Status**: NFR artifacts ready for review; explicit approval required before NFR Design. Documentation only; no production or test code changed.
+
+---
+
+## UOW-3 NFR Requirements — Explicit Approval
+**Timestamp**: 2026-09-06T11:20:00Z
+**User Input**: "proceed"
+**Decision**: Approved both UOW-3 NFR artifacts, including the blocking 100,000-row / ten-second recategorization target, the second mappings-populated import fixture under the same 10% budget, unbounded rule-cache residency with recorded memory, and the blocking/advisory split from Q4 A.
+**Approved Artifacts**: `aidlc-docs/construction/transaction-categorization-integration/nfr-requirements/nfr-requirements.md`, `tech-stack-decisions.md`.
+**Status**: UOW-3 NFR Requirements COMPLETE. Next stage is NFR Design for UOW-3.
+
+---
