@@ -468,3 +468,101 @@ Focused Revision 3 results:
 
 The independent gate remains **REVISION 3 FAIL** until U3-R2-F01 is resolved and the complete ordinary
 and race suites pass.
+
+---
+
+## Revision 4 Re-Review
+
+### Scope and Result
+
+- Revision 4 production commit: `bb44d40` (`fix: exclude readers across the non-staging fallback reload`)
+- Production patch inspected with `git show bb44d40`: one production file,
+  `internal/service/categorizer.go`; no test or fixture changes
+- Re-review working-tree HEAD: `49346d4`; the tree was clean before verification
+- Provider separation remains intact: Claude authored production; OpenAI Codex authored and ran this
+  re-review
+- Re-review date: 2026-09-06
+
+**REVISION 4: PASS.** U3-R2-F01 and U3-R2-F02 are resolved. All required tests pass, including the
+corrected successful-fallback atomic-publication test, the failed-fallback test, the complete ordinary
+suite, and the complete short race suite. No Blocking, High, or Medium finding remains. One Low
+documentation finding is recorded below and does not affect runtime behavior or the independent gate.
+
+### Revision 2 Finding Disposition
+
+| Finding | Revision 4 result | Evidence |
+|---|---|---|
+| U3-R2-F01 — fallback cache publication | **RESOLVED** | `internal/service/categorizer.go:134-150` holds the categorizer write lock across non-staging `ReloadMappings` and pattern publication. Categorization cannot observe the interval. All four cache acceptance tests pass. |
+| U3-R2-F02 — hidden post-commit source failure | **RESOLVED in Revision 3; reconfirmed** | Both `TestReviewU3ChangeCategoryWithMappingUsesRuleSource` and `TestReviewU3RuleSourceWriteFailureIsReported` pass. |
+
+Revision 4 implements the compatibility option accepted in the Revision 3 adjudication. Pattern data
+is prepared before entering the fallback. The categorizer then acquires its write lock, completes the
+mapping reload, and publishes the replacement patterns before releasing the lock. A concurrent
+categorization decision either completes against the old generation before the lock is acquired or
+waits and resumes against the new generation. If mapping reload returns an error, replacement patterns
+are not published.
+
+The shipped `*SICMappingCategorizer` path remains staged and was not changed by Revision 4. Its mapping
+index and the replacement pattern set continue to be built before their joint publication under the
+categorizer write lock.
+
+### U3-R4-F01 — `LoadRules` comment describes the superseded fallback algorithm
+
+- Severity: **Low**
+- Production reference: `internal/service/categorizer.go:109-114`
+- Acceptance trace: NFR-U3-MAINT-01
+- Gate effect: **Non-blocking**
+
+The leading `LoadRules` comment says a non-staging source publishes patterns first and restores them if
+mapping reload fails. Revision 4 now does the opposite: it holds the write lock, reloads mappings, and
+publishes patterns only after success. The detailed compatibility-path comment at lines 134-142 matches
+the implementation, but the function-level comment does not. Update lines 112-114 to describe the
+current blocking fallback when production documentation is next touched.
+
+### Revision 4 Verification
+
+| Check | Result |
+|---|---|
+| Clean baseline `go test -count=1 ./...` | **PASS** across all seven packages; `internal/service` 130.094s |
+| Four cache acceptance tests | **PASS**: successful atomic publication, failed fallback publication, failed mapping reload retention, and concurrent categorize/reload |
+| U3-R2-F02 handler happy path and injected write failure | **PASS** |
+| `go test -race -short -count=1 ./...` | **PASS** across all seven packages; zero race reports |
+| Generated Rapid priority and scoping properties | **PASS**, 100 cases each; recorded replay seed `20260906` |
+| UOW-2 50,000-affected-code regression | **PASS** |
+| JSON set passing beyond the former variable limit and empty-set behavior | **PASS** |
+| `EXPLAIN QUERY PLAN` | **PASS**; `SEARCH ledger_transaction USING INDEX idx_txn_sic (sic_code=?)` |
+| `go build ./...` | **PASS** |
+| `go vet ./...` | **PASS** |
+| `gofmt -l` over the changed production file and reviewer-owned Go files | **PASS**, no output |
+| `git diff --check` | **PASS** |
+
+### Revision 4 Performance and Scale
+
+The performance checks ran independently from the race suite on the same reference environment used by
+the prior reviews.
+
+- NFR-U3-PERF-01 full recategorization: 20,000 transactions, 1,000 mappings, 100 categories, 100% SIC;
+  samples 808.938ms, 856.322ms, 930.112ms, 798.217ms, and 793.997ms; median **808.938ms** against the
+  five-second limit — **PASS**.
+- Scoped recategorization: 100 affected codes and 2,000 matching transactions in **180.080ms** —
+  **PASS**.
+- NFR-U3-PERF-02 SIC-free import median **4.738528s**; SIC-bearing median **4.914342s**; ratio
+  **1.0371**, or 3.71% overhead against the 10% limit — **PASS**.
+- NFR-U3-SCALE-01: 100,000 mappings increased observed heap by **22,695,096 bytes** (3,330,320 to
+  26,025,416 bytes); informational — **PASS**.
+
+One SIC-bearing import sample took 6.828s, but the approved gate uses the median of five samples. The
+median remained stable and passed with substantial margin. The initial complete ordinary suite also
+passed the same performance test before isolated measurement.
+
+### Browser, Ownership, and Cross-Unit Assessment
+
+Revision 4 changes only categorizer locking and does not touch a handler, route, template, JavaScript,
+or browser fixture. The executing-browser evidence recorded in Revision 2 therefore remains applicable;
+the ordinary suite also reconfirmed all page and modal source-level tests.
+
+This re-review modified only this independent review artifact. Production files and production-owned
+documentation were not changed. No new UOW-4 candidate was found: the resolved cache finding and the Low
+comment mismatch concern existing UOW-3 behavior.
+
+The UOW-3 independent review/test gate is **PASS at Revision 4 (`bb44d40`)**.
