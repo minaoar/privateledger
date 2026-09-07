@@ -76,8 +76,12 @@ func TestReviewU3BulkUpdateBeyondVariableLimit(t *testing.T) {
 	for i := range ids {
 		ids[i] = i + 1
 	}
-	if err := repo.BulkUpdateCategory(categoryID, model.CategorySourceRule, ids); err != nil {
+	changed, err := repo.BulkUpdateCategory(categoryID, model.CategorySourceRule, ids)
+	if err != nil {
 		t.Fatalf("BulkUpdateCategory(%d): %v", count, err)
+	}
+	if changed != count {
+		t.Fatalf("BulkUpdateCategory changed=%d, want %d", changed, count)
 	}
 	var updated int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM ledger_transaction WHERE category_id = ? AND category_source = 1`, categoryID).Scan(&updated); err != nil {
@@ -100,8 +104,12 @@ func TestReviewU3EmptySetsIssueNoSQL(t *testing.T) {
 	if err != nil || len(got) != 0 {
 		t.Fatalf("empty SIC set touched closed DB: got=%v err=%v", got, err)
 	}
-	if err := repo.BulkUpdateCategory(1, model.CategorySourceRule, nil); err != nil {
+	changed, err := repo.BulkUpdateCategory(1, model.CategorySourceRule, nil)
+	if err != nil {
 		t.Fatalf("empty ID set touched closed DB: %v", err)
+	}
+	if changed != 0 {
+		t.Fatalf("empty ID set changed=%d, want 0", changed)
 	}
 }
 

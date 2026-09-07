@@ -736,10 +736,22 @@ async function saveTransactionSicMapping(transactionId, categoryId) {
             showToast(body.error || 'The SIC mapping could not be saved.', 'danger');
             return false;
         }
-        const extra = body.recategorized_rows
-            ? ` ${body.recategorized_rows} similar transaction(s) categorized.`
-            : '';
-        showToast(`SIC mapping saved.${extra}`, 'success');
+        // All three FR16 counts, including zeros. The legacy
+        // recategorized_rows was positive-only, so a change that uncategorized
+        // transactions or spared manual ones reported nothing at all.
+        const moved = body.moved_count || 0;
+        const uncategorized = body.uncategorized_count || 0;
+        const manual = body.manual_protected_count || 0;
+        let message = `SIC mapping saved. ${moved} moved to a different category, ` +
+            `${uncategorized} became uncategorized, ${manual} left alone because you set them by hand.`;
+        if (Array.isArray(body.post_commit_warnings) && body.post_commit_warnings.length > 0) {
+            // Stated as fact, not as a retry prompt: the mapping is already
+            // saved, and saving again would not undo a failed re-examination.
+            message += ` ${body.post_commit_warnings.join(' ')} The mapping itself was saved.`;
+            showToast(message, 'warning');
+            return true;
+        }
+        showToast(message, 'success');
         return true;
     } catch (error) {
         // A lost response says nothing about whether the server committed.

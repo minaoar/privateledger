@@ -101,6 +101,13 @@ func (c *SICMappingCategorizer) publishMappingIndex(index map[model.SICCode]*mod
 
 // ReloadMappings refreshes the cache from SQLite. It satisfies the UOW-2
 // collaborator contract.
+//
+// Publication happens on this type's own mutex. That is safe for a single
+// lookup, and it is deliberately NOT what a re-examination pass relies on: a
+// pass resolves the rules it needs up front and evaluates against that
+// snapshot, so a reload landing mid-traversal cannot split it. Requiring every
+// publisher to cooperate with the categorizer's lock would leave the guarantee
+// resting on wiring, which a wrapper or a future lookup could quietly bypass.
 func (c *SICMappingCategorizer) ReloadMappings() error {
 	index, err := c.buildMappingIndex()
 	if err != nil {

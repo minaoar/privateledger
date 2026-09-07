@@ -136,6 +136,38 @@ func TestReviewU5PatternRuleChangesReportAllCounts(t *testing.T) {
 	})
 }
 
+func TestReviewU5PatternRuleChangeResponsesRemainAdditive(t *testing.T) {
+	f := newUOW5CategoryHandlerFixture(t)
+	w := f.request(http.MethodPost, "/api/categories", `{"name":"Created","category_type":2,"patterns":["MATCH"]}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create category status=%d body=%s", w.Code, w.Body.String())
+	}
+	var categoryBody map[string]json.RawMessage
+	if err := json.Unmarshal(w.Body.Bytes(), &categoryBody); err != nil {
+		t.Fatal(err)
+	}
+	for _, legacyField := range []string{"category_id", "name", "category_type", "patterns"} {
+		if _, ok := categoryBody[legacyField]; !ok {
+			t.Errorf("category-with-pattern response moved legacy top-level field %q: %s", legacyField, w.Body.String())
+		}
+	}
+
+	target := f.category(t, "Target")
+	w = f.request(http.MethodPost, fmt.Sprintf("/api/categories/%d/patterns", target), `{"pattern_name":"SECOND"}`)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("add pattern status=%d body=%s", w.Code, w.Body.String())
+	}
+	var patternBody map[string]json.RawMessage
+	if err := json.Unmarshal(w.Body.Bytes(), &patternBody); err != nil {
+		t.Fatal(err)
+	}
+	for _, legacyField := range []string{"category_pattern_id", "pattern_name", "category_id"} {
+		if _, ok := patternBody[legacyField]; !ok {
+			t.Errorf("pattern response moved legacy top-level field %q: %s", legacyField, w.Body.String())
+		}
+	}
+}
+
 func TestReviewU5PatternTriggersNeverWriteManualTransactions(t *testing.T) {
 	for _, operation := range []string{"create-with-category", "add", "delete"} {
 		t.Run(operation, func(t *testing.T) {
@@ -213,6 +245,42 @@ func TestReviewU5CategoryDeletionPreservesManualChoiceMarker(t *testing.T) {
 	}
 	if body.Result.ManualProtectedCount != 1 {
 		t.Fatalf("manual protection count=%d, want 1: %s", body.Result.ManualProtectedCount, w.Body.String())
+	}
+}
+
+func TestReviewU5CategoryDeletionDoesNotSplitUncategorizedSemantics(t *testing.T) {
+	f := newUOW5CategoryHandlerFixture(t)
+	deletedCategory := f.category(t, "Deleted manual category")
+	txn := f.transaction(t, "manual-delete-query", "MERCHANT", "", &deletedCategory, model.CategorySourceManual)
+
+	w := f.request(http.MethodDelete, fmt.Sprintf("/api/categories/%d", deletedCategory), "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("delete status=%d body=%s", w.Code, w.Body.String())
+	}
+
+	pageRows, err := f.txnRepo.List(repository.TransactionFilter{Uncategorized: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	uncategorizedRows, err := f.txnRepo.GetUncategorized()
+	if err != nil {
+		t.Fatal(err)
+	}
+	uncategorizedCount, err := f.txnRepo.CountUncategorized()
+	if err != nil {
+		t.Fatal(err)
+	}
+	contains := func(rows []*model.Transaction) bool {
+		for _, row := range rows {
+			if row.TransactionID == txn.TransactionID {
+				return true
+			}
+		}
+		return false
+	}
+	if contains(pageRows) != contains(uncategorizedRows) || len(pageRows) != uncategorizedCount {
+		t.Fatalf("category deletion created conflicting uncategorized representations: page=%d/get=%d/count=%d transaction page=%t/get=%t",
+			len(pageRows), len(uncategorizedRows), uncategorizedCount, contains(pageRows), contains(uncategorizedRows))
 	}
 }
 

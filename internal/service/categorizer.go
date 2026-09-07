@@ -186,11 +186,11 @@ func (c *Categorizer) decide(txn *model.Transaction) (int, categorySource) {
 // that existed when it was first seen.
 //
 // The manual guard still applies and is the only guard that does. BR-U5-06.
-func (c *Categorizer) decideOnReexaminationLocked(txn *model.Transaction) (int, categorySource) {
+func (g ruleGeneration) decideOnReexamination(txn *model.Transaction) (int, categorySource) {
 	if txn.CategorySource == model.CategorySourceManual {
 		return 0, sourceNone
 	}
-	return c.evaluateLocked(txn)
+	return g.evaluate(txn)
 }
 
 // evaluate is the shared matcher: text patterns in order, then a SIC mapping
@@ -215,22 +215,7 @@ func (c *Categorizer) evaluate(txn *model.Transaction) (int, categorySource) {
 	// let a concurrent reload land in between.
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.evaluateLocked(txn)
-}
 
-// evaluateLocked is evaluate with the read lock already held by the caller.
-//
-// The split exists because a per-decision lock is not enough for a whole pass.
-// Re-examination makes thousands of decisions, and releasing between each one
-// leaves a gap in which a reload can publish a new generation — so one pass
-// could categorize the first transaction by the old rules and the next by the
-// new ones. BR-U5-10 says a pass sees one generation, and only holding the
-// lock across the entire traversal delivers that.
-//
-// Callers must hold c.mu for reading and must not acquire it again: Go's
-// RWMutex is not reentrant, and a writer arriving between two RLocks on the
-// same goroutine deadlocks.
-func (c *Categorizer) evaluateLocked(txn *model.Transaction) (int, categorySource) {
 	for _, pattern := range c.patterns {
 		if pattern.Matches(txn.TransactionDetails) {
 			return pattern.CategoryID, sourcePattern
@@ -240,6 +225,76 @@ func (c *Categorizer) evaluateLocked(txn *model.Transaction) (int, categorySourc
 	// SIC is consulted only when no text pattern matched.
 	if c.sicLookup != nil && txn.SICCode != nil {
 		if categoryID, ok := c.sicLookup.LookupCategory(*txn.SICCode); ok {
+			return categoryID, sourceSIC
+		}
+	}
+
+	return 0, sourceNone
+}
+
+// ruleGeneration is one immutable reading of the rules, taken once and used
+// for an entire re-examination.
+//
+// A per-decision lock is not enough for a pass. Re-examination makes thousands
+// of decisions, and any gap between them lets a reload publish new rules — so
+// one pass could judge the first transaction by the old rules and the next by
+// the new ones. Holding the categorizer's lock across the traversal fixes the
+// publications that go through it, but the mapping cache has its own mutex and
+// a wrapper can publish without touching the categorizer at all. A snapshot
+// does not care how a publisher behaves.
+type ruleGeneration struct {
+	patterns []*model.CategoryPattern
+
+	// sicByCode holds only the codes this pass will actually ask about,
+	// resolved up front through the same public lookup a single decision uses.
+	// Resolving through that interface rather than reaching for the underlying
+	// cache is the point: it works for any lookup, including one that wraps
+	// another.
+	sicByCode map[model.SICCode]int
+}
+
+// snapshotRules resolves every rule this pass needs, once.
+//
+// Patterns are captured by reference because LoadRules replaces the slice
+// wholesale rather than mutating it, so the captured value cannot change under
+// the pass.
+func (c *Categorizer) snapshotRules(transactions []*model.Transaction) ruleGeneration {
+	codes := make(map[model.SICCode]struct{})
+	for _, txn := range transactions {
+		if txn.SICCode != nil {
+			codes[*txn.SICCode] = struct{}{}
+		}
+	}
+
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	generation := ruleGeneration{
+		patterns:  c.patterns,
+		sicByCode: make(map[model.SICCode]int, len(codes)),
+	}
+	if c.sicLookup != nil {
+		for code := range codes {
+			if categoryID, ok := c.sicLookup.LookupCategory(code); ok {
+				generation.sicByCode[code] = categoryID
+			}
+		}
+	}
+	return generation
+}
+
+// evaluate applies the snapshot's rules. Same priority order as the live path,
+// and no guards, for the same reason: see evaluate on Categorizer.
+func (g ruleGeneration) evaluate(txn *model.Transaction) (int, categorySource) {
+	for _, pattern := range g.patterns {
+		if pattern.Matches(txn.TransactionDetails) {
+			return pattern.CategoryID, sourcePattern
+		}
+	}
+
+	// SIC is consulted only when no text pattern matched.
+	if txn.SICCode != nil {
+		if categoryID, ok := g.sicByCode[*txn.SICCode]; ok {
 			return categoryID, sourceSIC
 		}
 	}
@@ -321,26 +376,26 @@ func (c *Categorizer) Reexamine() (*RecategorizeResult, error) {
 	assignments := make(map[assignmentKey][]int)
 	clearIDs := make([]int, 0)
 
-	// One read lock for the whole traversal, not one per transaction. This is
-	// what makes BR-U5-10 true: a reload cannot land between two decisions, so
-	// every transaction in this pass is judged by the same rules. The lock is
-	// released before any write, because the decisions are already made by
-	// then and holding it across database writes would block reloads for no
-	// benefit.
-	c.mu.RLock()
+	// One immutable snapshot of the rules for the whole pass. This is what
+	// makes BR-U5-10 true, and a snapshot rather than a held lock because the
+	// guarantee must not depend on every publisher cooperating: the mapping
+	// cache has its own mutex, and a wrapper or a future lookup could publish
+	// without ever touching this one.
+	generation := c.snapshotRules(transactions)
+
 	for _, txn := range transactions {
 		if txn.CategorySource == model.CategorySourceManual {
-			// Counting only. evaluateLocked carries no manual guard, which is
+			// Counting only. The generation applies no manual guard, which is
 			// what makes this question answerable at all; the guard is here,
 			// and this branch continues before any write is reachable.
-			categoryID, source := c.evaluateLocked(txn)
+			categoryID, source := generation.evaluate(txn)
 			if wouldChangeCategory(txn, categoryID, source) {
 				result.ManualProtectedCount++
 			}
 			continue
 		}
 
-		categoryID, source := c.decideOnReexaminationLocked(txn)
+		categoryID, source := generation.decideOnReexamination(txn)
 		if !wouldChangeCategory(txn, categoryID, source) {
 			// BR-U5-17: an unchanged outcome is neither written nor counted.
 			continue
@@ -355,8 +410,6 @@ func (c *Categorizer) Reexamine() (*RecategorizeResult, error) {
 		key := assignmentKey{categoryID: categoryID, source: source}
 		assignments[key] = append(assignments[key], txn.TransactionID)
 	}
-
-	c.mu.RUnlock()
 
 	// Counts are claimed only after the corresponding write commits, so a
 	// failure part-way through never reports rows it did not write. The manual

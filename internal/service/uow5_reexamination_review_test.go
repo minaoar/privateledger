@@ -121,6 +121,36 @@ type uow5BlockingLookup struct {
 	firstOnce sync.Once
 }
 
+// uow5ShippedReloadProbe delegates to the production SIC cache but pauses
+// after the first lookup has sampled it. This exposes whether the mapping
+// service's public ReloadMappings path can publish through the generation lock
+// held by Reexamine.
+type uow5ShippedReloadProbe struct {
+	inner     *SICMappingCategorizer
+	observed  chan struct{}
+	release   chan struct{}
+	firstOnce sync.Once
+}
+
+func (l *uow5ShippedReloadProbe) LookupCategory(code model.SICCode) (int, bool) {
+	categoryID, ok := l.inner.LookupCategory(code)
+	l.firstOnce.Do(func() {
+		close(l.observed)
+		<-l.release
+	})
+	return categoryID, ok
+}
+
+func (l *uow5ShippedReloadProbe) ReloadMappings() error { return l.inner.ReloadMappings() }
+
+func (l *uow5ShippedReloadProbe) prepareMappings() (map[model.SICCode]*model.SICMapping, error) {
+	return l.inner.prepareMappings()
+}
+
+func (l *uow5ShippedReloadProbe) commitMappings(index map[model.SICCode]*model.SICMapping) {
+	l.inner.commitMappings(index)
+}
+
 func (l *uow5BlockingLookup) LookupCategory(model.SICCode) (int, bool) {
 	l.firstOnce.Do(func() {
 		close(l.started)
@@ -201,6 +231,59 @@ func TestReviewU5OnePassSeesOneRuleGeneration(t *testing.T) {
 	}
 }
 
+func TestReviewU5ShippedMappingReloadCannotSplitOnePass(t *testing.T) {
+	db, txnRepo, patternRepo, sicRepo, _, _, accountID := newUOW3ServiceHarness(t)
+	oldCategory := createUOW3Category(t, db, "Shipped old generation")
+	newCategory := createUOW3Category(t, db, "Shipped new generation")
+	mapping := model.NewSICMapping("5812", "", "", &oldCategory)
+	if err := sicRepo.Create(mapping); err != nil {
+		t.Fatal(err)
+	}
+
+	shipped := NewSICMappingCategorizer(sicRepo, txnRepo)
+	probe := &uow5ShippedReloadProbe{
+		inner: shipped, observed: make(chan struct{}), release: make(chan struct{}),
+	}
+	categorizer := NewCategorizerWithSIC(patternRepo, txnRepo, probe)
+	first := createUOW3Txn(t, txnRepo, accountID, "shipped-generation-1", "MERCHANT", "5812", nil, model.CategorySourceNone)
+	second := createUOW3Txn(t, txnRepo, accountID, "shipped-generation-2", "MERCHANT", "5812", nil, model.CategorySourceNone)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := categorizer.Reexamine()
+		done <- err
+	}()
+	<-probe.observed
+
+	mapping.CategoryID = &newCategory
+	if err := sicRepo.Update(mapping); err != nil {
+		t.Fatal(err)
+	}
+	// This is the exact first operation performed by SICMappingService after a
+	// committed mapping mutation. It must not publish a new cache generation
+	// while the in-flight pass is pinned to the old one.
+	if err := shipped.ReloadMappings(); err != nil {
+		t.Fatal(err)
+	}
+	close(probe.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+
+	storedFirst, err := txnRepo.GetByID(first.TransactionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storedSecond, err := txnRepo.GetByID(second.TransactionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if storedFirst.CategoryID == nil || storedSecond.CategoryID == nil || *storedFirst.CategoryID != *storedSecond.CategoryID {
+		t.Fatalf("shipped reload split one pass: first=%v second=%v; valid outcomes are both %d or both %d",
+			storedFirst.CategoryID, storedSecond.CategoryID, oldCategory, newCategory)
+	}
+}
+
 func TestReviewU5ConcurrentManualChoiceCannotBeOverwritten(t *testing.T) {
 	db, txnRepo, patternRepo, _, _, _, accountID := newUOW3ServiceHarness(t)
 	ruleCategory := createUOW3Category(t, db, "Rule")
@@ -209,10 +292,14 @@ func TestReviewU5ConcurrentManualChoiceCannotBeOverwritten(t *testing.T) {
 	categorizer := NewCategorizerWithSIC(patternRepo, txnRepo, lookup)
 	txn := createUOW3Txn(t, txnRepo, accountID, "manual-race", "MERCHANT", "5812", nil, model.CategorySourceNone)
 
-	done := make(chan error, 1)
+	type reexamineOutcome struct {
+		result *RecategorizeResult
+		err    error
+	}
+	done := make(chan reexamineOutcome, 1)
 	go func() {
-		_, err := categorizer.Reexamine()
-		done <- err
+		result, err := categorizer.Reexamine()
+		done <- reexamineOutcome{result: result, err: err}
 	}()
 	<-lookup.started
 	if err := txnRepo.UpdateCategory(txn.TransactionID, &manualCategory, model.CategorySourceManual); err != nil {
@@ -220,9 +307,12 @@ func TestReviewU5ConcurrentManualChoiceCannotBeOverwritten(t *testing.T) {
 	}
 	close(lookup.release)
 	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
+	case outcome := <-done:
+		if outcome.err != nil {
+			t.Fatal(outcome.err)
+		}
+		if outcome.result.MovedCount != 0 || outcome.result.UncategorizedCount != 0 {
+			t.Fatalf("concurrent manual choice was counted as changed: %+v", outcome.result)
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("re-examination did not finish")

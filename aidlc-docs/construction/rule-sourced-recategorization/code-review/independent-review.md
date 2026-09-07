@@ -2,12 +2,13 @@
 
 ## Gate Result
 
-**FAIL — BLOCKED pending production revision**
+**FAIL — BLOCKED after production Revision 1**
 
-Production revision `3bd7903061805962efd06cc8f1c2ca915075be21` does not yet satisfy the
-approved UOW-5 gate. Independent tests found five High findings and one Medium finding. Required
-tests for one-generation consistency, concurrent manual protection, trigger coverage, result counts,
-post-commit warning visibility, and the short race-suite command are not green.
+Production Revision 1, `f95066c`, resolves U5-R-F02 and U5-R-F06 and materially improves the server
+side of U5-R-F01, U5-R-F03, U5-R-F04, and U5-R-F05. The independent gate remains blocked: the shipped
+mapping reload path can still split one pass across generations; rule-change screens receive counts
+without displaying them; the category-deletion fix introduces a second database representation of
+“uncategorized”; and two existing category endpoint response shapes were changed rather than extended.
 
 The main re-examination behavior, rule priority, state idempotence, non-triggers, batching, generated
 order independence, and all three performance obligations pass. Production files were not modified.
@@ -23,6 +24,7 @@ order independence, and all three performance obligations pass. Production files
 | Branch | `support-mcc-for-category` |
 | Base revision | `e9b972303e4921461c347850a0b84bfd0d300bdd` |
 | Production revision | `3bd7903061805962efd06cc8f1c2ca915075be21` |
+| Latest re-review revision | `f95066c` (`git diff c30fa77..f95066c`) |
 | Runtime scope reviewed | `internal/service/categorizer.go`; `internal/service/sic_categorizer.go`; `internal/service/sic_mapping_service.go`; `internal/repository/transaction_repo.go`; `internal/handler/category_handler.go`; `cmd/privateledger/web/templates/categories.html`; `cmd/privateledger/web/templates/sic_mappings.html` |
 | Ownership boundary | Reviewer changed test files and this review artifact only; production files were not modified |
 
@@ -292,7 +294,139 @@ creation and merge creation.
 - The race detector did not report a memory race. Its required command remains red because deterministic
   synchronization tests expose higher-level concurrency correctness failures.
 
+## Revision 1 Re-review — `f95066c`
+
+Revision 1 changes six production Go files and two templates. It also changes AI-DLC state/audit files
+and adds `code/revision-1-summary.md`. Production did not modify reviewer tests. The reviewer corrected
+four test call sites for the approved repository return-value change and independently tested the new
+behavior.
+
+### Finding disposition
+
+| Finding | Revision 1 assessment | Status |
+|---|---|---|
+| U5-R-F01 — one generation per pass | The new traversal-level read lock fixes publication through `Categorizer.LoadRules`, and the original deterministic test passes. `SICMappingCategorizer.ReloadMappings` still publishes under its separate mutex and bypasses that lock. The shipped-path test observes a mixed pass on 20 of 20 runs. | **Open — High** |
+| U5-R-F02 — concurrent manual overwrite | Both set-based writes exclude source 2 at SQL write time and return `RowsAffected`. The deterministic race test preserves the manual choice and reports zero changed rows. | **Resolved** |
+| U5-R-F03 — mapping counts | CRUD and upload transport results now contain all three counts, including zeros. Upload displays them. Dedicated mapping create/update/delete and transaction-modal mapping flows do not consume them. | **Open — High** |
+| U5-R-F04 — pattern counts and warnings | Category/pattern handlers now return all counts and post-commit warnings. The Categories page ignores those bodies and continues to show generic success messages. | **Open — High** |
+| U5-R-F05 — category deletion/manual provenance | The rule no longer reassigns the former manual row. The chosen `category_id=NULL, category_source=2` state contradicts the approved one-representation invariant and causes repository APIs to disagree about whether the row is uncategorized. | **Open — High; product/artifact decision required** |
+| U5-R-F06 — empty-category mapping creation | Direct creation and merge creation now invoke re-examination. | **Resolved** |
+
+### U5-R-F01 remains open — the shipped mapping reload bypasses the generation lock
+
+**References:** `internal/service/categorizer.go:304-359`;
+`internal/service/sic_categorizer.go:95-122`;
+`internal/service/sic_mapping_service.go:799-820`;
+`internal/service/uow5_reexamination_review_test.go:234-285`; BR-U5-10;
+NFR-U5-CON-02; TD-U5-03.
+
+`Reexamine` now holds `Categorizer.mu.RLock` for its entire decision traversal. That protects pattern and
+mapping publication performed through `Categorizer.LoadRules`. The mapping service, however, first
+calls the collaborator's public `ReloadMappings`; the shipped `SICMappingCategorizer` publishes that
+cache through its own `mu` without acquiring `Categorizer.mu`. A committed mapping change can therefore
+replace mappings while an already-running pass remains under the old pattern generation.
+
+The new test wraps the real `SICMappingCategorizer` only to pause after transaction one samples the old
+cache. It then performs the exact shipped `ReloadMappings` operation before transaction two. The first
+transaction takes the old mapping and the second takes the new one, deterministically on 20 of 20 runs.
+
+**Acceptance condition:** route every mapping-cache publication that can overlap re-examination through
+the same generation lock, or avoid the standalone publication on rule-changing post-commit paths and
+let the ensuing `Reexamine` perform the atomic load. Both one-generation tests must pass repeatedly.
+
+### U5-R-F03 and U5-R-F04 remain open — responses carry counts that the screens discard
+
+**References:** `cmd/privateledger/web/templates/categories.html:416-516`;
+`cmd/privateledger/web/templates/sic_mappings.html:250-329,360-377`;
+`cmd/privateledger/web/templates/transactions.html:725-748`;
+`cmd/privateledger/uow5_page_review_test.go:23-52`; FR16; US-16;
+`functional-design/frontend-components.md:8-20`; code-plan Step 8.
+
+The server result work is correct. The category create/add/delete callbacks never parse their successful
+response bodies and show only fixed success text. Mapping create/update/delete parse bodies only for
+warnings and otherwise reload immediately; only upload calls the new count formatter. Transaction
+modals continue to read the legacy positive-only `recategorized_rows` and ignore the other counts and
+post-commit warnings.
+
+The frontend design explicitly requires the Categories page, every SIC mapping mutation/upload, and
+both transaction modal mapping flows to show all three counts. The independent page test now checks
+that every trigger path consumes its returned result; all three screens fail that test.
+
+**Acceptance condition:** display moved, uncategorized, and manual-protected counts, including zeros,
+after every listed rule-change trigger. Display post-commit warnings without inviting a retry. Execute
+the real page JavaScript in the next re-review because this is the UI boundary where U2-F09 escaped.
+
+### U5-R-F05 remains open — the fix creates conflicting uncategorized semantics
+
+**References:** `internal/service/categorizer.go:423-461`;
+`internal/repository/transaction_repo.go:201-203,302-341,412-415`;
+`internal/handler/uow5_rule_change_review_test.go:251-288`;
+`functional-design/domain-entities.md:17-23,37-48`;
+`nfr-requirements/tech-stack-decisions.md:49-57`; DP-U5-03; TD-U5-04.
+
+Preserving source 2 prevents immediate rule reassignment, so the original manual-marker regression test
+now passes. It also leaves the row with no category and source manual. The approved design says no
+second representation of uncategorized may be introduced and pins that state to category NULL/source
+0. The consequences are already observable: `List(Uncategorized:true)` includes this row because its
+category is NULL, while `GetUncategorized` and `CountUncategorized` exclude it because its source is 2.
+The new consistency test records `page=1/get=0/count=0` for the same database.
+
+Production Revision 1 made a product choice that the first review explicitly required the user or an
+approved artifact amendment to settle. The retained manual guarantee and the one-representation rule
+cannot both be satisfied for a deleted manual category with the current three-state model without a
+specific semantic decision.
+
+**Acceptance condition:** obtain and record the category-deletion decision, then align the database
+state, all uncategorized queries, re-examination eligibility, counts, and user-visible behavior. Do not
+accept `category_id=NULL/category_source=2` under the current approved artifacts.
+
+### U5-R1-F01 — Medium — Category creation and pattern creation responses are not additive
+
+**References:** `internal/handler/category_handler.go:196-208,360-369`;
+`internal/handler/uow5_rule_change_review_test.go:139-169`; DP-U5-03; brownfield compatibility.
+
+Before Revision 1, category-with-pattern creation returned `CategoryWithPatterns` with `category_id`,
+`name`, `category_type`, and `patterns` at the top level. Pattern addition returned the pattern fields at
+the top level. Revision 1 nests those legacy objects under `category` and `pattern` to place counts
+beside them. Existing consumers decoding the prior response types now receive zero-valued objects.
+
+**Acceptance condition:** extend the two successful response shapes with count/warning fields while
+retaining their existing top-level fields, or document and approve an intentional breaking transport
+change. `TestReviewU5PatternRuleChangeResponsesRemainAdditive` must pass.
+
+**Status:** Open; required regression test fails.
+
+### Revision 1 commands and results
+
+| Command | Result |
+|---|---|
+| `go test -short -count=1 -run 'TestReviewU5' ./...` | FAIL on the four independently reproducible acceptance failures documented below; all other packages pass or have no matching tests. |
+| `go test -count=1 ./...` before reviewer corrections | Expected compile FAIL only at four reviewer-owned call sites after `BulkUpdateCategory` and `BulkClearCategory` changed from `error` to `(int, error)`; all packages that compiled passed. |
+| `go test -count=1 ./internal/repository` after corrections | PASS; returned counts are now asserted for empty, 32,765-row, and 40,000-row cases. |
+| Focused original UOW-5 service/handler/main tests | All six Revision 0 defect tests pass after the signature correction. |
+| `go test -short -count=1 -run 'TestReviewU5' ./internal/service` | FAIL only `TestReviewU5ShippedMappingReloadCannotSplitOnePass`; all other UOW-5 service tests pass. |
+| Shipped reload test with `-count=20` | FAIL on all 20 runs with transaction one on category 1 and transaction two on category 2. |
+| `go test -short -count=1 -run 'TestReviewU5' ./internal/handler` | FAIL on non-additive response shapes and split uncategorized semantics; original count, warning, cascade-order, and manual-marker assertions pass. |
+| `go test -short -count=1 -run 'TestReviewU5' ./cmd/privateledger` | FAIL because category, mapping CRUD, and transaction-modal trigger paths do not consume the reported counts. |
+| `go test -race -short -count=1 ./...` | FAIL on the deterministic correctness/UI assertions above; no Go data-race warning emitted. |
+| Three required performance tests | PASS. Re-examination median 601.845 ms and no-op median 85.725 ms; populated merge median 2.885 s against 10 s; import medians 3.109/3.272 s with 5.25% SIC overhead against 10%. |
+| Two required Rapid properties | PASS in 2.010 s with the established deterministic seed and shrinking configuration. |
+| `go vet ./...`; `go build ./...`; `git diff --check` | PASS. Build emitted only the known non-fatal external module-cache metadata warning. |
+| Chrome browser fixture | The isolated Categories page loaded successfully from `127.0.0.1:18843`; the extension detached before interaction. Static trigger-path tests already prove the successful callbacks discard the count bodies. Full interaction remains required after production fixes. |
+
+### Reviewer-owned Revision 1 test changes
+
+- Updated repository reviewer tests for `(int, error)` and asserted exact affected-row counts.
+- Strengthened the concurrent-manual test to require zero moved/uncategorized counts when SQL excludes
+  the newly manual row.
+- Added a deterministic shipped-cache reload test for the bypass around `Categorizer.mu`.
+- Added trigger-by-trigger page consumption checks for Categories, SIC mappings, and transaction modals.
+- Added category/pattern transport compatibility checks for the prior top-level fields.
+- Added an observable consistency test across the three uncategorized repository paths after deleting a
+  manually assigned category.
+
 ## Final Status
 
-**FAIL — BLOCKED.** Return U5-R-F01 through U5-R-F06 to the production role. Re-review the pinned
-production revision after fixes and any approved category-deletion/empty-mapping contract amendments.
+**FAIL — BLOCKED after Revision 1.** U5-R-F02 and U5-R-F06 are resolved. Return U5-R-F01, U5-R-F03,
+U5-R-F04, U5-R-F05, and U5-R1-F01 to the production role. Category deletion requires an explicit
+approved semantic decision before its production fix can close the gate.

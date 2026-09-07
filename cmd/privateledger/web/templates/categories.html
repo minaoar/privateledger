@@ -432,9 +432,10 @@ document.getElementById('addCategoryForm').addEventListener('submit', async func
         });
 
         if (response.ok) {
-            showToast('Category added successfully!', 'success');
+            const result = await response.json();
+            showToast(`Category added. ${describeReexamination(result)}`, 'success');
             bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => location.reload(), 2500);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to add category', 'danger');
@@ -465,9 +466,10 @@ document.getElementById('addPatternForm').addEventListener('submit', async funct
         });
 
         if (response.ok) {
-            showToast('Pattern added successfully!', 'success');
+            const result = await response.json();
+            showToast(`Pattern added. ${describeReexamination(result)}`, 'success');
             bootstrap.Modal.getInstance(document.getElementById('addPatternModal')).hide();
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => location.reload(), 2500);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to add pattern', 'danger');
@@ -485,8 +487,9 @@ async function deleteCategory(id, name) {
     try {
         const response = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
         if (response.ok) {
-            showToast('Category deleted successfully', 'success');
-            setTimeout(() => location.reload(), 1000);
+            const result = await response.json();
+            showToast(`Category deleted. ${describeReexamination(result)}`, 'success');
+            setTimeout(() => location.reload(), 2500);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to delete category', 'danger');
@@ -504,8 +507,9 @@ async function deletePattern(id, name) {
     try {
         const response = await fetch(`/api/patterns/${id}`, { method: 'DELETE' });
         if (response.ok) {
-            showToast('Pattern deleted successfully', 'success');
-            setTimeout(() => location.reload(), 1000);
+            const result = await response.json();
+            showToast(`Pattern deleted. ${describeReexamination(result)}`, 'success');
+            setTimeout(() => location.reload(), 2500);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to delete pattern', 'danger');
@@ -569,8 +573,12 @@ function describeReexamination(result) {
     if (result.processed_count !== undefined) {
         parts.push(`${result.processed_count} transactions examined`);
     }
-    if (Array.isArray(result.post_commit_warnings)) {
+    if (Array.isArray(result.post_commit_warnings) && result.post_commit_warnings.length > 0) {
+        // Stated as a completed fact, never as something to retry: the rule
+        // change is already durable by the time re-examination runs, so
+        // repeating it would apply the rule twice, not recover anything.
         result.post_commit_warnings.forEach(w => parts.push(w));
+        parts.push('The rule change itself was saved');
     }
 
     return parts.join('. ');

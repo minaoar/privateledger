@@ -280,7 +280,9 @@ async function submitMapping(event) {
                 {refresh: true});
             return;
         }
-        window.location.reload();
+        // The counts are shown before reloading, otherwise the page reloads out
+        // from under the only report the user gets of what the change did.
+        setStatus('success', 'Mapping saved.', [describeRuleChangeCounts(body)], {refresh: true});
     } catch (error) {
         bootstrap.Modal.getOrCreateInstance(document.getElementById('mappingModal')).hide();
         setUnknownOutcome('saving the mapping');
@@ -318,7 +320,7 @@ async function confirmDeleteMapping() {
                 {refresh: true});
             return;
         }
-        window.location.reload();
+        setStatus('success', 'Mapping deleted.', [describeRuleChangeCounts(body)], {refresh: true});
     } catch (error) {
         bootstrap.Modal.getOrCreateInstance(document.getElementById('deleteMappingModal')).hide();
         setUnknownOutcome('deleting the mapping');

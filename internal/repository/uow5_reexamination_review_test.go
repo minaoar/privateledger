@@ -36,11 +36,19 @@ func TestReviewU5BulkClearCategoryBeyondSQLiteVariableLimit(t *testing.T) {
 		ids[i] = i + 1
 	}
 	repo := NewTransactionRepository(db)
-	if err := repo.BulkClearCategory(nil); err != nil {
+	clearedCount, err := repo.BulkClearCategory(nil)
+	if err != nil {
 		t.Fatalf("empty clear: %v", err)
 	}
-	if err := repo.BulkClearCategory(ids); err != nil {
+	if clearedCount != 0 {
+		t.Fatalf("empty clear changed=%d, want 0", clearedCount)
+	}
+	clearedCount, err = repo.BulkClearCategory(ids)
+	if err != nil {
 		t.Fatalf("bulk clear beyond variable limit: %v", err)
+	}
+	if clearedCount != count {
+		t.Fatalf("bulk clear changed=%d, want %d", clearedCount, count)
 	}
 	var cleared, wrongSource int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM ledger_transaction WHERE category_id IS NULL`).Scan(&cleared); err != nil {

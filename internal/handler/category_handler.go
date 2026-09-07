@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -106,6 +107,30 @@ type ruleChangeOutcome struct {
 	PostCommitWarnings   []string `json:"post_commit_warnings,omitempty"`
 }
 
+// withRuleChangeCounts merges the rule-change counts into an existing response
+// body without disturbing its shape.
+//
+// The payload is marshalled and re-decoded so its own JSON tags decide the
+// top-level field names. That keeps the legacy fields exactly where callers
+// already expect them; the alternative — nesting the old body under a new key —
+// is a breaking transport change, and a silent one, because a decoder for the
+// old type succeeds and yields zeros.
+func withRuleChangeCounts(payload any, outcome ruleChangeOutcome) map[string]any {
+	merged := map[string]any{}
+	if encoded, err := json.Marshal(payload); err == nil {
+		if err := json.Unmarshal(encoded, &merged); err != nil {
+			merged = map[string]any{}
+		}
+	}
+	merged["moved_count"] = outcome.MovedCount
+	merged["uncategorized_count"] = outcome.UncategorizedCount
+	merged["manual_protected_count"] = outcome.ManualProtectedCount
+	if len(outcome.PostCommitWarnings) > 0 {
+		merged["post_commit_warnings"] = outcome.PostCommitWarnings
+	}
+	return merged
+}
+
 // reexamineAfterRuleChange runs the pass and reports it. The rule change is
 // already committed by every caller, so a failure here is never a reason to
 // fail the request.
@@ -198,14 +223,11 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		Patterns: patterns,
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"category":               result.Category,
-		"patterns":               result.Patterns,
-		"moved_count":            outcome.MovedCount,
-		"uncategorized_count":    outcome.UncategorizedCount,
-		"manual_protected_count": outcome.ManualProtectedCount,
-		"post_commit_warnings":   outcome.PostCommitWarnings,
-	})
+	// Additive: the legacy CategoryWithPatterns fields stay at the top level
+	// and the rule-change counts join them. Nesting them under a "category"
+	// key, as an earlier revision did, silently hands existing consumers a
+	// zero-valued object instead of an error.
+	c.JSON(http.StatusCreated, withRuleChangeCounts(result, outcome))
 }
 
 // UpdateCategoryRequest represents the request body for updating a category
@@ -305,10 +327,12 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 	// them, which may be a different category rather than nowhere.
 	outcome := h.reexamineAfterRuleChange("delete_category")
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Category deleted successfully",
-		"result":  outcome,
-	})
+	// "result" is retained because the deletion response introduced it in this
+	// unit and a test pins it; the counts are also merged at the top level so
+	// every rule-change response reads the same way.
+	body := withRuleChangeCounts(gin.H{"message": "Category deleted successfully"}, outcome)
+	body["result"] = outcome
+	c.JSON(http.StatusOK, body)
 }
 
 // AddPatternRequest represents the request body for adding a pattern to a category
@@ -360,13 +384,7 @@ func (h *CategoryHandler) AddPattern(c *gin.Context) {
 	// Adding a pattern is a rule change. Reexamine reloads rules itself.
 	outcome := h.reexamineAfterRuleChange("add_pattern")
 
-	c.JSON(http.StatusCreated, gin.H{
-		"pattern":                pattern,
-		"moved_count":            outcome.MovedCount,
-		"uncategorized_count":    outcome.UncategorizedCount,
-		"manual_protected_count": outcome.ManualProtectedCount,
-		"post_commit_warnings":   outcome.PostCommitWarnings,
-	})
+	c.JSON(http.StatusCreated, withRuleChangeCounts(pattern, outcome))
 }
 
 // findConflictingPattern checks if the new pattern conflicts with any existing pattern
@@ -410,13 +428,7 @@ func (h *CategoryHandler) DeletePattern(c *gin.Context) {
 	// in-flight reads of the rule cache.
 	outcome := h.reexamineAfterRuleChange("delete_pattern")
 
-	c.JSON(http.StatusOK, gin.H{
-		"message":                "Pattern deleted successfully",
-		"moved_count":            outcome.MovedCount,
-		"uncategorized_count":    outcome.UncategorizedCount,
-		"manual_protected_count": outcome.ManualProtectedCount,
-		"post_commit_warnings":   outcome.PostCommitWarnings,
-	})
+	c.JSON(http.StatusOK, withRuleChangeCounts(gin.H{"message": "Pattern deleted successfully"}, outcome))
 }
 
 // RecategorizeAll re-examines every transaction against the current rules.

@@ -1867,3 +1867,15 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 Production Revision 2 — Three of Four Re-review Findings Fixed
+**Timestamp**: 2026-09-07T17:50:00Z
+**User Input**: "Please fix the code based on the review comments and push the changes."
+**Re-review Verdict Received**: FAIL after Revision 1. U5-R-F02 and U5-R-F06 resolved; U5-R-F01, F03, F04 remain open; new Medium U5R1-F01 raised.
+**U5-R-F01 Fixed, After a Wrong First Attempt**: Revision 1's traversal-level lock only covers publications made through `Categorizer.LoadRules`, and `SICMappingCategorizer.ReloadMappings` publishes on its own mutex. Production's first fix here routed `ReloadMappings` through the categorizer when attached; the reviewer's test defeated it by wrapping the categorizer in a probe, so attachment reached the wrapper while the inner object still published independently. The lesson is general: any fix depending on every publisher cooperating can be bypassed by a wrapper or a later lookup. Replaced with a snapshot — `Reexamine` resolves the distinct SIC codes its transactions actually use, once, through the public `LookupCategory` interface under one read lock, captures the pattern slice alongside them, and evaluates the traversal against that immutable generation. No lookup call occurs during the traversal, so no publication can reach it. The attachment routing was reverted as machinery for a guarantee the snapshot gives unconditionally. Verified at `-count=10`.
+**U5-R-F03 and F04 Fixed**: the server work was already correct and the screens were discarding it. All five categories-page triggers, all three mapping-page triggers, and both transaction-modal flows now parse their responses and report the three counts including zeros. The transaction modal previously showed text only when `recategorized_rows` was truthy, so a change that uncategorized transactions or spared manual ones reported nothing. Post-commit warnings are worded as completed facts rather than retry prompts, because the rule change is durable before re-examination runs and repeating it would apply the rule twice.
+**U5R1-F01 Fixed**: Revision 1 nested the legacy `CategoryWithPatterns` and pattern bodies under new keys, which silently hands an existing consumer a zero-valued object rather than an error. A `withRuleChangeCounts` helper now merges the count fields at the top level so the legacy fields stay where callers expect them.
+**U5-R-F05 Left Open Deliberately**: the reviewer requires a recorded product decision before this can be implemented, and stated so in the first review as well. Revision 1 chose `category_id = NULL, category_source = 2` instead of asking, which created a second representation of "uncategorized" — `List(Uncategorized:true)` counts such a row while `GetUncategorized` and `CountUncategorized` do not. Making the choice rather than asking was the error, not merely the state chosen. Escalated to the user with options.
+**Status**: Revision 2 pushed. Gate remains FAIL pending the F05 decision and independent re-review.
+
+---
+
