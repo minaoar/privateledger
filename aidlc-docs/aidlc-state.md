@@ -83,8 +83,8 @@
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: none active — UOW-1, UOW-2 and UOW-3 complete; UOW-4 scope now frozen
 - **Current Stage**: Between units — UOW-2 navigation defect outstanding, UOW-4 not started
-- **Last Completed**: UOW-3 Code Generation approved by the user on 2026-09-06 after the independent gate returned PASS at Revision 4 (`bb44d40`), with Revision 5 closing the Low finding U3-R4-F01.
-- **Next Step**: Fix the UOW-2 navigation defect (SIC mappings page is a top-level nav item but the approved design specifies a secondary link from Categories), then run UOW-4, then Build and Test.
+- **Last Completed**: UOW-2 navigation defect U2-USER-02 fixed on 2026-09-06; the SIC mappings page is now a secondary link from Categories rather than a top-level nav item, matching the approved decision.
+- **Next Step**: Independent re-review of the UOW-2 navigation fix, then UOW-4 (scope frozen: U4-01, U4-02), then Build and Test.
 - **Status**: UOW-2 Code Generation gate is CLOSED. Independent review (OpenAI/Codex, separate provider) reviewed Revision 1 `ee24446` as BLOCKED with eight findings, then Revision 2 `1c37d22` as PASS with all eight RESOLVED and no Blocking, High, or Medium finding remaining. The single Low finding U2-R2-F01, a stale constructor comment contradicting the nil-collaborator contract, was fixed in Revision 3. Full suite, long tests, and `-race` pass across all seven packages with zero data races. PERF-01 measured a 1.4255 s median against the 10 s target; SCALE-01 verified at 1,000 rows; rapid properties replay at seed 20260906. Five verification limitations are recorded and adjudicated as non-blocking by the independent role, including no injected `os.File.Close` fault in `writeBackup` (no production seam advised) and no live browser for visual/keyboard checks. F-13/F-14/F-15/F-16 are verified corrected; F-04 and F-05 remain deferred.
 
 ## Notes

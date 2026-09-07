@@ -275,3 +275,65 @@ which function that markup's name resolves to at runtime.
 top-level function names intersect `app.js`'s globals. That is cheap, needs no browser, and would have
 caught this. Test authorship remains the independent role's ownership, so it is recommended here rather
 than added.
+
+---
+
+# Revision 5 — Navigation Placement Defect U2-USER-02
+
+Date: 2026-09-06. Reported by the user while UOW-3 was under review: the SIC mappings page appeared as a
+top-level navigation item, which is not what was chosen.
+
+## The approved decision
+
+`aidlc-docs/inception/plans/application-design-plan.md`, Question 1 — "Where should the SIC mapping page
+appear in navigation?" — was answered **`[Answer]: B.`**, "Add it as a secondary link from the existing
+Categories page". Option A, a top-level navigation item, and option C, both, were explicitly not chosen.
+
+That carried into the approved design. `application-design.md`, Key Design Decisions:
+
+> UI navigation: SIC mapping page is linked from the existing Categories page, not top-level navigation.
+
+`frontend-components.md` describes the page as having a "link back to Categories" — the return half of a
+relationship whose outbound half was never built.
+
+## What was built instead
+
+UOW-2 added a top-level navigation entry to `layout.html` — option A, the one that was declined. The
+reverse link on the SIC page was implemented correctly, so only the entry point was wrong.
+
+This was not an ambiguity or an inference. It was an explicit multiple-choice answer, recorded in two
+approved artifacts, and the declined option was implemented. It then survived a full independent gate,
+because navigation placement was in no verification list and the design-decisions record was not among
+the artifacts the handoffs pointed reviewers at.
+
+## Fix
+
+- Removed the `SIC Mappings` entry from `layout.html`'s navigation.
+- Added a secondary link on the Categories page, styled as `btn-outline-secondary` beside the primary
+  `Add Category` action so it reads as a related configuration surface rather than a primary action,
+  with `data-testid="categories-sic-mappings-link"`.
+- The `/sic-mappings` route is unchanged; only its discoverability moved.
+
+No JavaScript was added. The template-versus-`app.js` global sweep was run anyway and is clean.
+
+## Verification
+
+`gofmt`, `go build ./...`, `go vet ./...`, `git diff --check` clean. Smoke-tested on an isolated port:
+
+| Check | Result |
+|---|---|
+| `/categories` renders | 200 |
+| `/sic-mappings` still served | 200 |
+| Link present on Categories page | 1 occurrence |
+| SIC entry inside the `<nav>` block | **0 occurrences** |
+| Reverse link on the SIC page | still present |
+
+## Process Note
+
+This is the second UOW-2 defect found by the user after the gate closed, following U2-F09. Both were in
+the same blind spot: UI behaviour and placement that no automated check covers. U2-F09 was runtime
+JavaScript; this one is an approved decision that no test could have encoded, because the reviewers were
+never given the artifact recording it.
+
+Worth carrying into future handoffs: point the independent role at the design-decisions record, not only
+at requirements, stories, functional design and NFR artifacts.

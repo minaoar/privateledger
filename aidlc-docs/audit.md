@@ -1528,3 +1528,18 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: UOW-1, UOW-2 and UOW-3 Code Generation are all COMPLETE. Outstanding work: the UOW-2 navigation defect, then UOW-4, then Build and Test.
 
 ---
+
+## UOW-2 Post-Gate Defect U2-USER-02 — SIC Page in Top-Level Navigation
+**Timestamp**: 2026-09-06T18:35:00Z
+**User Input**: "fix UOW-2 navigation defect — the SIC page is a top-level nav item; you chose a secondary link from Categories."
+**Defect**: The SIC mappings page was reachable from a top-level navigation entry in `layout.html`. The approved decision was a secondary link from the Categories page.
+**Evidence**: `application-design-plan.md` Question 1 was answered `[Answer]: B.` — "Add it as a secondary link from the existing Categories page" — with option A, a top-level item, and option C, both, explicitly not chosen. `application-design.md` Key Design Decisions states "UI navigation: SIC mapping page is linked from the existing Categories page, not top-level navigation." `frontend-components.md` describes the page's "link back to Categories", the return half of a relationship whose outbound half was never built.
+**Nature of the Error**: not an ambiguity or an inference. An explicit multiple-choice answer was recorded in two approved artifacts and the declined option was implemented.
+**Why It Survived the Gate**: navigation placement appeared in no verification list, and the design-decisions record was not among the artifacts the handoffs directed reviewers to read — they were pointed at requirements, stories, functional design and NFR artifacts. The reviewers' page tests assert the SIC page's own contents; nothing asserted what `layout.html` contains or what `categories.html` links to.
+**Fix**: removed the navigation entry from `layout.html`; added a secondary link on the Categories page styled as `btn-outline-secondary` beside the primary Add Category action, with `data-testid="categories-sic-mappings-link"`. The `/sic-mappings` route is unchanged; only discoverability moved. No JavaScript added; the template-versus-`app.js` global sweep was run regardless and is clean.
+**Verification**: `gofmt`, `go build ./...`, `go vet ./...`, `git diff --check` clean. Smoke-tested on an isolated port: `/categories` 200, `/sic-mappings` 200, one link occurrence on the Categories page, zero SIC occurrences inside the `<nav>` block, and the reverse link on the SIC page still present.
+**Pattern**: second UOW-2 defect found by the user after the gate closed, after U2-F09. Both sit in the same blind spot — UI behaviour and placement that no automated check covers. Recorded recommendation: future handoffs should point the independent role at the design-decisions record, not only at requirements, stories, functional design and NFR artifacts.
+**Ownership**: production files only; no test file or review artifact modified.
+**Status**: Fixed. As a production change to a unit whose gate already closed, it requires an independent re-review pass before UOW-2 is considered closed again.
+
+---

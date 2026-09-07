@@ -170,3 +170,43 @@ this review artifact was edited by production.
    and that the persistent-result path is reachable for every outcome carrying a backup path or warning.
 5. **Verification gaps 1-5 from Revision 1 remain open.** Gap 1 in particular: the writer/closer seam
    for a real `writeBackup` Close fault was not added. Advise whether production should add it.
+
+
+---
+
+# Re-Review Request — Navigation Defect U2-USER-02
+
+Date: 2026-09-06. **Production revision `8e1d981`.** Diff: `git diff HEAD~1..8e1d981` — two templates.
+
+A post-gate defect reported by the user: the SIC mappings page was reachable from a top-level navigation
+entry, but the approved decision is a secondary link from the Categories page.
+
+`application-design-plan.md` Question 1 was answered `[Answer]: B.` — "Add it as a secondary link from
+the existing Categories page" — with the top-level option and the both option explicitly not chosen.
+`application-design.md` Key Design Decisions records "UI navigation: SIC mapping page is linked from the
+existing Categories page, not top-level navigation."
+
+## Fix
+
+- `layout.html`: SIC Mappings navigation entry removed.
+- `categories.html`: secondary link added beside the primary Add Category action, styled
+  `btn-outline-secondary`, `data-testid="categories-sic-mappings-link"`.
+- The `/sic-mappings` route is unchanged. No JavaScript added; the `app.js` global sweep is clean.
+
+## Verification
+
+`gofmt`, `go build ./...`, `go vet ./...`, `git diff --check` clean. `go test -count=1 ./...` passes all
+seven packages. Smoke-tested on an isolated port: `/categories` 200, `/sic-mappings` 200, one link
+occurrence on the Categories page, zero SIC occurrences inside the `<nav>` block, and the reverse link on
+the SIC page still present.
+
+## Worth Your Attention
+
+This is the second UOW-2 defect found after the gate closed, after U2-F09. Both sit in the same blind
+spot: UI behaviour and placement that no automated check covers.
+
+Neither was reachable from the artifacts you were given. Your page tests assert the SIC page's own
+contents; nothing asserted what `layout.html` contains or what `categories.html` links to, and the
+design-decisions record — `application-design.md` and the answered `application-design-plan.md` — was
+never in the handoff list. It is worth adding both to the artifacts you review against, and worth
+considering a check that asserts navigation placement, since it is a decision no functional test encodes.
