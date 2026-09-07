@@ -112,8 +112,13 @@ content is narrowed by NFR-U4-SEC-01: a diagnostic may carry a file-supplied cat
 64 runes and stripped of control characters through one shared helper. NFR-U4-SEC-01 extends the same
 bound to database-sourced category names, which this requirement had implicitly treated as safe.
 
-The logging and DOM-escaping clauses above are **unchanged and still binding**. Echoed names are never
-written to a log, and rendering remains `textContent`.
+The DOM-escaping clause above is **unchanged and still binding**: rendering remains `textContent`.
+
+**Further amended 2026-09-07 after independent review (U4-R-F01).** The sentence that stood here said
+echoed names are never written to a log. That was true when written and was made false later the same
+day by NFR Design Q1 A, which requires the bounded message on the startup seed path. The accurate rule:
+**upload paths log no diagnostic message; the startup seed path logs the bounded one** (DP-U4-07). The
+prohibition on logging upload contents is otherwise unchanged.
 
 ### NFR-U2-SEC-02 — Shared upload boundary
 

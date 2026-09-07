@@ -246,3 +246,30 @@ UOW-4 **mitigates the consequence** rather than the cause: NFR-U4-SEC-01 bounds 
 diagnostic to 64 runes regardless of source, so an unbounded name cannot inflate an upload response.
 Whether names should be bounded at creation is a separate question about a table this unit does not
 touch, and it would need a decision about existing rows.
+
+### C4-03 — Column 4 is trusted positionally, so a five-field mis-delimited seed can log bounded user text
+
+**Raised**: 2026-09-07 by independent review as U4-R-F02 (Low). **Disposition: accepted residual.**
+
+Production raised this in the handoff before the review, and the reviewer confirmed and sharpened it.
+
+The service necessarily treats logical CSV column 4 as `Category_Name`. A hand-edited or mis-delimited
+row that still parses as exactly **five** fields can place part of a description or account text there,
+and per DP-U4-07 the startup seed path persists that value to `server.log` after bounding it.
+
+Narrower than it first appears: an ordinary stray unquoted comma yields six fields and is rejected as
+`malformed_csv` before semantic validation ever runs. Exposure needs an offsetting omission or another
+malformation that still lands on five fields.
+
+Controls already in place: processing is local, file logging is off by default, each value is
+control-sanitized and capped at 64 runes, the assembled message at 512, and only the capped diagnostics
+are logged. Only column 4 is ever echoed — `Description` and `Description_Detail` are not.
+
+**Accepted** because the alternative is withholding the seed diagnosis entirely, which returns
+`sic_mappings.csv` — the longest-lived mapping file, and the only path with no screen — to reporting
+`code=category_not_found` and nothing else. If it later proves unwanted, the scoped change is a
+seed-specific policy that avoids persisting ambiguous user text, not a reversal of the bound.
+
+Two approved artifacts overstated the guarantee and were corrected rather than left standing: UOW-1's
+NFR-U1-SEC-02 and NFRP-U1-08 amendments both claimed no description or account identifier could be
+logged. The honest guarantee is positional, not categorical.

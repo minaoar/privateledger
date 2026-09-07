@@ -164,8 +164,15 @@ The bound is what makes it acceptable — 64 runes per value, control characters
 assembled message — and the reason is that the seed path has no screen: without the message, UOW-4's
 mitigation of U4-01 never reaches `sic_mappings.csv`. See NFR-U4-SEC-01 and DP-U4-07.
 
-Everything else in this pattern stands. No complete source record, transaction description, account
-identifier or row payload is logged, and no upload path logs a message.
+**Corrected 2026-09-07 after independent review (U4-R-F02).** The absolute exclusion this amendment
+originally retained has a positional limit. The seed path logs whatever occupies logical column 4,
+bounded — normally a category name, but a mis-delimited row that still parses as five fields could put
+description or account text there. Saying no description or identifier can ever be logged would claim a
+guarantee the parser cannot give.
+
+Everything else in this pattern stands. No complete source record and no row payload is logged, no
+upload path logs a message, and every logged value is control-sanitized and capped. The residual is
+accepted and recorded as C4-03.
 
 ## NFRP-U1-09 — Compatibility and Performance Evidence
 

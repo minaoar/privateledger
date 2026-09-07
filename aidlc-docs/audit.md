@@ -1689,3 +1689,17 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-4 Complete — Independent Gate PASS
+**Timestamp**: 2026-09-07T09:15:00Z
+**User Input**: "review done. UOW-4 can be marked complete and the workflow can proceed to UOW-5."
+**Verification Before Accepting**: the reviewer's commit `30f20fa` was confirmed present on `origin/support-mcc-for-category` and the review artifact read directly rather than taken on report. Gate result **PASS**, no blocking or high production finding. Every DP-U4-06 obligation is marked PASS in the traceability table, including the behavioural ceiling test — a 3,145,822-byte upload returning a 430-byte response against a 65,536-byte ceiling — and NFR-U4-PERF-01 at a 1.410713833 s median against the ten-second bound.
+**Reviewer Test Changes**: four new test files across model, service, handler and cmd, plus corrections to `sic_mapping_seed_test.go` resolving handoff items HF-01 and HF-02. The reviewer separated protected description content from the now-permitted `Category_Name` marker rather than deleting the privacy assertion, which preserves the original protection while accommodating the approved change.
+**Two Non-Blocking Findings, Both Production-Owned Artifact Corrections, Both Closed**:
+**U4-R-F01 (Medium)** — two artifacts still asserted that echoed names are never logged, contradicting the later approved DP-U4-07. Corrected: the UOW-4 technology table row now states the seed-only bounded-message exception, and the UOW-2 NFR-U2-SEC-01 amendment's absolute sentence was replaced with the accurate rule that upload paths log no message while the seed path logs the bounded one. The superseded sentence is described rather than silently removed.
+**U4-R-F02 (Low)** — the UOW-1 amendments claimed a bounded category name cannot be financial data and that no description or account identifier can be logged. The reviewer correctly identified this as overstating what a positional parser can guarantee: a mis-delimited row that still parses as exactly five fields can place description or account text in logical column 4. Both amendments were corrected to state the honest positional guarantee, and the residual is recorded as accepted candidate finding **C4-03** with its controls, its narrowness — an ordinary stray comma yields six fields and is rejected before semantic validation — and the reason for acceptance.
+**Assessment**: production had raised the column-4 concern in the handoff before the review and asked the reviewer not to treat production's framing as settling it. The reviewer sharpened it into a specific, testable claim and caught two artifact overstatements production had written. Both corrections improve accuracy rather than change behaviour; no production code changed.
+**Suite State**: `go test -count=1 ./...` passes every package after the reviewer's test changes.
+**Status**: UOW-4 COMPLETE, gate PASS, both findings closed. UOW-5 not started in this commit; it is opened separately so the UOW-4 record stands on its own.
+
+---
+

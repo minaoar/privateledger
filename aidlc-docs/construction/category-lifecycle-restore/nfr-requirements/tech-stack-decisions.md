@@ -12,7 +12,7 @@ schema change is made.
 | Header normalization | Standard library `strings` and `unicode/utf8` only | SEC-02 |
 | Value sanitization | Standard library `unicode` and `unicode/utf8`; one shared helper | SEC-01 |
 | Category ID index | An in-memory map built over the slice `categoryRepo.GetAll()` already returns | PERF-01 |
-| Logging | Existing `log/slog`, carrying codes and counts only, never echoed names | SEC-01 |
+| Logging | Existing `log/slog`. Upload paths carry codes and counts only; the startup seed path additionally carries the bounded diagnostic message (DP-U4-07) | SEC-01 |
 | Verification | Go `testing`, temporary SQLite databases, the existing merge timing harness | TEST-03 through TEST-06 |
 | Generated properties | Existing test-only `pgregory.net/rapid v1.1.0` | TEST-01, TEST-02, PBT-09 |
 | External services / infrastructure | None; single local binary retained; Infrastructure Design skipped | SEC-03 |
