@@ -487,25 +487,23 @@ func (c *Categorizer) ClearCategory(categoryID int) error {
 		return fmt.Errorf("failed to get transactions for category: %w", err)
 	}
 
-	// Detach the category, but keep category_source on a manual row.
+	// Every transaction in the deleted category becomes uncategorized, manual
+	// ones included.
 	//
-	// This used to write CategorySourceNone for every transaction, manual ones
-	// included, which erased the record that the user had chosen at all. That
-	// was survivable while deletion left the row uncategorized: it showed up on
-	// the dashboard and the user could see what happened. Once re-examination
-	// follows deletion, an erased marker means the rules silently claim a
-	// transaction the user had assigned by hand, and nothing reports it —
-	// because by then it no longer looks manual.
+	// This is a decision, not an oversight, recorded in FR7's 2026-09-07
+	// amendment. Deleting a category is the user removing their own choice: FR7
+	// protects a manual assignment from being revised by a *rule*, not from the
+	// user's own deliberate act. Once the category is gone the choice cannot be
+	// honoured at all, and the row is then an ordinary uncategorized
+	// transaction that the current rules may claim.
 	//
-	// A manual row therefore ends with no category and source still manual:
-	// the choice cannot be honoured, since its category is gone, but it is
-	// still the user's, so no rule may take it.
+	// A revision of this code briefly kept category_source = manual here, to
+	// preserve the marker. It produced a second meaning of "uncategorized" —
+	// List(Uncategorized) counted such a row while GetUncategorized and
+	// CountUncategorized did not — which is the one thing the approved design
+	// forbids outright.
 	for _, txn := range transactions {
-		source := model.CategorySourceNone
-		if txn.CategorySource == model.CategorySourceManual {
-			source = model.CategorySourceManual
-		}
-		if err := c.txnRepo.UpdateCategory(txn.TransactionID, nil, source); err != nil {
+		if err := c.txnRepo.UpdateCategory(txn.TransactionID, nil, model.CategorySourceNone); err != nil {
 			slog.Error("Error clearing category for transaction", slog.Int("transaction_id", txn.TransactionID), slog.String("error", err.Error()))
 			return fmt.Errorf("failed to clear category for transaction %d: %w", txn.TransactionID, err)
 		}

@@ -1879,3 +1879,15 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 — U5-R-F05 Product Decision and Revision 3
+**Timestamp**: 2026-09-07T18:20:00Z
+**User Input**: "go ahead with A"
+**Decision Recorded**: option A. Deleting a category clears it from every transaction it held, manual ones included; those transactions become uncategorized and are re-examined like any other.
+**Rationale Recorded in FR7**: FR7 protects a manual assignment from being revised by a rule. Deleting the category is not a rule acting — it is the user removing the very thing they chose, so once the category is gone the choice cannot be honoured in any form. The declined alternative kept `category_source = manual` on a transaction with no category, preserving a marker for a choice that can no longer be applied while creating a second representation of "uncategorized": `List(Uncategorized:true)` counted such a row while `GetUncategorized` and `CountUncategorized` did not. One meaning of uncategorized is worth more than a marker for an unhonourable choice.
+**Order of Work Followed the Acceptance Condition**: the reviewer required the approved artifacts to be amended explicitly before the test could change. FR7, NFR-U5-REL-02 and BR-U5-05 were amended first, each recording that the guarantee concerns rules rather than the user's own deletion, and only then was `ClearCategory` reverted to write `CategorySourceNone` for every row.
+**Verified Against the Running Binary**: a transaction manually assigned to Travel, with SIC 5412 mapped to Groceries. Deleting Travel returned moved 1, uncategorized 0, manual protected 0, and the transaction ended in Groceries with `category_source = 1`.
+**Consequent Handoff Finding**: `TestReviewU5CategoryDeletionPreservesManualChoiceMarker` now fails because it asserts the semantics the user declined. It is reviewer-owned and was not edited. `TestReviewU5CategoryDeletionDoesNotSplitUncategorizedSemantics` now passes, and this is the only failing test in the repository.
+**Status**: all six original findings and the Revision 1 finding are now addressed. Gate remains FAIL until the independent provider re-reviews and reports PASS.
+
+---
+

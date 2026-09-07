@@ -24,6 +24,12 @@
 
 - BR-U5-05: `category_source = 2` is never written by re-examination. This guarantee is unchanged from
   BR-U3-02 and is not weakened anywhere in this unit.
+
+  **Scope clarified 2026-09-07 after independent finding U5-R-F05.** Re-examination never overwrites a
+  manual assignment. Deleting a category is a separate act by the user, and it clears every assignment
+  in that category, manual ones included; the resulting transaction is uncategorized and re-examination
+  may then claim it like any other. See FR7 as amended and BR-U5-08 — a transaction with no category
+  always carries `category_source = 0`, and this unit introduces no exception to that.
 - BR-U5-06: A re-examined transaction is evaluated **as if it had no category**. BR-U3-03's
   existing-category guard does not apply during re-examination; it still applies to import.
 - BR-U5-07: Text patterns are evaluated first, in their existing order, first match wins. A SIC mapping

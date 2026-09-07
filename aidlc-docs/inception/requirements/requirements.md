@@ -220,6 +220,22 @@ Manual preservation is unchanged. The deletion bullet is struck because leaving 
 mapping that no longer exists is precisely the history-dependence FR15 forbids — the "future feature" it
 anticipated is UOW-5.
 
+**Amended 2026-09-07 by UOW-5, after independent finding U5-R-F05.** Deleting a category clears it from
+every transaction it held, **including manually assigned ones**, which then become uncategorized and are
+re-examined like any other uncategorized transaction.
+
+This does not weaken the first bullet, and the distinction is the whole point. FR7 protects a manual
+assignment from being revised by a **rule**. Deleting the category is not a rule acting; it is the user
+removing the very thing they chose. Once the category no longer exists the choice cannot be honoured in
+any form, and the transaction is simply uncategorized.
+
+The alternative was considered and declined: keeping `category_source = manual` on a transaction with no
+category preserves a marker for a choice that can no longer be applied, and it creates a **second
+representation of "uncategorized"** — one query counts such a row, another does not. A single meaning of
+uncategorized is worth more than a marker for an unhonourable choice.
+
+Manual assignments in categories that still exist are untouched by this, under every trigger.
+
 ### FR15 — Categorization is determined by the current rules, not by rule history
 
 **Added 2026-09-07 by UOW-5**, from the user's stated principle:

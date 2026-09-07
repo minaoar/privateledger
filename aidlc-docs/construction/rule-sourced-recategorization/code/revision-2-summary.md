@@ -79,3 +79,50 @@ the F05 test.
 
 The repository package compiles again: the reviewer updated the four call sites for the `(int, error)`
 signatures.
+
+---
+
+# Revision 3 Addendum — U5-R-F05 Decided and Implemented
+
+The user chose **option A** on 2026-09-07: deleting a category clears it from every transaction it held,
+manual ones included, and those transactions become uncategorized and are re-examined like any other.
+
+## Why this option
+
+FR7 protects a manual assignment from being revised by a **rule**. Deleting the category is not a rule
+acting — it is the user removing the very thing they chose. Once the category is gone the choice cannot
+be honoured in any form.
+
+The alternative kept `category_source = manual` on a transaction with no category. That preserves a
+marker for a choice that can no longer be applied, at the cost of a **second representation of
+"uncategorized"**: `List(Uncategorized:true)` counted such a row while `GetUncategorized` and
+`CountUncategorized` did not. One meaning of uncategorized is worth more than a marker for an
+unhonourable choice.
+
+## Artifacts amended before the code changed
+
+The reviewer's acceptance condition required exactly this order — *"If the user chooses different
+semantics, amend the approved artifacts explicitly before changing this test."*
+
+| Artifact | Amendment |
+|---|---|
+| `requirements.md` FR7 | Records the decision, why deleting a category is not a rule revising a choice, and that the alternative was declined for creating a second uncategorized representation |
+| `nfr-requirements.md` NFR-U5-REL-02 | Scope clarified: the guarantee is about rules, and does not survive the user deleting the category itself |
+| `functional-design/business-rules.md` BR-U5-05 | Same clarification, pointing at BR-U5-08's single representation |
+
+Manual assignments in categories that still exist are untouched, under every trigger. That is what
+NFR-U5-TEST-04 verifies and it continues to pass.
+
+## Verified against the running binary
+
+A transaction manually assigned to *Travel*, with SIC 5412 mapped to *Groceries*. Deleting *Travel*
+returned `moved_count 1, uncategorized_count 0, manual_protected_count 0`, and the transaction ended in
+*Groceries* with `category_source = 1`.
+
+## Consequent handoff finding
+
+`TestReviewU5CategoryDeletionPreservesManualChoiceMarker` now fails. It asserts the semantics the user
+declined, and per the acceptance condition the artifacts were amended first so that the test can follow.
+`TestReviewU5CategoryDeletionDoesNotSplitUncategorizedSemantics` passes.
+
+That is the only failing test in the repository.

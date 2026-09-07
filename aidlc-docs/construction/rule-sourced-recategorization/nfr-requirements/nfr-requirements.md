@@ -137,6 +137,12 @@ This is the one guarantee UOW-5 does not touch, and it is restated here because 
 guard beside it — BR-U3-03's existing-category stop — and a reader could take the pair as weakened
 together.
 
+**Scope clarified 2026-09-07 after independent finding U5-R-F05.** The guarantee is about *rules* not
+revising a manual assignment. It does not survive the user deleting the category itself: that clears the
+assignment along with everything else in the category, and the transaction becomes uncategorized and
+re-examinable. See FR7 as amended. Manual assignments in existing categories are protected under every
+trigger, which is what NFR-U5-TEST-04 verifies.
+
 ### NFR-U5-REL-03 — Failure isolation
 
 A rule change is never rolled back because re-examination failed afterwards. BR-U2-45's
