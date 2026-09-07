@@ -50,6 +50,20 @@ formats a name directly and bypasses the bound. A single choke point makes that 
 **Echoed values are never written to a log.** `slog` continues to carry operation, row, field, stable
 code and counts only, per NFR-U2-SEC-01.
 
+**Amended 2026-09-07 at NFR Design (Q1 A).** The clause above was written as a carry-forward of UOW-2's
+rule, before the startup seed path had been traced. `main.go` logs seed validation failures with `path`,
+`row`, `field` and `code` and omits `Message` — which satisfies the clause exactly, and thereby withholds
+the entire U4-01 mitigation from `sic_mappings.csv`. A user with a stale category name in the seed file
+is told only `code=category_not_found`, with nothing identifying the value or its replacement. That is
+the file the approved rationale singled out as mattering most, and it is the one path with no screen.
+
+The clause is therefore narrowed: **the seed path logs the diagnostic `Message`** as one added attribute
+on its existing per-row record. Every value inside a `Message` is bounded and sanitized by this
+requirement, and NFR-U4-SEC-04 caps the assembled message, so the logged string is bounded by
+construction — the unbounded-content reason for the original ban does not survive the bound.
+
+Nothing else changes. Upload responses log no message, and no raw or unbounded value is written anywhere.
+
 Rendering remains DOM `textContent`, never assembled HTML. Escaping was already correct; it is restated
 because the content flowing through it is newly attacker-influenced, and because replacing control
 characters is what stops a crafted name from appearing to forge additional diagnostic lines in the
@@ -76,6 +90,23 @@ NFR-U4-SEC-01 bound entirely rather than dependent on it.
 All processing remains local. No external service, telemetry, authentication system or cloud dependency
 is introduced. Parameterized SQL and foreign keys are preserved. Backup path resolution is untouched by
 this unit.
+
+### NFR-U4-SEC-04 — Assembled-message backstop (blocking)
+
+**Added 2026-09-07 at NFR Design (Q2 A).** Not required by the questions answered at this stage; added
+because the honest reading of Q2 A demanded it.
+
+Q2 A makes the safe path the path of least resistance but cannot make bypass impossible: Go permits
+`fmt.Sprintf` into the constant-message entry point. Rather than overstate the type's guarantee,
+`AddError` truncates any assembled message to **512 runes** as a final backstop.
+
+The largest legitimate message — an ambiguity diagnostic naming three 64-rune categories with a count —
+is roughly 250 runes, so the backstop never truncates a well-formed message. What it does is make the
+worst case of a future bypass *bounded* rather than catastrophic: a diagnostic that forgets the per-value
+helper produces an ugly message, not a multi-megabyte response.
+
+This is what makes the honest statement acceptable. The type discourages bypass, the behavioural ceiling
+test detects it, and this bounds it even undetected.
 
 ## Compatibility
 
@@ -156,7 +187,12 @@ the generative property above.
   `Category_ID`, sufficient for a single find-and-replace.
 - A case collision names the colliding categories, truncated at three with an accurate "and N more".
 - Header failures name a position or a pair of counts, and contain no text from the file.
-- No echoed name exceeds the bound, and no echoed name appears in any log record.
+- No echoed name exceeds the bound.
+- Upload handling writes no diagnostic message to a log. The startup seed path writes the bounded
+  `Message` and nothing further, per the NFR-U4-SEC-01 amendment of 2026-09-07.
+- A seed file with a stale category name produces a log record naming both the unresolved value and the
+  current name behind `Category_ID`, so the seed path is repairable on the same single edit as an
+  upload.
 
 ### NFR-U4-TEST-05 — Compatibility evidence (blocking)
 

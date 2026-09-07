@@ -18,7 +18,7 @@ Measured against the working tree before writing this plan.
 
 | Observation | Evidence |
 |---|---|
-| There are **ten** diagnostic sites, all in one file | `sic_mapping_service.go` lines 258, 264, 274, 299, 310, 312, 397, 406, 411, 419, 423 |
+| There are **eleven** diagnostic sites, all in one file | `sic_mapping_service.go` lines 258, 264, 274, 299, 310, 312, 397, 406, 411, 419, 423 |
 | One already interpolates, but only an integer | Line 312, `fmt.Sprintf("SIC code duplicates row %d", firstRow)` |
 | Upload diagnostics render as one `<p>` per line with `textContent` | `sic_mappings.html:187`, via `describeDiagnostics` at line 361 |
 | `category.name` has no length constraint | `schema.sql:53`; `CreateCategory` validates none |
@@ -83,7 +83,7 @@ Answer each by replacing the `[Answer]:` tag. One option per question is marked 
   consider logging category names genuinely unwanted, in which case say so and I will record it as the
   reason.*
 
-[Answer]:
+[Answer]:A
 
 ### Q2 — How the bound is enforced across diagnostic sites
 
@@ -104,7 +104,7 @@ silently. Go cannot make bypass impossible; these differ in how conspicuous it i
   *Does not work. The bound is per value; applying 64 runes to a whole message would truncate the fixed
   text that makes it useful.*
 
-[Answer]:
+[Answer]:A
 
 ### Q3 — Category ID index construction
 
@@ -115,7 +115,7 @@ silently. Go cannot make bypass impossible; these differ in how conspicuous it i
   small to measure.*
 - B. Build it lazily, only when a row fails to resolve.
 
-[Answer]:
+[Answer]:A
 
 ### Q4 — Exact message wording
 
@@ -135,16 +135,16 @@ Concrete strings, for confirmation rather than preference. `«name»` marks a bo
   signals cannot be mistaken for each other.*
 - B. Adopt with changes you specify.
 
-[Answer]:
+[Answer]:A
 
 ## Execution Checklist
 
 - [x] Confirm NFR Requirements approval and re-verify the diagnostic, rendering and seed paths.
 - [x] Verify the `frontend-components.md` escaping claim rather than repeating it.
 - [x] Trace the seed logging path and raise the mitigation gap it exposes.
-- [ ] Receive answers to Q1 through Q4.
-- [ ] Amend NFR-U4-SEC-01 if Q1 changes the logging clause, dated.
-- [ ] Generate `logical-components.md` and `nfr-design-patterns.md` under
+- [x] Receive answers to Q1 through Q4. (A, A, A, A)
+- [x] Amend NFR-U4-SEC-01 for the Q1 A logging change, dated. NFR-U4-TEST-04 amended with it.
+- [x] Generate `logical-components.md` and `nfr-design-patterns.md` under
       `aidlc-docs/construction/category-lifecycle-restore/nfr-design/`.
 - [ ] Receive explicit NFR Design approval.
 

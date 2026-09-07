@@ -1647,3 +1647,17 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-4 NFR Design — Answers Recorded, Artifacts Generated
+**Timestamp**: 2026-09-07T07:10:00Z
+**User Input**: "answered with all A"
+**Answers**: Q1 A the startup seed path logs the diagnostic `Message`, Q2 A a constructed `DiagValue` type as the interpolation boundary plus a behavioural response-size ceiling test, Q3 A the category ID index is built unconditionally in one pass, Q4 A the message wording adopted as drafted. The user edited the `[Answer]:` tags in the plan file directly.
+**Amendment Applied**: NFR-U4-SEC-01's "never written to a log" clause was narrowed and dated. It had been written as a carry-forward of UOW-2's rule before the seed path was traced, and as written it withheld the entire U4-01 mitigation from `sic_mappings.csv` — the one path with no screen, and the file the approved rationale singled out as mattering most. NFR-U4-TEST-04 was amended alongside it, replacing "no echoed name appears in any log record" with the split contract: upload handling logs no message, the seed path logs the bounded one.
+**Requirement Added Beyond the Questions**: NFR-U4-SEC-04, an assembled-message backstop of 512 runes inside `AddError`. Q2 A makes the safe path the path of least resistance but cannot make bypass impossible, since Go permits `fmt.Sprintf` into the constant-message entry point. Rather than overstate the type's guarantee, the backstop bounds the worst case of an undetected bypass. The largest well-formed message is roughly 250 runes, so it never fires in normal operation. Recorded as an addition rather than folded in silently.
+**Count Corrections**: the stage plan said "ten diagnostic sites" while listing eleven line numbers, and a draft sentence said "the remaining five" while listing eight codes. Both corrected. Three of the eleven sites change.
+**Verified Non-Changes Recorded**: `sic_mappings.html` needs no change — `describeDiagnostics` already renders `e.message` and `setStatus` already assigns `textContent` per line, checked at lines 370 and 187. `sic_mapping_handler.go` needs no change — its `category_not_found` case handles a single-mapping create/update error, a different path that merely shares the code spelling with the CSV row diagnostic. Both recorded explicitly because each is an easy mis-edit during code generation.
+**Coupling Recorded**: ambiguity-diagnostic ordering follows `GetAll`'s `ORDER BY name ASC` (`category_repo.go:87`), so diagnostics are deterministic without an explicit sort. No redundant sort added; if that ordering ever changes the reviewer-owned tests fail loudly, which is the correct outcome.
+**Generated Artifacts**: `nfr-design-patterns.md` (DP-U4-01 through DP-U4-07) and `logical-components.md` under `aidlc-docs/construction/category-lifecycle-restore/nfr-design/`. No new component, no dependency, no concurrency, no schema change.
+**Status**: UOW-4 NFR Design complete; awaiting explicit approval before Code Generation. No production code or test changed.
+
+---
+
