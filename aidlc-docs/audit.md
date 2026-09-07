@@ -1661,3 +1661,16 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-4 NFR Design Approved; Code Generation Part 1 Plan Created
+**Timestamp**: 2026-09-07T07:40:00Z
+**User Input**: "i have started interacting from the mac again. go ahead with the code generation."
+**AI Response**: Recorded NFR Design approval, applied two further amendments the stage's decision required, and created the Code Generation Part 1 plan.
+**Context**: "Continue to Next Stage" for NFR Design. Infrastructure Design remains skipped, so Code Generation follows directly.
+**Third and Fourth Amendments Applied**: while enumerating the code surface, `cmd/privateledger/startup_sic_outcome_test.go:236` was found to be a reviewer-owned test named `TestLogSICMappingImportOutcome_NoSeedPayloadInDiagnostics` whose comment cites NFRP-U1-08 and NFR-U1-SEC-02, "startup logs must not contain file contents". Q1 A adds a category name from the seed CSV to a startup log, which is file content by any honest reading. The test itself still passes, because its fixture never places the secret in a `Message`, but the rule its name encodes is one this unit changes. UOW-1's `nfr-requirements.md` NFR-U1-SEC-02 and `nfr-design-patterns.md` NFRP-U1-08 were therefore both amended and dated before the plan was written, so the reviewer meets a documented narrowing rather than an apparent violation. NFRP-U1-08 was narrowed explicitly rather than argued around, since a category name genuinely is file content.
+**Lesson Applied**: U2-USER-02 reached the user because the design decision was never carried into any handoff. Step 8 of the plan therefore requires the handoff to carry the full design-decisions record across all three stages, all four dated amendments, the mitigated-not-resolved status of U4-01, and the honest limit of DP-U4-02.
+**Compilation Risk Checked**: no existing test references `matchesSICMappingHeader`, `indexCategories`, `resolveSICCategory` or `sicRowValidator`, verified across `internal/` and `cmd/`, so the planned signature changes cannot break test compilation. This check was added because deleting a shared constant broke test compilation during UOW-3.
+**Plan Shape**: ten steps over three production files — `internal/model/sic_mapping.go`, `internal/service/sic_mapping_service.go`, `cmd/privateledger/main.go` — plus two production documents. No template, handler, repository, schema, dependency or route change.
+**Status**: UOW-4 NFR Design COMPLETE and approved. Code Generation Part 1 plan created, awaiting approval before production generation begins.
+
+---
+

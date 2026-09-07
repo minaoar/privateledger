@@ -155,6 +155,18 @@ UOW-1 contains no network client or external endpoint. All paths terminate in lo
 
 Structured logs use stable event names and fields such as operation, safe path, row number, validation code, and count. They exclude complete source records, transaction descriptions, account identifiers, and file contents. Wrapped errors must not accidentally embed rejected row payloads.
 
+**Amended 2026-09-07 by UOW-4 NFR Design (Q1 A).** "File contents" is narrowed for one case: the startup
+seed path logs the bounded diagnostic `Message`, which may contain a category name read from the seed
+CSV. Unlike the sentence above, that is file content by any honest reading, so it is narrowed explicitly
+rather than argued around.
+
+The bound is what makes it acceptable — 64 runes per value, control characters replaced, 512 runes per
+assembled message — and the reason is that the seed path has no screen: without the message, UOW-4's
+mitigation of U4-01 never reaches `sic_mappings.csv`. See NFR-U4-SEC-01 and DP-U4-07.
+
+Everything else in this pattern stands. No complete source record, transaction description, account
+identifier or row payload is logged, and no upload path logs a message.
+
 ## NFRP-U1-09 — Compatibility and Performance Evidence
 
 Production design exposes no test-only global switches. Verification uses normal constructors, temporary paths/databases, deterministic fixtures, and package-visible behavior.

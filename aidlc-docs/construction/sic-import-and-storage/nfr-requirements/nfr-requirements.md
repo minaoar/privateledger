@@ -90,6 +90,21 @@ SIC values, mappings, category resolution, migration, validation, and persistenc
 
 Logs may contain operation names, paths, row numbers, field names, stable validation codes, counts, and contextual errors. They must not dump OFX/QFX payloads, complete CSV contents, transaction descriptions, account identifiers, or other unnecessary financial data.
 
+**Amended 2026-09-07 by UOW-4 NFR Design (Q1 A).** The startup seed path additionally logs the bounded
+diagnostic `Message`, which may contain a category name taken from the seed CSV. This is compatible with
+the sentence above — a 64-rune category name is neither complete CSV contents nor financial data — but
+the word "unnecessary" is doing real work there, so the necessity is recorded rather than left to
+judgement.
+
+It is necessary because the seed path has no screen. Without it, a user whose `sic_mappings.csv` names a
+renamed category is told only `code=category_not_found`, with nothing identifying the stale value or its
+replacement, and UOW-4's entire mitigation of U4-01 is unavailable for the longest-lived mapping file in
+the product. See NFR-U4-SEC-01 as amended.
+
+The prohibitions are otherwise unchanged and still binding. Values inside the message are bounded to 64
+runes and stripped of control characters, the assembled message is capped at 512 runes, no OFX/QFX
+payload, transaction description or account identifier is logged, and no upload path logs a message.
+
 ### NFR-U1-SEC-03 — Seed resource boundary
 
 The startup initializer must determine file size before parsing and reject files larger than 10 MiB. The size rejection is non-fatal, produces no mapping mutation, and must not read the oversized file into memory merely to enforce the limit.

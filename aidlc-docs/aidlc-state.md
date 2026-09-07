@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-08-17T05:48:26Z
-- **Current Stage**: CONSTRUCTION - UOW-4 NFR Design (artifacts generated, awaiting approval)
+- **Current Stage**: CONSTRUCTION - UOW-4 Code Generation Part 1 (planning)
 - **Branch**: support-mcc-for-category
 
 ## Workspace State
@@ -69,9 +69,9 @@
 - [x] Scope freeze — FROZEN at UOW-3 Code Generation completion, 2026-09-06. Admitted: U4-01, U4-02.
 - [x] Functional Design — COMPLETED FOR UOW-4 (approved 2026-09-07)
 - [x] NFR Requirements — COMPLETED FOR UOW-4 (approved 2026-09-07)
-- [ ] NFR Design — artifacts generated 2026-09-07; awaiting explicit approval
+- [x] NFR Design — COMPLETED FOR UOW-4 (approved 2026-09-07)
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — NOT STARTED
+- [ ] Code Generation — Part 1 plan created 2026-09-07; awaiting plan approval before production generation
 
 #### UOW-5 — Rule-Sourced Recategorization
 - [ ] Requirements/story amendment (FR7, US-03) — NOT STARTED
@@ -90,9 +90,9 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
-- **Current Stage**: UOW-4 NFR Design — artifacts generated, awaiting explicit approval
-- **Last Completed**: UOW-4 NFR Design answered A, A, A, A on 2026-09-07. NFR-U4-SEC-01 amended so the startup seed path logs the bounded diagnostic message, and NFR-U4-SEC-04 added as a 512-rune assembled-message backstop.
-- **Next Step**: Review and explicitly approve `nfr-design-patterns.md` and `logical-components.md` plus the two NFR amendments, then proceed to Code Generation Part 1 (planning). UOW-5 remains registered and not started.
+- **Current Stage**: UOW-4 Code Generation Part 1 — plan created, awaiting approval
+- **Last Completed**: UOW-4 NFR Design approved on 2026-09-07. Two further amendments applied: UOW-1 NFR-U1-SEC-02 and NFRP-U1-08, both of which forbade logging file contents that Q1 A now permits in bounded form.
+- **Next Step**: Approve `aidlc-docs/construction/plans/category-lifecycle-restore-code-generation-plan.md`, then production generation of three files. The independent provider owns all tests and must report PASS. UOW-5 remains registered and not started.
 - **Status**: UOW-1, UOW-2 and UOW-3 are complete with independent gates PASS, plus two post-gate UOW-2 defects found by the user and independently re-reviewed: U2-F09, a delete handler shadowed by an `app.js` global, and U2-USER-02, the SIC page appearing in top-level navigation against the approved decision. UOW-4 is a narrow two-finding unit: header normalization for BOM, whitespace and case, and three more specific diagnostics. It adds no table, column, index, endpoint, page, route or dependency and mutates nothing new; only the header becomes more tolerant, and existing diagnostic codes are unchanged so anything matching on them is unaffected. U4-01 is recorded as MITIGATED, not resolved — a renamed category still makes a file fail to import, and the fix makes that failure repairable in one edit. Resolving by `Category_ID` was declined because nothing in a file distinguishes a rename from a delete-and-recreate, and because the startup seed file is read on databases where IDs are meaningless. UOW-5 is registered and not started; it would reverse FR7 so rule-sourced transactions follow a changed rule, and requires a requirements amendment first.
 
 ## Notes
