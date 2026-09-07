@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-08-17T05:48:26Z
-- **Current Stage**: CONSTRUCTION - UOW-3 Code Generation Part 1 (planning)
+- **Current Stage**: CONSTRUCTION - UOW-4 NFR Requirements (stage plan open, awaiting answers)
 - **Branch**: support-mcc-for-category
 
 ## Workspace State
@@ -29,7 +29,7 @@
 - **Request Type**: New Feature / Enhancement
 - **Initial Scope Estimate**: Multiple Components (parser, model, database schema/migration, repositories, categorizer service, handlers/API, categories UI, tests)
 - **Initial Complexity Estimate**: Moderate
-- **Status**: Requirements approved and INCEPTION completed; CONSTRUCTION is in progress for UOW-2
+- **Status**: Requirements approved and INCEPTION completed; CONSTRUCTION is in progress for UOW-4
 
 ## Stage Progress
 
@@ -67,8 +67,8 @@
 
 #### UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
 - [x] Scope freeze — FROZEN at UOW-3 Code Generation completion, 2026-09-06. Admitted: U4-01, U4-02.
-- [ ] Functional Design — artifacts generated; awaiting explicit approval
-- [ ] NFR Requirements — NOT STARTED
+- [x] Functional Design — COMPLETED FOR UOW-4 (approved 2026-09-07)
+- [ ] NFR Requirements — IN PROGRESS (stage plan created 2026-09-07; five questions awaiting answers)
 - [ ] NFR Design — NOT STARTED
 - [ ] Infrastructure Design — SKIP
 - [ ] Code Generation — NOT STARTED
@@ -90,9 +90,9 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
-- **Current Stage**: UOW-4 Functional Design — artifacts generated, awaiting explicit approval
-- **Last Completed**: UOW-4 Functional Design questions answered (Q1 B, Q2 A, Q3 A, Q4 A, FQ1 A) and the four functional-design artifacts generated on 2026-09-07.
-- **Next Step**: Review and explicitly approve the four UOW-4 functional-design artifacts, then proceed to NFR Requirements. UOW-5 remains registered and not started.
+- **Current Stage**: UOW-4 NFR Requirements — stage plan created, five questions awaiting answers
+- **Last Completed**: UOW-4 Functional Design approved on 2026-09-07 ("continue to next stage"). The four artifacts stand as generated, including the user-rationale section added after they were written.
+- **Next Step**: Answer Q1 through Q5 in `aidlc-docs/construction/plans/category-lifecycle-restore-nfr-requirements-plan.md`, then generate `nfr-requirements.md` and `tech-stack-decisions.md`. UOW-5 remains registered and not started.
 - **Status**: UOW-1, UOW-2 and UOW-3 are complete with independent gates PASS, plus two post-gate UOW-2 defects found by the user and independently re-reviewed: U2-F09, a delete handler shadowed by an `app.js` global, and U2-USER-02, the SIC page appearing in top-level navigation against the approved decision. UOW-4 is a narrow two-finding unit: header normalization for BOM, whitespace and case, and three more specific diagnostics. It adds no table, column, index, endpoint, page, route or dependency and mutates nothing new; only the header becomes more tolerant, and existing diagnostic codes are unchanged so anything matching on them is unaffected. U4-01 is recorded as MITIGATED, not resolved — a renamed category still makes a file fail to import, and the fix makes that failure repairable in one edit. Resolving by `Category_ID` was declined because nothing in a file distinguishes a rename from a delete-and-recreate, and because the startup seed file is read on databases where IDs are meaningless. UOW-5 is registered and not started; it would reverse FR7 so rule-sourced transactions follow a changed rule, and requires a requirements amendment first.
 
 ## Notes

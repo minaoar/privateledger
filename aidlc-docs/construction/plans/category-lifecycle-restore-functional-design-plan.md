@@ -172,7 +172,7 @@ marking the finding closed.
 - [x] Promote the story or stories into `unit-of-work.md` and `unit-of-work-story-map.md`.
 - [x] Generate the functional design artifacts under
       `aidlc-docs/construction/category-lifecycle-restore/functional-design/`.
-- [ ] Receive explicit Functional Design approval.
+- [x] Receive explicit Functional Design approval. (Approved 2026-09-07: "continue to next stage".)
 
 ## Out of Scope
 

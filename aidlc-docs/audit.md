@@ -1607,3 +1607,14 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: no design change; rationale added to the approved-pending artifacts. UOW-4 Functional Design still awaiting explicit approval.
 
 ---
+## UOW-4 Functional Design — Approved; Entering NFR Requirements
+**Timestamp**: 2026-09-07T05:30:00Z
+**User Input**: "continue to next stage"
+**AI Response**: Recorded the explicit Functional Design approval, closed the final checkbox in `category-lifecycle-restore-functional-design-plan.md`, updated `aidlc-state.md`, and opened UOW-4 NFR Requirements with a stage plan.
+**Context**: This is the "Continue to Next Stage" option of the standardized two-option completion message for Functional Design. The four artifacts under `aidlc-docs/construction/category-lifecycle-restore/functional-design/` are approved as generated, including the user-rationale section added after they were written.
+**New NFR Surface Identified**: the one thing UOW-4 changes that has no NFR precedent is that a diagnostic message now contains **file-supplied text** — the unresolved `Category_Name`. Every diagnostic to date has carried only fixed text, a row number, a field name and a stable code. NFR-U2-SEC-01 forbids echoing arbitrary file content, and BR-U4-11 requires naming the unresolved value, so the two must be reconciled explicitly at this stage rather than left to code generation.
+**Stage Plan Created**: `aidlc-docs/construction/plans/category-lifecycle-restore-nfr-requirements-plan.md` with five questions, each carrying a marked recommendation.
+**Status**: UOW-4 Functional Design COMPLETE and approved. NFR Requirements open, awaiting answers.
+
+---
+
