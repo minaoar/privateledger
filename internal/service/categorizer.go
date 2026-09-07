@@ -131,14 +131,23 @@ func (c *Categorizer) LoadRules() error {
 		return nil
 	}
 
+	// Compatibility path for a source that cannot stage its replacement. Such a
+	// source may publish its new mappings as soon as the reload begins, which is
+	// legitimate for this interface, so the categorizer cannot let a reader
+	// observe the interval at all: the write lock is held across the reload and
+	// the pattern publication together.
+	//
+	// Categorization therefore blocks for the duration of a fallback reload and
+	// resumes on one complete generation. If the reload fails, patterns are
+	// never published and the previous generation stands.
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.sicLookup != nil {
 		if err := c.sicLookup.ReloadMappings(); err != nil {
 			return err
 		}
 	}
-	c.mu.Lock()
 	c.patterns = patterns
-	c.mu.Unlock()
 	return nil
 }
 
