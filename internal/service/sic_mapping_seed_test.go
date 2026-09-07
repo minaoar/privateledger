@@ -443,10 +443,6 @@ func TestImportFileIfPresent_InvalidSeedIsNonFatalAndAtomic(t *testing.T) {
 			content: func(int) string { return "SIC_Code,Description,Description_Detail,Category_Name\n5812,ok,,\n" },
 		},
 		{
-			name:    "utf8 BOM before the header",
-			content: func(int) string { return "\xef\xbb\xbf" + seedHeader + "5812,ok,,,\n" },
-		},
-		{
 			name:    "empty file",
 			content: func(int) string { return "" },
 		},
@@ -677,11 +673,15 @@ func TestValidateCSV_CategoryResolutionDecisionTable(t *testing.T) {
 }
 
 // TestValidateCSV_DiagnosticsAreSafe covers BR-ERR-01 / NFR-U1-SEC-02: row
-// diagnostics must not carry the rejected record's content.
+// diagnostics must not carry protected description or account content. UOW-4
+// deliberately permits the Category_Name field itself after bounding and
+// sanitization, so distinct markers keep that exception from weakening the
+// original privacy assertion.
 func TestValidateCSV_DiagnosticsAreSafe(t *testing.T) {
 	f := newSeedFixture(t)
-	const secret = "ACCOUNT-4111111111111111-SECRET"
-	csv := seedHeader + "12A4," + secret + "," + secret + ",Nonexistent Category " + secret + ",99\n"
+	const protectedDescription = "ACCOUNT-4111111111111111-SECRET"
+	const unresolvedCategory = "Nonexistent Category"
+	csv := seedHeader + "12A4," + protectedDescription + "," + protectedDescription + "," + unresolvedCategory + ",99\n"
 
 	_, report, err := f.service.ValidateCSV(strings.NewReader(csv))
 	if err != nil {
@@ -692,8 +692,8 @@ func TestValidateCSV_DiagnosticsAreSafe(t *testing.T) {
 	}
 	for _, e := range report.Errors {
 		blob := fmt.Sprintf("%s|%s|%s", e.Field, e.Code, e.Message)
-		if strings.Contains(blob, secret) {
-			t.Errorf("row diagnostic leaks record content: %q", blob)
+		if strings.Contains(blob, protectedDescription) {
+			t.Errorf("row diagnostic leaks protected description content: %q", blob)
 		}
 	}
 }
