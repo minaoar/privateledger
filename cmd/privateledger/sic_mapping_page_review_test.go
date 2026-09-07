@@ -109,3 +109,45 @@ func TestReviewU2DeleteHandlerIsNotShadowedBySharedScript(t *testing.T) {
 		t.Fatalf("delete handler %s is shadowed by web/static/js/app.js", handlerName)
 	}
 }
+
+// The approved application-design decision makes SIC mapping management a
+// secondary action on Categories rather than a top-level navigation item.
+func TestReviewU2SICMappingsNavigationIsSecondaryFromCategories(t *testing.T) {
+	layoutBytes, err := embeddedFiles.ReadFile("web/templates/layout.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	categoriesBytes, err := embeddedFiles.ReadFile("web/templates/categories.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sicMappingsBytes, err := embeddedFiles.ReadFile("web/templates/sic_mappings.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	nav := regexp.MustCompile(`(?s)<nav\b.*?</nav>`).Find(layoutBytes)
+	if nav == nil {
+		t.Fatal("layout has no top-level navigation block")
+	}
+	if strings.Contains(string(nav), `href="/sic-mappings"`) {
+		t.Fatal("SIC Mappings remains in top-level navigation")
+	}
+
+	categories := string(categoriesBytes)
+	if got := strings.Count(categories, `href="/sic-mappings"`); got != 1 {
+		t.Fatalf("Categories template has %d SIC mapping links, want exactly 1", got)
+	}
+	link := regexp.MustCompile(`(?s)<a\b[^>]*href="/sic-mappings"[^>]*>.*?SIC Mappings\s*</a>`).FindString(categories)
+	if link == "" {
+		t.Fatal("Categories template has no visible SIC Mappings link")
+	}
+	for _, required := range []string{`btn-outline-secondary`, `data-testid="categories-sic-mappings-link"`} {
+		if !strings.Contains(link, required) {
+			t.Errorf("Categories SIC mapping link is missing %s", required)
+		}
+	}
+	if !strings.Contains(string(sicMappingsBytes), `href="/categories"`) {
+		t.Error("SIC mapping page has no return link to Categories")
+	}
+}

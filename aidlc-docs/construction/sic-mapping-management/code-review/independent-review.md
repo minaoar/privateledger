@@ -586,3 +586,86 @@ because file-URL access is disabled. Browser-driven upload submission therefore 
 The independently enabled HTTP/service upload tests still cover exact size bounds, invalid CSV,
 merge results, backup feedback, extra file parts, atomicity, and cleanup. This browser-extension
 permission limitation does not change the Revision 3 PASS decision.
+
+---
+
+# Post-Gate Navigation Defect U2-USER-02 Re-Review
+
+## Identity and Scope
+
+- Independent provider/model: OpenAI / GPT-6 (Codex), independent review/test role.
+- Production provider: Claude, per the cross-provider handoff.
+- Production revision reviewed: `8e1d98117cb895c1b4ab611fb7b29e70a30871c3`.
+- Production patch: `cmd/privateledger/web/templates/layout.html` and
+  `cmd/privateledger/web/templates/categories.html`; no production Go, JavaScript, route, test, or
+  dependency change.
+- Handoff/documentation revision at review start: `919cd11`.
+- Review date: 2026-09-06.
+- The working tree was clean when the re-review began. This pass changed one reviewer-owned test file
+  and this independent review artifact only.
+
+This re-review additionally consulted
+`aidlc-docs/inception/application-design/application-design.md` and
+`aidlc-docs/inception/plans/application-design-plan.md`. Those approved artifacts carry the navigation
+decision that the earlier UOW-2 handoffs omitted: Question 1 selects option B, a secondary link from
+Categories, while the consolidated design explicitly excludes a top-level navigation entry.
+
+## Defect Resolution
+
+### U2-USER-02 — SIC mappings appeared in top-level navigation
+
+- Original severity: **High**
+- Production references after fix:
+  - `cmd/privateledger/web/templates/layout.html:20-58`
+  - `cmd/privateledger/web/templates/categories.html:7-10`
+- Acceptance trace: application-design plan Question 1; application-design Key Design Decisions;
+  US-04; FR9; NFR-U2-UX-01; NFR-U2-TEST-01/04.
+- Independent regression:
+  `cmd/privateledger/sic_mapping_page_review_test.go:115`
+- Status: **RESOLVED**.
+
+Revision `8e1d981` removes the `/sic-mappings` link from the shared top-level navigation and adds one
+visible `btn-outline-secondary` link beside the Categories page's primary Add Category action. The
+link has stable `data-testid="categories-sic-mappings-link"` automation metadata. The existing reverse
+link from the SIC mappings page to Categories remains present, and the route itself is unchanged.
+
+The independent regression reads the shipped embedded templates and verifies:
+
+- the complete top-level `<nav>` block contains no `/sic-mappings` link;
+- the Categories template contains exactly one visible `/sic-mappings` link;
+- that link carries the secondary-button styling and approved stable test ID; and
+- the SIC mappings page retains its link back to Categories.
+
+No Blocking, High, Medium, Low, or Informational production finding remains for this patch.
+
+## Verification
+
+| Command/check | Result |
+|---|---|
+| Clean baseline `go test -count=1 ./...` before reviewer changes | **PASS** across all seven packages; `internal/service` 86.092s |
+| Focused UOW-2 page, delete-collision, and new navigation regressions | **PASS** |
+| Repeated `go test -count=1 ./...` after adding the navigation regression | **PASS** across all seven packages; `internal/service` 86.975s |
+| `go test -race -short -count=1 ./...` | **PASS** across all seven packages; zero race reports |
+| `go build ./...` | **PASS** |
+| `go vet ./...` | **PASS** |
+| `gofmt -l cmd/privateledger/sic_mapping_page_review_test.go` | **PASS**, no output |
+| `git diff --check` | **PASS** |
+| Production patch scope and ownership | **PASS**; exactly two production templates, with no production-authored test change |
+
+The isolated temporary-data browser fixture started successfully on `127.0.0.1:18843`, but browser
+discovery returned no available browser connection in this session. It was stopped without touching a
+user database. Live visual confirmation is therefore not claimed. This does not block the result:
+navigation placement is static server-rendered markup, the new independent test inspects the actual
+embedded production templates, and the complete Go suite parses and exercises the shipped template set.
+
+## Process Correction and Gate Decision
+
+Future handoffs for UI placement decisions should include the approved application-design summary and
+answered application-design plan, or directly restate the controlling decision. The missing artifact
+reference explains why the original top-level link passed review; it does not change the production
+acceptance condition.
+
+U2-USER-02 is resolved, all required enabled verification passes, and no unresolved Blocking or High
+finding remains.
+
+**Final status: PASS (post-gate U2-USER-02 re-review at `8e1d981`).**
