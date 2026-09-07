@@ -106,6 +106,15 @@ complete uploads, transaction data, or unnecessary category/description contents
 operation, row, field, stable code, count, and contextual error information through `slog`.
 Resolve backup paths from the injected database directory, never the uploaded filename.
 
+**Amended 2026-09-07 by UOW-4 NFR Requirements (Q1 A, NFR-FQ1 A).** This requirement predates the
+decision to name an unresolved `Category_Name` in a diagnostic, so its prohibition on echoing file
+content is narrowed by NFR-U4-SEC-01: a diagnostic may carry a file-supplied category name, bounded to
+64 runes and stripped of control characters through one shared helper. NFR-U4-SEC-01 extends the same
+bound to database-sourced category names, which this requirement had implicitly treated as safe.
+
+The logging and DOM-escaping clauses above are **unchanged and still binding**. Echoed names are never
+written to a log, and rendering remains `textContent`.
+
 ### NFR-U2-SEC-02 — Shared upload boundary
 
 Startup seed and HTTP upload share one named 10 MiB file-size constant. Enforce the upload

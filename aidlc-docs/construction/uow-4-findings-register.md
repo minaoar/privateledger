@@ -207,3 +207,42 @@ Recorded so the reasoning is visible rather than re-argued later.
 | U2-F09 delete-handler collision | Broke approved UOW-2 behaviour; fixed in UOW-2 at `88213dc` and independently re-reviewed. Parking it would have left deletion broken. |
 | F-04, F-05 | Deferred UOW-1 independent findings with existing owners; they are not new capability gaps. |
 | UOW-2's 100,000-code merge fixture | An approved UOW-2 artifact. Reducing it is a UOW-2 amendment and remains the user's decision. |
+| UTF-16 input detection (C4-01, below) | Raised at NFR Requirements as Q5, answered A. Never admitted before the 2026-09-06 freeze, and it would require a diagnostic code the approved `domain-entities.md` forbids adding. |
+
+## Candidate Findings — Recorded, Not Admitted
+
+Raised during UOW-4 but outside its frozen scope. Recorded so they are picked up deliberately rather
+than rediscovered.
+
+### C4-01 — A UTF-16 file fails with a diagnostic that does not mention encoding
+
+**Raised**: 2026-09-07, NFR Requirements Q5. **Answered**: A — decline for this unit.
+
+A file beginning `FF FE` or `FE FF` is UTF-16. Read as UTF-8 it produces a header that matches nothing,
+and the user is told the header is wrong rather than that the encoding is. Detecting the two byte
+sequences is a few lines.
+
+Declined for three reasons, none of which is difficulty:
+
+1. It was not admitted before the 2026-09-06 scope freeze.
+2. It needs a new diagnostic code, which `domain-entities.md` and TD-U4-04 both forbid — a larger
+   commitment than the line count suggests, since diagnostic codes are a matching surface for the
+   independent reviewers' tests.
+3. The practical exposure is narrower than it looks. Excel's "CSV UTF-8 (Comma delimited)" writes UTF-8
+   with a BOM, which Q2 A already handles; its UTF-16 output is tab-delimited `.txt`, not CSV.
+
+Cheapness is not admission criteria. This unit already had a restore capability struck from it for
+arriving the same way — from an adjacent observation rather than from a finding.
+
+### C4-02 — Category names have no length bound
+
+**Raised**: 2026-09-07, NFR Requirements answer analysis. **Not admitted.**
+
+`category.name` is `TEXT NOT NULL UNIQUE` with no length constraint (`schema.sql:53`) and
+`CreateCategory` validates no length (`category_handler.go:96`). A category name is therefore unbounded
+user-controlled text.
+
+UOW-4 **mitigates the consequence** rather than the cause: NFR-U4-SEC-01 bounds every name echoed into a
+diagnostic to 64 runes regardless of source, so an unbounded name cannot inflate an upload response.
+Whether names should be bounded at creation is a separate question about a table this unit does not
+touch, and it would need a decision about existing rows.

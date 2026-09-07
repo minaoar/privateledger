@@ -1618,3 +1618,18 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-4 NFR Requirements — Answers Analyzed, Conflicts Amended, Artifacts Generated
+**Timestamp**: 2026-09-07T06:10:00Z
+**User Input**: "answers to uow-4 nfr would be A, A, A, A, A"
+**Answers**: Q1 A bound and sanitize the echoed `Category_Name`, Q2 A header diagnostics name a column position and echo nothing, Q3 A distinguish count failures from order failures, Q4 A no new performance target and re-run UOW-2's merge benchmark as a non-regression check, Q5 A decline UTF-16 detection as outside the frozen scope.
+**Conflicts Found and Raised**: Q1 A contradicts three artifacts approved earlier the same day. `business-rules.md` BR-U4-13 and the `domain-entities.md` invariants both state diagnostics never echo file content, which is exactly what Q1 A authorizes; UOW-2's NFR-U2-SEC-01 carries the same prohibition. All three were amended explicitly and dated rather than reinterpreted.
+**Gap Found in the Question Itself**: Q1 A bounds "the echoed value", meaning the file's `Category_Name`. The design requires two further names in diagnostics — the current name behind `Category_ID`, and each colliding category name — and BR-U4-13 had treated database-sourced names as inherently safe. Verified against the tree, they are not: `category.name` is `TEXT NOT NULL UNIQUE` with no length constraint (`schema.sql:53`) and `CreateCategory` validates no length (`category_handler.go:96`). "Exists in this database" is a provenance statement, not a size bound. Bounding only the file value would have left the identical hazard reachable through a category name.
+**Follow-up Raised**: NFR-FQ1, numbered to avoid collision with the Functional Design stage's FQ1. Answered A: one shared sanitization helper applied to every echoed name regardless of source, plus a three-name cap with an "and N more" count on the ambiguity diagnostic, since a per-name bound alone does not bound a message that lists an unbounded number of names.
+**Measured Magnitude**: `Category_Name` is resolved but never stored, so no validation applies to it and one CSV field may be as large as the 10 MiB upload; up to 50 diagnostics are retained. The unbounded worst case was 50 x 10 MiB into an HTTP response and the DOM. The 64-rune bound reduces that to tens of kilobytes. This is not a malicious-file hypothesis: a truncated or mis-delimited CSV produces one enormous field by accident.
+**Verified Non-Cost**: naming the category behind `Category_ID` needs a third index over the slice `categoryRepo.GetAll()` already returns, so it adds no query and costs one pass over categories per upload, not per row. This is why Q4 A's "no new target" is defensible rather than merely convenient.
+**Generated Artifacts**: `nfr-requirements.md` (SEC-01 through SEC-03, COMPAT-01 and COMPAT-02, PERF-01, REL-01, TEST-01 through TEST-06, SCOPE-01) and `tech-stack-decisions.md` (TD-U4-01 through TD-U4-05) under `aidlc-docs/construction/category-lifecycle-restore/nfr-requirements/`. No dependency added, removed or upgraded.
+**Candidate Findings Recorded**: C4-01 UTF-16 input detection, declined per Q5 A because it was never admitted before the 2026-09-06 freeze and would require a diagnostic code `domain-entities.md` forbids, not because it is difficult. C4-02 category names have no length bound; UOW-4 mitigates the consequence at the diagnostic boundary rather than the cause, which belongs to a table this unit does not touch.
+**Status**: UOW-4 NFR Requirements complete; awaiting explicit approval before NFR Design. No production code or test changed.
+
+---
+

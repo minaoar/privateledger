@@ -30,6 +30,18 @@
   the colliding categories.
 - BR-U4-13: Diagnostics name categories that exist in this database and the file's own column. They
   never echo arbitrary file content, preserving NFR-U2-SEC-01.
+
+  **Amended 2026-09-07 at NFR Requirements (Q1 A, NFR-FQ1 A).** This rule was written before the stage
+  that decided how BR-U4-11's "names the unresolved value" would be reconciled with NFR-U2-SEC-01, and
+  as written it forbids what BR-U4-11 requires. The reconciliation is that *arbitrary* now carries the
+  weight: a diagnostic may echo the file-supplied `Category_Name`, but only after truncation to 64 runes
+  and control-character replacement through one shared helper, per NFR-U4-SEC-01.
+
+  The amendment also corrects a false premise. This rule treated database-sourced names as inherently
+  safe. They are not: `category.name` is `TEXT NOT NULL UNIQUE` with no length constraint and
+  `CreateCategory` validates no length, so a category name is unbounded user-controlled text that merely
+  happens to live in the database. The same bound therefore applies to every echoed name regardless of
+  source, and the ambiguity diagnostic is additionally capped at three names plus an "and N more" count.
 - BR-U4-14: Diagnostics remain bounded by the existing shared cap, and `RejectedRows` remains
   authoritative when truncation occurs. BR-U2-40 stands unchanged.
 

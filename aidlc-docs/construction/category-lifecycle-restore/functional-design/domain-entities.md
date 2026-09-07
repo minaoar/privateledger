@@ -37,3 +37,12 @@ persisted, returned, or echoed.
 - A rejected upload mutates nothing.
 - Export output is byte-identical to before this unit.
 - Diagnostics contain only values from this database and fixed text; never file content.
+
+**Amended 2026-09-07 at NFR Requirements (Q1 A, NFR-FQ1 A).** The last invariant above is superseded.
+A diagnostic may contain the file-supplied `Category_Name`, because that value is precisely what makes
+U4-01's residual failure repairable in one edit. It is bounded to 64 runes and stripped of control
+characters through one shared helper before it is echoed, per NFR-U4-SEC-01.
+
+The invariant's implicit premise — that a value "from this database" is safe — is also corrected.
+`category.name` carries no length constraint at the schema or handler level, so database-sourced names
+are unbounded user-controlled text too. The bound applies to every echoed name irrespective of source.

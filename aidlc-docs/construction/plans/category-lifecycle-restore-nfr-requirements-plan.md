@@ -80,7 +80,7 @@ The value is user-controlled, unbounded, and now flows into a JSON response and 
   *Safest, but it removes the half of the message that identifies which row to fix, which is what makes
   the one-edit repair possible. It would weaken Q1 B to the point of not mitigating U4-01.*
 
-[Answer]:
+[Answer]:A
 
 ### Q2 — What the header diagnostic says
 
@@ -98,7 +98,7 @@ that.
 - C. Keep the current single generic message.
   *Leaves U4-02's diagnostic half unfixed.*
 
-[Answer]:
+[Answer]:A
 
 ### Q3 — Whether column count and order failures are distinguished
 
@@ -113,7 +113,7 @@ today both produce the same message.
   *Simpler, but a file with a missing column gets a message pointing at a position that shifted, which
   reads as misleading rather than merely terse.*
 
-[Answer]:
+[Answer]:A
 
 ### Q4 — Performance requirement for this unit
 
@@ -131,7 +131,7 @@ over categories already in memory. Neither scales with row count.
   *Cheap to re-run an existing benchmark; skipping it forgoes the only evidence that the per-row path
   did not regress.*
 
-[Answer]:
+[Answer]:A
 
 ### Q5 — UTF-16 files
 
@@ -153,19 +153,93 @@ a BOM, which Q2 A already covers; its UTF-16 output is tab-delimited `.txt`, not
   *Turns an inscrutable failure into a clear one, but reopens a frozen scope and an approved artifact
   for a case Excel's CSV export does not actually produce.*
 
-[Answer]:
+[Answer]:A
+
+## Answer Analysis — 2026-09-07
+
+All five answers are A. Two conflicts with approved artifacts follow from Q1 A, and one gap in Q1 A's
+own wording. None can be resolved silently.
+
+### Conflict 1 — Q1 A contradicts an approved business rule
+
+`business-rules.md` BR-U4-13, approved 2026-09-07, states diagnostics "never echo arbitrary file
+content, preserving NFR-U2-SEC-01". Q1 A deliberately echoes file content, bounded and sanitized.
+
+The rule as written was accurate for the design at the moment it was approved, because the Functional
+Design never settled *how* BR-U4-11's "names the unresolved value" would be reconciled with it. This
+stage settles it. BR-U4-13 needs a dated amendment, not a quiet reinterpretation.
+
+### Conflict 2 — the same applies to an approved invariant
+
+`domain-entities.md` lists as an invariant: "Diagnostics contain only values from this database and
+fixed text; never file content." Same amendment, same reason.
+
+### Conflict 3 — UOW-2's NFR-U2-SEC-01
+
+NFR-U2-SEC-01 requires escaped DOM text and forbids logging upload contents. Q1 A satisfies both — the
+value is never logged and rendering stays `textContent` — but it widens what a diagnostic may contain.
+A dated amendment pointing at NFR-U4-SEC-01 keeps the two readable together.
+
+### Gap in Q1 A — the bound was asked about the wrong value
+
+Q1 A bounds "the echoed value", meaning the file's `Category_Name`. The design requires two *other*
+names in diagnostics, and both are database-sourced:
+
+- the current name of the category `Category_ID` refers to (BR-U4-11);
+- each colliding category name in the ambiguity diagnostic (BR-U4-12).
+
+BR-U4-13 treated database-sourced names as inherently safe. Verified against the schema, they are not
+bounded:
+
+| Fact | Evidence |
+|---|---|
+| `category.name` is `TEXT NOT NULL UNIQUE` with no length constraint | `internal/database/schema.sql:53` |
+| `CreateCategory` performs no length validation | `internal/handler/category_handler.go:96` |
+
+So a category name is user-controlled text of unbounded length that happens to live in the database.
+"Exists in this database" is a provenance statement, not a size bound. Bounding only the file's value
+would leave the same hazard open through a different door.
+
+The ambiguity diagnostic adds a second dimension: it lists *many* names, so it needs a count bound as
+well as a per-name bound.
+
+### NFR-FQ1 — Scope of the bound
+
+- A. **(Recommended)** Apply the identical bound and sanitization to every name echoed in any
+  diagnostic, whatever its source, through one shared helper. Additionally cap the ambiguity diagnostic
+  at three colliding names plus an "and N more" count.
+  *One rule, one helper, no second door. A shared helper means a diagnostic added later cannot bypass
+  the bound by forgetting to call it — which is the failure mode that would actually happen. The count
+  cap closes the one case where a bounded per-name length still yields an unbounded message.*
+- B. Bound only the file-supplied value, as Q1 A literally reads.
+  *Leaves an unbounded user-controlled string reachable in exactly the same response, through a
+  category name rather than a CSV field.*
+- C. Bound the file value and drop database-sourced names from diagnostics entirely.
+  *Removes the half of the message that tells the user what the name is now, which is what makes the
+  one-edit repair possible.*
+
+[Answer]:A
+
+**Proceeding under A.** The artifacts below are generated on that basis and marked as such; if the
+answer changes, `nfr-requirements.md` NFR-U4-SEC-01 is the only section affected.
+
+Numbered `NFR-FQ1` rather than `FQ1` because the Functional Design stage already used `FQ1` for the
+story-title follow-up, and the two are referenced side by side above.
 
 ## Execution Checklist
 
 - [x] Confirm UOW-4 Functional Design approval and log it.
 - [x] Re-verify the header, resolution and diagnostic code paths against the current tree.
 - [x] Identify NFR surfaces genuinely new to this unit, and state the SEC-01 / BR-U4-11 collision.
-- [ ] Receive answers to Q1 through Q5.
-- [ ] Analyze answers for conflicts with approved requirements, prior NFRs and the frozen scope; raise
-      follow-ups rather than resolving silently.
-- [ ] Generate `nfr-requirements.md` and `tech-stack-decisions.md` under
+- [x] Receive answers to Q1 through Q5. (A, A, A, A, A)
+- [x] Analyze answers for conflicts with approved requirements, prior NFRs and the frozen scope; raise
+      follow-ups rather than resolving silently. Three conflicts and one gap found; follow-up NFR-FQ1 below.
+- [x] Generate `nfr-requirements.md` and `tech-stack-decisions.md` under
       `aidlc-docs/construction/category-lifecycle-restore/nfr-requirements/`.
-- [ ] If any answer amends an approved artifact, amend it explicitly and dated.
+- [x] If any answer amends an approved artifact, amend it explicitly and dated. Three dated amendments
+      applied: `business-rules.md` BR-U4-13, `domain-entities.md` invariants, and UOW-2
+      `nfr-requirements.md` NFR-U2-SEC-01.
+- [x] Record Q5's declined item as a candidate finding. C4-01 and C4-02 added to the findings register.
 - [ ] Receive explicit NFR Requirements approval.
 
 ## Out of Scope
