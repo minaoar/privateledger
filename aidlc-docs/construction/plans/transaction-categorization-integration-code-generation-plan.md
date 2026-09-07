@@ -208,20 +208,20 @@ No duplicate replacement files. No schema migration.
 
 ### Step 13 — Independent review and verification gate
 
-- [ ] In a separate provider session, invoke the independent review/test role with the handoff.
-- [ ] Require the full priority matrix; both recategorize entry points routing through the decision
+- [x] In a separate provider session, invoke the independent review/test role with the handoff.
+- [x] Require the full priority matrix; both recategorize entry points routing through the decision
       function; scoped recategorization touching nothing outside the affected set; split counts summing
       to the total; all-or-nothing cache swap on partial reload failure; set passing at and beyond the
       former 32,764 ceiling for both builders; SIC codes as JSON strings matching a TEXT column; empty
       sets issuing no SQL; modal display and fallback; and modal-created mappings requiring a category
       and creating no text pattern.
-- [ ] Require generated properties for the priority matrix and recategorization scoping, with shrinking
+- [x] Require generated properties for the priority matrix and recategorization scoping, with shrinking
       and a recorded replay seed.
-- [ ] Require race evidence over concurrent categorization and reload, run separately from performance.
-- [ ] Require the 20,000-transaction "Recategorize All" benchmark within five seconds, and both import
+- [x] Require race evidence over concurrent categorization and reload, run separately from performance.
+- [x] Require the 20,000-transaction "Recategorize All" benchmark within five seconds, and both import
       fixtures against the 10 % budget, on the recorded reference environment.
-- [ ] Production findings return to the production role; the independent role owns test corrections.
-- [ ] Gate closes only when the review artifact reports PASS.
+- [x] Production findings return to the production role; the independent role owns test corrections.
+- [x] Gate closes only when the review artifact reports PASS.
 
 ## Story Completion Checklist
 
@@ -233,12 +233,12 @@ No duplicate replacement files. No schema migration.
 
 ## Exit Criteria
 
-- [ ] Every production step and story checkbox complete.
-- [ ] Build, vet, format, and existing regressions pass.
-- [ ] Production summary and handoff complete.
-- [ ] Independent tests authored and run; properties, race, and benchmark evidence recorded.
-- [ ] Independent review final status PASS with no blocking or high finding open.
-- [ ] User explicitly approves completed UOW-3 Code Generation.
+- [x] Every production step and story checkbox complete.
+- [x] Build, vet, format, and existing regressions pass.
+- [x] Production summary and handoff complete.
+- [x] Independent tests authored and run; properties, race, and benchmark evidence recorded.
+- [x] Independent review final status PASS with no blocking or high finding open.
+- [x] User explicitly approves completed UOW-3 Code Generation. (2026-09-06, user: "Approved. Push.")
 
 ## Out of Scope
 

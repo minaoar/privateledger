@@ -1503,3 +1503,28 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: Revision 3 complete; gate remains FAIL pending independent adjudication of the test conflict.
 
 ---
+
+## UOW-3 Code Generation Part 3 — Independent Gate PASS (Revision 4)
+**Timestamp**: 2026-09-06T18:00:00Z
+**User Input**: "Review is done. What's the next step?"
+**Reviewed Revision**: `bb44d40`
+**Gate**: PASS
+**Result**: U3-R2-F01 verified resolved by holding the categorizer write lock across the non-staging fallback's reload and pattern publication. No Blocking, High, or Medium finding remains. One Low, non-blocking finding, U3-R4-F01: the `LoadRules` function-level comment still described the superseded Revision 3 fallback.
+**Independent Evidence**: all four cache acceptance tests pass; full race suite passes across seven packages with zero race reports; Rapid priority and scoping properties pass at 100 cases each with recorded seed 20260906; the UOW-2 50,000-affected-code regression passes; JSON set passing verified beyond the former variable limit; `EXPLAIN QUERY PLAN` confirms `SEARCH ledger_transaction USING INDEX idx_txn_sic`, closing the query-plan gap production had flagged as unverified. NFR-U3-PERF-01 median 808.938ms against five seconds; scoped recategorization 180.080ms; NFR-U3-PERF-02 ratio 1.0371; NFR-U3-SCALE-01 informational at 22.7 MB for 100,000 mappings.
+**Performance Flakiness Noted by the Reviewer**: one SIC-bearing import sample took 6.828s while the approved gate uses the median of five, which remained stable. This matches the repeated local observation that the test is load-sensitive rather than defective.
+**Revision 5**: U3-R4-F01 fixed. The `LoadRules` summary comment now describes the actual behaviour — the staged path publishes both sets together without blocking, and the fallback holds the lock across reload and publication so readers block rather than observe half of it. Comment-only; `gofmt`, `go build`, `go vet` clean and the four cache acceptance tests still pass.
+**Pattern Recorded**: this is the second stale comment surviving a behaviour change in this feature, after U2-R2-F01 in the mapping service constructor. Worth watching as a recurring failure mode rather than treating each instance as isolated.
+**Status**: UOW-3 Code Generation gate CLOSED PASS with all findings resolved. Awaiting explicit user approval before the stage is marked complete.
+
+---
+
+## UOW-3 Code Generation — User Approval, and UOW-4 Scope Freeze
+**Timestamp**: 2026-09-06T18:15:00Z
+**User Input**: "Approved. Push."
+**Decision**: Approved completed UOW-3 Code Generation.
+**Gate Evidence**: Independent review PASS at Revision 4 (`bb44d40`) with no Blocking, High, or Medium finding open; the single Low finding U3-R4-F01 was closed in Revision 5. Race suite clean across seven packages, generated properties passing at 100 cases each, `EXPLAIN QUERY PLAN` confirming index use, and all approved performance targets met.
+**Review History Recorded**: the unit required four revisions — FAIL, FAIL, FAIL, PASS. Four of the six original findings were production contradicting its own approved design, and one revision was spent on a production analysis that proved incorrect and was withdrawn.
+**Consequence**: UOW-4 scope is now FROZEN, per the rule recorded when the unit was registered. Admitted findings are U4-01, the category rename breaking exported mappings and backups, and U4-02, the CSV header rejecting cosmetic variation. Anything found later requires a scope amendment or a new unit.
+**Status**: UOW-1, UOW-2 and UOW-3 Code Generation are all COMPLETE. Outstanding work: the UOW-2 navigation defect, then UOW-4, then Build and Test.
+
+---

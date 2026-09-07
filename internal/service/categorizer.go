@@ -109,9 +109,12 @@ type sicMappingStager interface {
 // Where the mapping source can stage its replacement, both sets are published
 // together under this categorizer's write lock, so categorization observes
 // either the complete old generation or the complete new one and never a
-// mixture. A source that can only reload itself falls back to publishing
-// patterns first and restoring them if the mapping reload then fails, so a
-// failed reload still leaves rules unchanged.
+// mixture, and readers are never blocked.
+//
+// A source that can only reload itself may publish its new mappings before
+// returning, so the fallback instead holds the write lock across both the
+// reload and the pattern publication. Categorization blocks for that interval
+// rather than observing half of it, and a failed reload publishes nothing.
 func (c *Categorizer) LoadRules() error {
 	patterns, err := c.patternRepo.GetAll()
 	if err != nil {

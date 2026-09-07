@@ -321,3 +321,23 @@ SIC-bearing median 4.878474125s   ratio 1.0372
 cannot be this revision: the fixture builds a real `SICMappingCategorizer` through
 `NewCategorizerWithSIC`, so it takes the staged path, and this change touched only the non-staging
 fallback. The measurement is the evidence; the structure only corroborates it.
+
+---
+
+# Revision 5 — U3-R4-F01
+
+Date: 2026-09-06. The Revision 4 re-review returned **PASS** with one Low, non-blocking finding.
+
+`LoadRules`'s function-level comment still described the Revision 3 fallback — publishing patterns first
+and restoring them on failure — while the implementation had changed to hold the write lock across the
+whole sequence. The detailed comment inside the fallback was correct; the summary above it was not.
+
+Rewritten to describe the actual behaviour: the staged path publishes both sets together without
+blocking, and the fallback holds the lock across reload and publication so readers block rather than
+observe half of it.
+
+This is the second time in this feature a stale comment survived a behaviour change — U2-R2-F01 was the
+same class of defect in the mapping service constructor. Comment-only change; no executable behaviour
+altered. `gofmt`, `go build`, `go vet` clean, and the four cache acceptance tests still pass.
+
+All findings from every UOW-3 review pass are now closed.

@@ -3,7 +3,8 @@
 Working register for findings admitted to UOW-4. This is not an approved design artifact; it collects
 evidence so that UOW-4's Inception and Construction stages start from reproductions rather than memory.
 
-**Status:** open for admissions. Scope freezes when UOW-3 Code Generation completes.
+**Status:** **SCOPE FROZEN 2026-09-06**, at UOW-3 Code Generation completion. Admitted findings: U4-01,
+U4-02. Further findings need a scope amendment or a new unit.
 
 ## Admission Rule
 

@@ -63,10 +63,10 @@
 - [x] NFR Requirements — COMPLETED FOR UOW-3 (approved 2026-09-06)
 - [x] NFR Design — COMPLETED FOR UOW-3 (approved 2026-09-06)
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — Parts 1 and 2 COMPLETE; Part 3 independent gate required
+- [x] Code Generation — COMPLETED FOR UOW-3 (independent gate PASS; approved 2026-09-06)
 
 #### UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
-- [ ] Scope freeze — pending UOW-3 Code Generation completion
+- [x] Scope freeze — FROZEN at UOW-3 Code Generation completion, 2026-09-06. Admitted: U4-01, U4-02.
 - [ ] Functional Design — NOT STARTED
 - [ ] NFR Requirements — NOT STARTED
 - [ ] NFR Design — NOT STARTED
@@ -81,10 +81,10 @@
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Unit**: UOW-3 — Transaction Categorization Integration (UOW-4 registered, scope open, not started)
-- **Current Stage**: UOW-3 Code Generation Part 3 — Revision 1 reviewed FAIL; Revision 2 production fixes complete and awaiting independent re-review
-- **Last Completed**: UOW-3 production Revision 4 closing U3-R2-F01 (2026-09-06). Revision 3 was `693ffa6`.
-- **Next Step**: Independent re-review of UOW-3 Revision 4. All four cache acceptance tests and the full race suite pass; the ordinary suite is green apart from a load-sensitive performance test that passes in isolation at ratio 1.0372. Claude authored production and cannot close this gate.
+- **Current Unit**: none active — UOW-1, UOW-2 and UOW-3 complete; UOW-4 scope now frozen
+- **Current Stage**: Between units — UOW-2 navigation defect outstanding, UOW-4 not started
+- **Last Completed**: UOW-3 Code Generation approved by the user on 2026-09-06 after the independent gate returned PASS at Revision 4 (`bb44d40`), with Revision 5 closing the Low finding U3-R4-F01.
+- **Next Step**: Fix the UOW-2 navigation defect (SIC mappings page is a top-level nav item but the approved design specifies a secondary link from Categories), then run UOW-4, then Build and Test.
 - **Status**: UOW-2 Code Generation gate is CLOSED. Independent review (OpenAI/Codex, separate provider) reviewed Revision 1 `ee24446` as BLOCKED with eight findings, then Revision 2 `1c37d22` as PASS with all eight RESOLVED and no Blocking, High, or Medium finding remaining. The single Low finding U2-R2-F01, a stale constructor comment contradicting the nil-collaborator contract, was fixed in Revision 3. Full suite, long tests, and `-race` pass across all seven packages with zero data races. PERF-01 measured a 1.4255 s median against the 10 s target; SCALE-01 verified at 1,000 rows; rapid properties replay at seed 20260906. Five verification limitations are recorded and adjudicated as non-blocking by the independent role, including no injected `os.File.Close` fault in `writeBackup` (no production seam advised) and no live browser for visual/keyboard checks. F-13/F-14/F-15/F-16 are verified corrected; F-04 and F-05 remain deferred.
 
 ## Notes
