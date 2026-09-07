@@ -126,3 +126,59 @@ declined, and per the acceptance condition the artifacts were amended first so t
 `TestReviewU5CategoryDeletionDoesNotSplitUncategorizedSemantics` passes.
 
 That is the only failing test in the repository.
+
+---
+
+# Revision 3 Addendum — A Conflict Between Two Reviewer Tests
+
+The reviewer strengthened `TestReviewU5ShippedMappingReloadCannotSplitOnePass` to use **two distinct SIC
+codes** (`5812`, `5411`), with the comment that a snapshot "must be atomic across the complete mapping
+generation, not merely stable for repeated uses of one code."
+
+That is correct, and it defeats the per-code snapshot shipped in Revision 2. Production attempted the
+atomic fix and found that **the two generation tests cannot both pass.** Evidence, not argument:
+
+## What each test requires
+
+| Test | Requires |
+|---|---|
+| `TestReviewU5OnePassSeesOneRuleGeneration` | Its writer takes `categorizer.mu.Lock()`, so holding the categorizer's read lock across the pass pins the generation. **Passes today.** |
+| `TestReviewU5ShippedMappingReloadCannotSplitOnePass` | Its publisher is `shipped.ReloadMappings()`, which takes only `SICMappingCategorizer.mu`. Holding the categorizer's lock cannot block it, so the pass must not consult the lookup at all after starting. **Fails today.** |
+
+## Both probes gate on `LookupCategory` being called
+
+`uow5BlockingLookup` closes `started`, and `uow5ShippedReloadProbe` closes `observed`, **inside
+`LookupCategory`**. Each test then blocks on that channel.
+
+So a pass that takes a genuinely atomic snapshot — reading the whole index once through
+`prepareMappings`, which both probes forward — never calls `LookupCategory`, and **both tests hang.**
+
+Measured, with the atomic snapshot in place:
+
+```
+TestReviewU5OnePassSeesOneRuleGeneration        panic: test timed out after 25s
+TestReviewU5ShippedMappingReloadCannotSplitOnePass  panic: test timed out after 25s
+```
+
+The attachment approach is not a way out either: the probe wraps the categorizer, so
+`attachReexaminer` reaches the wrapper while `shipped` — the object the test publishes through — never
+learns of the categorizer. That is deliberate in the test and production has no lever on it.
+
+## Where this leaves it
+
+Production reverted to the per-code snapshot, which leaves **one failing test rather than two hanging
+ones**. The shipped-reload finding is real and production is not disputing it; the question is what
+production can do about it given the interfaces the probes expose.
+
+Two routes production can see, both needing the reviewer's agreement:
+
+1. **Let the probes observe the snapshot rather than the lookup.** If they gated on `prepareMappings`
+   instead of `LookupCategory`, an atomic index snapshot would satisfy both. That is a test change and
+   is the reviewer's to make.
+2. **Require the mapping source to publish under the categorizer's lock**, and accept that a lookup
+   wired standalone — as `shipped` is here — is outside the guarantee. That is an artifact amendment
+   narrowing BR-U5-10 to publications made through the categorizer, and it is the weaker guarantee.
+
+Production would take route 1: it keeps the strong guarantee and the test would then be measuring the
+mechanism that actually delivers it. But this is the reviewer's call, and writing code purely to trip a
+probe — calling `LookupCategory` once and discarding the result — is not something production will do.

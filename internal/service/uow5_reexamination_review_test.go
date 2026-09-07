@@ -235,9 +235,14 @@ func TestReviewU5ShippedMappingReloadCannotSplitOnePass(t *testing.T) {
 	db, txnRepo, patternRepo, sicRepo, _, _, accountID := newUOW3ServiceHarness(t)
 	oldCategory := createUOW3Category(t, db, "Shipped old generation")
 	newCategory := createUOW3Category(t, db, "Shipped new generation")
-	mapping := model.NewSICMapping("5812", "", "", &oldCategory)
-	if err := sicRepo.Create(mapping); err != nil {
-		t.Fatal(err)
+	mappings := []*model.SICMapping{
+		model.NewSICMapping("5812", "", "", &oldCategory),
+		model.NewSICMapping("5411", "", "", &oldCategory),
+	}
+	for _, mapping := range mappings {
+		if err := sicRepo.Create(mapping); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	shipped := NewSICMappingCategorizer(sicRepo, txnRepo)
@@ -245,8 +250,11 @@ func TestReviewU5ShippedMappingReloadCannotSplitOnePass(t *testing.T) {
 		inner: shipped, observed: make(chan struct{}), release: make(chan struct{}),
 	}
 	categorizer := NewCategorizerWithSIC(patternRepo, txnRepo, probe)
+	// Two distinct codes are essential: a cache snapshot must be atomic across
+	// the complete mapping generation, not merely stable for repeated uses of
+	// one code.
 	first := createUOW3Txn(t, txnRepo, accountID, "shipped-generation-1", "MERCHANT", "5812", nil, model.CategorySourceNone)
-	second := createUOW3Txn(t, txnRepo, accountID, "shipped-generation-2", "MERCHANT", "5812", nil, model.CategorySourceNone)
+	second := createUOW3Txn(t, txnRepo, accountID, "shipped-generation-2", "MERCHANT", "5411", nil, model.CategorySourceNone)
 
 	done := make(chan error, 1)
 	go func() {
@@ -255,9 +263,11 @@ func TestReviewU5ShippedMappingReloadCannotSplitOnePass(t *testing.T) {
 	}()
 	<-probe.observed
 
-	mapping.CategoryID = &newCategory
-	if err := sicRepo.Update(mapping); err != nil {
-		t.Fatal(err)
+	for _, mapping := range mappings {
+		mapping.CategoryID = &newCategory
+		if err := sicRepo.Update(mapping); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// This is the exact first operation performed by SICMappingService after a
 	// committed mapping mutation. It must not publish a new cache generation

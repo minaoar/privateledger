@@ -1891,3 +1891,14 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 — Conflict Found Between Two Reviewer Generation Tests
+**Timestamp**: 2026-09-07T18:55:00Z
+**User Input**: "Please fix the code based on the review comments and push the changes."
+**Finding**: the reviewer strengthened `TestReviewU5ShippedMappingReloadCannotSplitOnePass` to use two distinct SIC codes, correctly defeating the per-code snapshot shipped in Revision 2. Production attempted the atomic fix and established, by measurement, that the two generation tests cannot both pass with the interfaces available.
+**Evidence**: both probes close their synchronisation channel inside `LookupCategory`, and each test then blocks on that channel. A pass taking a genuinely atomic snapshot — one read of the whole index through `prepareMappings`, which both probes forward — never calls `LookupCategory`, so both tests hang. Measured: each timed out after 25 s with the atomic snapshot in place. The attachment approach is not a way out either, because the probe wraps the categorizer so `attachReexaminer` reaches the wrapper while the object the test publishes through never learns of the categorizer.
+**Action Taken**: reverted to the per-code snapshot, leaving one failing test rather than two hanging ones, and documented the conflict with the measurements in `code/revision-2-summary.md`. Production is not disputing the finding, which is real; the question is what production can do given what the probes expose.
+**Routes Offered to the Reviewer**: gate the probes on `prepareMappings` rather than `LookupCategory`, which would let an atomic snapshot satisfy both and is a test change the reviewer owns; or narrow BR-U5-10 by amendment to publications made through the categorizer, accepting that a standalone-wired lookup is outside the guarantee. Production would take the first, and explicitly declined the third option of calling `LookupCategory` once and discarding the result purely to trip a probe.
+**Status**: two failing tests, both reviewer-owned and neither edited — the shipped-reload conflict above, and `TestReviewU5CategoryDeletionPreservesManualChoiceMarker`, which asserts the F05 semantics the user declined.
+
+---
+
