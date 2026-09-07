@@ -90,9 +90,9 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
-- **Current Stage**: UOW-5 Code Generation Part 3 — awaiting the independent provider session
-- **Last Completed**: UOW-5 production code generated and pushed 2026-09-07. Six Go files and two templates; no test authored. Two packages do not compile their tests, accepted deliberately as decision A before any code was written.
-- **Next Step**: Run the independent review/test session in a different provider. It owns all tests and `rule-sourced-recategorization/code-review/independent-review.md`, and must report PASS. A production-raised finding awaits a product decision: deleting a category silently converts a manual categorization into a rule-sourced one.
+- **Current Stage**: UOW-5 Code Generation Part 3 — independent gate FAIL; production revision 1 pushed, awaiting re-review
+- **Last Completed**: UOW-5 independent review returned FAIL with six findings on 2026-09-07. All six fixed in production revision 1 and pushed. `internal/repository` tests no longer compile, raised as a new handoff finding.
+- **Next Step**: Independent re-review of production revision 1. It must report PASS before UOW-5 Code Generation completes; production does not close the gate.
 - **Status**: UOW-1, UOW-2 and UOW-3 are complete with independent gates PASS, plus two post-gate UOW-2 defects found by the user and independently re-reviewed: U2-F09, a delete handler shadowed by an `app.js` global, and U2-USER-02, the SIC page appearing in top-level navigation against the approved decision. UOW-4 is a narrow two-finding unit: header normalization for BOM, whitespace and case, and three more specific diagnostics. It adds no table, column, index, endpoint, page, route or dependency and mutates nothing new; only the header becomes more tolerant, and existing diagnostic codes are unchanged so anything matching on them is unaffected. U4-01 is recorded as MITIGATED, not resolved — a renamed category still makes a file fail to import, and the fix makes that failure repairable in one edit. Resolving by `Category_ID` was declined because nothing in a file distinguishes a rename from a delete-and-recreate, and because the startup seed file is read on databases where IDs are meaningless. UOW-5 is registered and not started; it would reverse FR7 so rule-sourced transactions follow a changed rule, and requires a requirements amendment first.
 
 ## Notes

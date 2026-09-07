@@ -549,21 +549,28 @@ async function recategorizeAll() {
 function describeReexamination(result) {
     const parts = [];
 
-    if (result.moved_count === 0 && result.uncategorized_count === 0) {
-        parts.push(`No categories changed across ${result.processed_count} transactions.`);
-    } else {
-        parts.push(`${result.moved_count} moved to a different category`);
-        // Reported separately from moves, and never omitted when zero: a rule
-        // change can now remove a category, and that is worth seeing plainly
-        // rather than being folded into a total.
-        parts.push(`${result.uncategorized_count} became uncategorized`);
-        parts.push(`(${result.pattern_categorized_count} by pattern, ${result.sic_categorized_count} by SIC mapping)`);
-    }
+    const moved = result.moved_count || 0;
+    const uncategorized = result.uncategorized_count || 0;
+    const manual = result.manual_protected_count || 0;
 
-    if (result.manual_protected_count > 0) {
-        // The question anyone asks after a bulk rewrite is whether their
-        // hand-set categories survived. This answers it with a number.
-        parts.push(`${result.manual_protected_count} left alone because you set them by hand`);
+    // The pattern/SIC split is retained from UOW-3, which is what shows
+    // whether mappings are behaving as intended; the FR16 counts answer a
+    // different question and sit alongside it rather than replacing it.
+    parts.push(`${moved} moved to a different category ` +
+        `(${result.pattern_categorized_count || 0} by pattern, ${result.sic_categorized_count || 0} by SIC mapping)`);
+    // Reported separately from moves, and never omitted when zero: a rule
+    // change can now remove a category, and that is worth seeing plainly
+    // rather than being folded into a total or dropped when it is zero.
+    parts.push(`${uncategorized} became uncategorized`);
+    // The question anyone asks after a bulk rewrite is whether their hand-set
+    // categories survived. A zero here is an answer, not an absence.
+    parts.push(`${manual} left alone because you set them by hand`);
+
+    if (result.processed_count !== undefined) {
+        parts.push(`${result.processed_count} transactions examined`);
+    }
+    if (Array.isArray(result.post_commit_warnings)) {
+        result.post_commit_warnings.forEach(w => parts.push(w));
     }
 
     return parts.join('. ');

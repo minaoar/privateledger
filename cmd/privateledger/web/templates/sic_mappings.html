@@ -349,6 +349,22 @@ function confirmAndUpload(input) {
 // behind it. It was withheld while the collaborator was a no-op, because a
 // bare zero would have read as "nothing matched" rather than "not implemented
 // yet".
+// Reports all three FR16 counts, including zeros. A rule change that moved
+// nothing has to say so — an omitted line reads as "not applicable" rather
+// than "none", and the manual figure is the one that answers whether a bulk
+// change disturbed anything the user set by hand.
+//
+// Named describeRuleChangeCounts rather than anything generic because
+// layout.html loads app.js after page content, so a page function sharing a
+// name with an app.js global is silently overwritten (defect U2-F09).
+function describeRuleChangeCounts(result) {
+    const moved = result.moved_count || 0;
+    const uncategorized = result.uncategorized_count || 0;
+    const manual = result.manual_protected_count || 0;
+    return `${moved} moved to a different category, ${uncategorized} became uncategorized, ` +
+        `${manual} left alone because you set them by hand.`;
+}
+
 function describeMergeResult(result) {
     if (result.total_rows === 0) {
         return ['The file contained only a header, so no mappings changed.'];
@@ -357,9 +373,7 @@ function describeMergeResult(result) {
         `Created ${result.created_rows}, updated ${result.updated_rows}, ` +
         `unchanged ${result.unchanged_rows} of ${result.total_rows} rows.`
     ];
-    if (result.recategorized_rows > 0) {
-        lines.push(`${result.recategorized_rows} transactions moved to a different category.`);
-    }
+    lines.push(describeRuleChangeCounts(result));
     return lines;
 }
 

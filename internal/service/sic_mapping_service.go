@@ -663,9 +663,12 @@ func (s *SICMappingService) CreateMapping(ctx context.Context, input model.SICMa
 	}
 
 	result := &model.SICMappingMutationResult{Mapping: candidate, MappingCommitted: true}
-	// A new mapping with a category is a rule change. One with an empty
-	// category assigns nothing and changes nothing.
-	s.runPostCommit(candidate.HasCategory(), &result.RecategorizedRows, &result.PostCommitWarnings)
+	// Every mapping creation is a rule change under BR-U5-01, including one
+	// with an empty category. The HasCategory() condition that stood here was
+	// an optimization justified by the row being semantically inert, and it is
+	// not in the approved trigger contract — BR-U5-04 names the description-only
+	// edit as the single mapping exclusion.
+	s.runPostCommit(true, mutationCounts(result), &result.PostCommitWarnings)
 	logSavedOutcome(ctx, "create_sic_mapping",
 		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
@@ -721,7 +724,7 @@ func (s *SICMappingService) UpdateMapping(ctx context.Context, id int, input mod
 	// re-examined, and most will become uncategorized.
 	codeChanged := candidate.SICCode != existing.SICCode
 	categoryChanged := !sameCategoryID(candidate.CategoryID, existing.CategoryID)
-	s.runPostCommit(codeChanged || categoryChanged, &result.RecategorizedRows, &result.PostCommitWarnings)
+	s.runPostCommit(codeChanged || categoryChanged, mutationCounts(result), &result.PostCommitWarnings)
 	logSavedOutcome(ctx, "update_sic_mapping",
 		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
@@ -749,7 +752,7 @@ func (s *SICMappingService) DeleteMapping(ctx context.Context, id int) (*model.S
 		return nil, err
 	}
 	result := &model.SICMappingMutationResult{MappingCommitted: true}
-	s.runPostCommit(true, &result.RecategorizedRows, &result.PostCommitWarnings)
+	s.runPostCommit(true, mutationCounts(result), &result.PostCommitWarnings)
 	logSavedOutcome(ctx, "delete_sic_mapping",
 		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
@@ -784,7 +787,16 @@ func logSavedOutcome(ctx context.Context, operation string, attrs ...any) {
 // It is still worth asking. BR-U5-04 keeps the one exclusion that survives —
 // a description-only edit changes no categorization, so a full pass there
 // would be a provable no-op.
-func (s *SICMappingService) runPostCommit(rulesChanged bool, recategorized *int, warnings *[]string) {
+// reexaminationCounts is the subset of a result that carries FR16's counts, so
+// runPostCommit can fill either result type without knowing which it has.
+type reexaminationCounts struct {
+	recategorized   *int
+	moved           *int
+	uncategorized   *int
+	manualProtected *int
+}
+
+func (s *SICMappingService) runPostCommit(rulesChanged bool, counts reexaminationCounts, warnings *[]string) {
 	if err := s.collaborator.ReloadMappings(); err != nil {
 		*warnings = append(*warnings,
 			fmt.Sprintf("Mappings were saved, but reloading categorization rules failed: %v", err))
@@ -793,14 +805,37 @@ func (s *SICMappingService) runPostCommit(rulesChanged bool, recategorized *int,
 	if !rulesChanged {
 		return
 	}
-	counts, err := s.collaborator.Reexamine()
+	reported, err := s.collaborator.Reexamine()
 	if err != nil {
 		*warnings = append(*warnings,
 			fmt.Sprintf("Mappings were saved, but re-examining transactions failed: %v", err))
 		return
 	}
-	// RecategorizedRows keeps its meaning: transactions this change moved.
-	*recategorized = counts.Moved
+	// RecategorizedRows keeps its meaning: transactions this change moved. The
+	// three FR16 counts are reported alongside it rather than replacing it, so
+	// nothing reading the older field breaks.
+	*counts.recategorized = reported.Moved
+	*counts.moved = reported.Moved
+	*counts.uncategorized = reported.Uncategorized
+	*counts.manualProtected = reported.ManualProtected
+}
+
+func mutationCounts(r *model.SICMappingMutationResult) reexaminationCounts {
+	return reexaminationCounts{
+		recategorized:   &r.RecategorizedRows,
+		moved:           &r.MovedCount,
+		uncategorized:   &r.UncategorizedCount,
+		manualProtected: &r.ManualProtectedCount,
+	}
+}
+
+func importCounts(r *model.SICMappingImportResult) reexaminationCounts {
+	return reexaminationCounts{
+		recategorized:   &r.RecategorizedRows,
+		moved:           &r.MovedCount,
+		uncategorized:   &r.UncategorizedCount,
+		manualProtected: &r.ManualProtectedCount,
+	}
 }
 
 // ensureActive reports whether the caller is still waiting for this result.
@@ -975,7 +1010,7 @@ func (s *SICMappingService) MergeUpload(ctx context.Context, reader io.Reader) (
 	result.UpdatedRows = updated
 	result.UnchangedRows = unchanged
 
-	s.runPostCommit(rulesChanged, &result.RecategorizedRows, &result.PostCommitWarnings)
+	s.runPostCommit(rulesChanged, importCounts(result), &result.PostCommitWarnings)
 	logSavedOutcome(ctx, "merge_sic_mappings",
 		slog.Int("created_rows", result.CreatedRows),
 		slog.Int("updated_rows", result.UpdatedRows),
@@ -1007,9 +1042,9 @@ func diffSICMappings(
 		switch {
 		case !existed:
 			created++
-			if candidate.HasCategory() {
-				rulesChanged = true
-			}
+			// A creation is a trigger whatever its category, matching the
+			// direct create path and BR-U5-01.
+			rulesChanged = true
 		case prior.Description == candidate.Description &&
 			prior.DescriptionDetail == candidate.DescriptionDetail &&
 			sameCategoryID(prior.CategoryID, candidate.CategoryID):

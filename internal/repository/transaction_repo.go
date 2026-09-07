@@ -458,10 +458,20 @@ func (r *TransactionRepository) Delete(transactionID int) error {
 	return nil
 }
 
-// BulkUpdateCategory updates categories for multiple transactions matching a pattern
-func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.CategorySource, transactionIDs []int) error {
+// BulkUpdateCategory assigns one category to a set of transactions and reports
+// how many rows it actually changed.
+//
+// Manual rows are excluded in SQL, not by the caller. Re-examination decides
+// from a materialized read and writes later, so a row can become manual in
+// between; a predicate on IDs alone would then overwrite a choice the user made
+// after the read. The guarantee that manual is never overwritten has to hold at
+// write time to mean anything.
+//
+// The returned count is rows affected rather than len(transactionIDs), so a row
+// excluded by that predicate is not reported as moved.
+func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.CategorySource, transactionIDs []int) (int, error) {
 	if len(transactionIDs) == 0 {
-		return nil
+		return 0, nil
 	}
 
 	// One JSON array parameter instead of one placeholder per ID. Beyond
@@ -472,19 +482,24 @@ func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.
 	// IDs are encoded as JSON numbers to match the INTEGER column.
 	encodedIDs, err := json.Marshal(transactionIDs)
 	if err != nil {
-		return fmt.Errorf("failed to encode transaction IDs for update: %w", err)
+		return 0, fmt.Errorf("failed to encode transaction IDs for update: %w", err)
 	}
 
 	query := `UPDATE ledger_transaction
 		SET category_id = ?, category_source = ?
-		WHERE transaction_id IN (SELECT value FROM json_each(?))`
+		WHERE transaction_id IN (SELECT value FROM json_each(?))
+		  AND category_source != ?`
 
-	_, err = r.db.Exec(query, categoryID, source, string(encodedIDs))
+	res, err := r.db.Exec(query, categoryID, source, string(encodedIDs), model.CategorySourceManual)
 	if err != nil {
-		return fmt.Errorf("failed to bulk update categories: %w", err)
+		return 0, fmt.Errorf("failed to bulk update categories: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read updated row count: %w", err)
 	}
 
-	return nil
+	return int(affected), nil
 }
 
 // BulkClearCategory removes the category from a set of transactions in one
@@ -499,25 +514,34 @@ func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.
 // Built exactly like BulkUpdateCategory: one JSON array parameter rather than
 // one placeholder per ID, so the statement stays clear of SQLite's 32,766
 // variable ceiling and is atomic by construction.
-func (r *TransactionRepository) BulkClearCategory(transactionIDs []int) error {
+func (r *TransactionRepository) BulkClearCategory(transactionIDs []int) (int, error) {
 	if len(transactionIDs) == 0 {
-		return nil
+		return 0, nil
 	}
 
 	encodedIDs, err := json.Marshal(transactionIDs)
 	if err != nil {
-		return fmt.Errorf("failed to encode transaction IDs for clear: %w", err)
+		return 0, fmt.Errorf("failed to encode transaction IDs for clear: %w", err)
 	}
 
+	// Excludes manual rows for the same reason as BulkUpdateCategory: removing
+	// a category the user chose by hand is at least as damaging as replacing
+	// it, so the predicate has to hold at write time rather than at read time.
 	query := `UPDATE ledger_transaction
 		SET category_id = NULL, category_source = ?
-		WHERE transaction_id IN (SELECT value FROM json_each(?))`
+		WHERE transaction_id IN (SELECT value FROM json_each(?))
+		  AND category_source != ?`
 
-	if _, err := r.db.Exec(query, model.CategorySourceNone, string(encodedIDs)); err != nil {
-		return fmt.Errorf("failed to bulk clear categories: %w", err)
+	res, err := r.db.Exec(query, model.CategorySourceNone, string(encodedIDs), model.CategorySourceManual)
+	if err != nil {
+		return 0, fmt.Errorf("failed to bulk clear categories: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read cleared row count: %w", err)
 	}
 
-	return nil
+	return int(affected), nil
 }
 
 // GetAllForReexamination returns every transaction, including manually

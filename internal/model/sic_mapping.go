@@ -338,10 +338,20 @@ type SICMappingPageData struct {
 // describe follow-up work that failed afterwards - never a reason to retry
 // the mutation.
 type SICMappingMutationResult struct {
-	Mapping            *SICMapping `json:"mapping,omitempty"`
-	MappingCommitted   bool        `json:"mapping_committed"`
-	RecategorizedRows  int         `json:"recategorized_rows"`
-	PostCommitWarnings []string    `json:"post_commit_warnings,omitempty"`
+	Mapping           *SICMapping `json:"mapping,omitempty"`
+	MappingCommitted  bool        `json:"mapping_committed"`
+	RecategorizedRows int         `json:"recategorized_rows"`
+
+	// FR16's three counts. RecategorizedRows above keeps its original meaning
+	// and equals MovedCount; both are reported so nothing reading the older
+	// field breaks. No omitempty: FR16 requires a rule change that moved
+	// nothing to say so, and an absent field reads as "unknown" rather than
+	// "none".
+	MovedCount           int `json:"moved_count"`
+	UncategorizedCount   int `json:"uncategorized_count"`
+	ManualProtectedCount int `json:"manual_protected_count"`
+
+	PostCommitWarnings []string `json:"post_commit_warnings,omitempty"`
 }
 
 // SICMappingImportResult extends SICMappingImportReport for the upload merge
@@ -359,6 +369,15 @@ type SICMappingImportResult struct {
 	UpdatedRows       int `json:"updated_rows"`
 	UnchangedRows     int `json:"unchanged_rows"`
 	RecategorizedRows int `json:"recategorized_rows"`
+
+	// FR16's three counts. RecategorizedRows above keeps its original meaning
+	// and equals MovedCount; both are reported so nothing reading the older
+	// field breaks. No omitempty: FR16 requires a rule change that moved
+	// nothing to say so, and an absent field reads as "unknown" rather than
+	// "none".
+	MovedCount           int `json:"moved_count"`
+	UncategorizedCount   int `json:"uncategorized_count"`
+	ManualProtectedCount int `json:"manual_protected_count"`
 
 	// BackupPath is non-empty only when the complete backup write succeeded.
 	BackupPath string `json:"backup_path,omitempty"`

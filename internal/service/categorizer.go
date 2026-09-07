@@ -186,11 +186,11 @@ func (c *Categorizer) decide(txn *model.Transaction) (int, categorySource) {
 // that existed when it was first seen.
 //
 // The manual guard still applies and is the only guard that does. BR-U5-06.
-func (c *Categorizer) decideOnReexamination(txn *model.Transaction) (int, categorySource) {
+func (c *Categorizer) decideOnReexaminationLocked(txn *model.Transaction) (int, categorySource) {
 	if txn.CategorySource == model.CategorySourceManual {
 		return 0, sourceNone
 	}
-	return c.evaluate(txn)
+	return c.evaluateLocked(txn)
 }
 
 // evaluate is the shared matcher: text patterns in order, then a SIC mapping
@@ -215,7 +215,22 @@ func (c *Categorizer) evaluate(txn *model.Transaction) (int, categorySource) {
 	// let a concurrent reload land in between.
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+	return c.evaluateLocked(txn)
+}
 
+// evaluateLocked is evaluate with the read lock already held by the caller.
+//
+// The split exists because a per-decision lock is not enough for a whole pass.
+// Re-examination makes thousands of decisions, and releasing between each one
+// leaves a gap in which a reload can publish a new generation — so one pass
+// could categorize the first transaction by the old rules and the next by the
+// new ones. BR-U5-10 says a pass sees one generation, and only holding the
+// lock across the entire traversal delivers that.
+//
+// Callers must hold c.mu for reading and must not acquire it again: Go's
+// RWMutex is not reentrant, and a writer arriving between two RLocks on the
+// same goroutine deadlocks.
+func (c *Categorizer) evaluateLocked(txn *model.Transaction) (int, categorySource) {
 	for _, pattern := range c.patterns {
 		if pattern.Matches(txn.TransactionDetails) {
 			return pattern.CategoryID, sourcePattern
@@ -299,24 +314,33 @@ func (c *Categorizer) Reexamine() (*RecategorizeResult, error) {
 
 	result := &RecategorizeResult{ProcessedCount: len(transactions)}
 
-	assignments := make(map[int][]int)
-	patternAssigned := make(map[int]bool)
-	sicAssigned := make(map[int]bool)
+	// Keyed by category *and* rule source, so every batch is homogeneous in
+	// both. That matters once a write can affect fewer rows than it was given:
+	// with a mixed batch there would be no way to attribute the pattern/SIC
+	// split to the rows that actually changed without inventing it.
+	assignments := make(map[assignmentKey][]int)
 	clearIDs := make([]int, 0)
 
+	// One read lock for the whole traversal, not one per transaction. This is
+	// what makes BR-U5-10 true: a reload cannot land between two decisions, so
+	// every transaction in this pass is judged by the same rules. The lock is
+	// released before any write, because the decisions are already made by
+	// then and holding it across database writes would block reloads for no
+	// benefit.
+	c.mu.RLock()
 	for _, txn := range transactions {
 		if txn.CategorySource == model.CategorySourceManual {
-			// Counting only. evaluate carries no manual guard, which is what
-			// makes this question answerable at all; the guard is here, and
-			// this branch continues before any write is reachable.
-			categoryID, source := c.evaluate(txn)
+			// Counting only. evaluateLocked carries no manual guard, which is
+			// what makes this question answerable at all; the guard is here,
+			// and this branch continues before any write is reachable.
+			categoryID, source := c.evaluateLocked(txn)
 			if wouldChangeCategory(txn, categoryID, source) {
 				result.ManualProtectedCount++
 			}
 			continue
 		}
 
-		categoryID, source := c.decideOnReexamination(txn)
+		categoryID, source := c.decideOnReexaminationLocked(txn)
 		if !wouldChangeCategory(txn, categoryID, source) {
 			// BR-U5-17: an unchanged outcome is neither written nor counted.
 			continue
@@ -328,42 +352,43 @@ func (c *Categorizer) Reexamine() (*RecategorizeResult, error) {
 			continue
 		}
 
-		assignments[categoryID] = append(assignments[categoryID], txn.TransactionID)
-		switch source {
-		case sourcePattern:
-			patternAssigned[txn.TransactionID] = true
-		case sourceSIC:
-			sicAssigned[txn.TransactionID] = true
-		}
+		key := assignmentKey{categoryID: categoryID, source: source}
+		assignments[key] = append(assignments[key], txn.TransactionID)
 	}
+
+	c.mu.RUnlock()
 
 	// Counts are claimed only after the corresponding write commits, so a
 	// failure part-way through never reports rows it did not write. The manual
 	// count is the exception and was claimed above, because it corresponds to
 	// no write at all.
-	for categoryID, txnIDs := range assignments {
-		if err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, txnIDs); err != nil {
+	for key, txnIDs := range assignments {
+		changed, err := c.txnRepo.BulkUpdateCategory(key.categoryID, model.CategorySourceRule, txnIDs)
+		if err != nil {
 			slog.Error("Error assigning categories during re-examination",
-				slog.Int("category_id", categoryID), slog.String("error", err.Error()))
-			return nil, fmt.Errorf("failed to assign category %d during re-examination: %w", categoryID, err)
+				slog.Int("category_id", key.categoryID), slog.String("error", err.Error()))
+			return nil, fmt.Errorf("failed to assign category %d during re-examination: %w", key.categoryID, err)
 		}
-		for _, id := range txnIDs {
-			if patternAssigned[id] {
-				result.PatternCategorizedCount++
-			} else if sicAssigned[id] {
-				result.SICCategorizedCount++
-			}
-			result.CategorizedCount++
-			result.MovedCount++
+		// Counted from rows actually written, not from what was intended. A
+		// transaction the user made manual between the read and the write is
+		// excluded by the statement itself, and must not be reported as moved.
+		result.MovedCount += changed
+		result.CategorizedCount += changed
+		switch key.source {
+		case sourcePattern:
+			result.PatternCategorizedCount += changed
+		case sourceSIC:
+			result.SICCategorizedCount += changed
 		}
 	}
 
 	if len(clearIDs) > 0 {
-		if err := c.txnRepo.BulkClearCategory(clearIDs); err != nil {
+		cleared, err := c.txnRepo.BulkClearCategory(clearIDs)
+		if err != nil {
 			slog.Error("Error clearing categories during re-examination", slog.String("error", err.Error()))
 			return nil, fmt.Errorf("failed to clear categories during re-examination: %w", err)
 		}
-		result.UncategorizedCount = len(clearIDs)
+		result.UncategorizedCount = cleared
 	}
 
 	slog.Info("Re-examined transactions against current rules",
@@ -373,6 +398,13 @@ func (c *Categorizer) Reexamine() (*RecategorizeResult, error) {
 		slog.Int("manual_protected", result.ManualProtectedCount))
 
 	return result, nil
+}
+
+// assignmentKey batches writes by target category and by the rule that chose
+// it, so a partially applied write can be attributed without guessing.
+type assignmentKey struct {
+	categoryID int
+	source     categorySource
 }
 
 // wouldChangeCategory reports whether applying the rules would leave the
@@ -402,10 +434,25 @@ func (c *Categorizer) ClearCategory(categoryID int) error {
 		return fmt.Errorf("failed to get transactions for category: %w", err)
 	}
 
-	// Clear category for each transaction
+	// Detach the category, but keep category_source on a manual row.
+	//
+	// This used to write CategorySourceNone for every transaction, manual ones
+	// included, which erased the record that the user had chosen at all. That
+	// was survivable while deletion left the row uncategorized: it showed up on
+	// the dashboard and the user could see what happened. Once re-examination
+	// follows deletion, an erased marker means the rules silently claim a
+	// transaction the user had assigned by hand, and nothing reports it —
+	// because by then it no longer looks manual.
+	//
+	// A manual row therefore ends with no category and source still manual:
+	// the choice cannot be honoured, since its category is gone, but it is
+	// still the user's, so no rule may take it.
 	for _, txn := range transactions {
-		err := c.txnRepo.UpdateCategory(txn.TransactionID, nil, model.CategorySourceNone)
-		if err != nil {
+		source := model.CategorySourceNone
+		if txn.CategorySource == model.CategorySourceManual {
+			source = model.CategorySourceManual
+		}
+		if err := c.txnRepo.UpdateCategory(txn.TransactionID, nil, source); err != nil {
 			slog.Error("Error clearing category for transaction", slog.Int("transaction_id", txn.TransactionID), slog.String("error", err.Error()))
 			return fmt.Errorf("failed to clear category for transaction %d: %w", txn.TransactionID, err)
 		}
