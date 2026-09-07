@@ -345,17 +345,22 @@ function confirmAndUpload(input) {
 }
 
 // Renders a merge result. Counts come from the server after commit; the
-// recategorized count is deliberately not shown, because at this stage the
-// collaborator is a no-op and a bare zero would read as "nothing matched"
-// rather than "not implemented yet".
+// The recategorized count is shown now that a real re-examination stands
+// behind it. It was withheld while the collaborator was a no-op, because a
+// bare zero would have read as "nothing matched" rather than "not implemented
+// yet".
 function describeMergeResult(result) {
     if (result.total_rows === 0) {
         return ['The file contained only a header, so no mappings changed.'];
     }
-    return [
+    const lines = [
         `Created ${result.created_rows}, updated ${result.updated_rows}, ` +
         `unchanged ${result.unchanged_rows} of ${result.total_rows} rows.`
     ];
+    if (result.recategorized_rows > 0) {
+        lines.push(`${result.recategorized_rows} transactions moved to a different category.`);
+    }
+    return lines;
 }
 
 function describeDiagnostics(result) {

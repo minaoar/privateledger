@@ -487,6 +487,92 @@ func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.
 	return nil
 }
 
+// BulkClearCategory removes the category from a set of transactions in one
+// statement, writing the same representation of "uncategorized" that category
+// deletion already produces.
+//
+// This exists because BulkUpdateCategory takes a plain int and cannot express
+// "no category", and because ClearCategory issues one round trip per row —
+// fine for deleting a category, far too slow for a re-examination that may
+// uncategorize thousands.
+//
+// Built exactly like BulkUpdateCategory: one JSON array parameter rather than
+// one placeholder per ID, so the statement stays clear of SQLite's 32,766
+// variable ceiling and is atomic by construction.
+func (r *TransactionRepository) BulkClearCategory(transactionIDs []int) error {
+	if len(transactionIDs) == 0 {
+		return nil
+	}
+
+	encodedIDs, err := json.Marshal(transactionIDs)
+	if err != nil {
+		return fmt.Errorf("failed to encode transaction IDs for clear: %w", err)
+	}
+
+	query := `UPDATE ledger_transaction
+		SET category_id = NULL, category_source = ?
+		WHERE transaction_id IN (SELECT value FROM json_each(?))`
+
+	if _, err := r.db.Exec(query, model.CategorySourceNone, string(encodedIDs)); err != nil {
+		return fmt.Errorf("failed to bulk clear categories: %w", err)
+	}
+
+	return nil
+}
+
+// GetAllForReexamination returns every transaction, including manually
+// categorized ones.
+//
+// Read scope and write scope differ here, which is deliberate (BR-U5-02 as
+// amended). Re-examination writes only non-manual transactions, but it must
+// read the manual ones too, because FR16 reports how many of them the current
+// rules would otherwise have moved. Filtering them out in SQL would make that
+// count unanswerable.
+func (r *TransactionRepository) GetAllForReexamination() ([]*model.Transaction, error) {
+	// Column set mirrors GetUncategorized exactly, minus its WHERE clause. The
+	// deterministic order by transaction_id keeps a re-examination's batching
+	// and its reported counts reproducible across runs.
+	query := `
+		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
+			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
+		FROM ledger_transaction
+		ORDER BY transaction_id
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions for re-examination: %w", err)
+	}
+	defer rows.Close()
+
+	transactions := make([]*model.Transaction, 0)
+	for rows.Next() {
+		var txn model.Transaction
+		if err := rows.Scan(
+			&txn.TransactionID,
+			&txn.AccountID,
+			&txn.TrnType,
+			&txn.FitID,
+			&txn.DatePosted,
+			&txn.Amount,
+			&txn.TransactionDetails,
+			&txn.TransactionType,
+			&txn.SICCode,
+			&txn.CategoryID,
+			&txn.CategorySource,
+			&txn.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan transaction for re-examination: %w", err)
+		}
+		transactions = append(transactions, &txn)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate transactions for re-examination: %w", err)
+	}
+
+	return transactions, nil
+}
+
 // GetMostRecentTransactionDate returns the date of the most recent transaction
 func (r *TransactionRepository) GetMostRecentTransactionDate() (string, error) {
 	query := `SELECT date_posted FROM ledger_transaction ORDER BY date_posted DESC LIMIT 1`

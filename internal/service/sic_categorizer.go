@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"log/slog"
 	"sync"
 
 	"github.com/oronno/privateledger/internal/model"
@@ -27,15 +26,31 @@ type SICMappingCategorizer struct {
 	mu       sync.RWMutex
 	mappings map[model.SICCode]*model.SICMapping
 
-	// decider supplies the shared priority order. Scoped recategorization must
-	// reach the same answer as import and full recategorization, so it never
-	// decides for itself.
+	// decider supplies the shared priority order to decideForTransaction, so
+	// this type never decides for itself.
 	decider sicDecider
+
+	// reexaminer is the one re-examination entry point. This type holds it
+	// only to satisfy the mapping service's collaborator contract; it performs
+	// no recategorization of its own.
+	reexaminer reexaminer
+}
+
+// reexaminer is the narrow view of Categorizer this type needs, kept narrow so
+// the adapter cannot reach anything else on it.
+type reexaminer interface {
+	Reexamine() (*RecategorizeResult, error)
 }
 
 // attachDecider is called during categorizer construction.
 func (c *SICMappingCategorizer) attachDecider(d sicDecider) {
 	c.decider = d
+}
+
+// attachReexaminer is called during categorizer construction, alongside
+// attachDecider, so the two are always wired together.
+func (c *SICMappingCategorizer) attachReexaminer(r reexaminer) {
+	c.reexaminer = r
 }
 
 // prepareMappings builds a replacement index without publishing it, so the
@@ -132,49 +147,29 @@ func (c *SICMappingCategorizer) decideForTransaction(txn *model.Transaction) (in
 	return c.LookupCategory(*txn.SICCode)
 }
 
-// RecategorizeBySICCodes categorizes currently uncategorized transactions
-// carrying any of the supplied codes, and returns how many changed.
+// Reexamine satisfies the mapping service's collaborator contract by
+// delegating to the one re-examination entry point.
 //
-// It satisfies the UOW-2 collaborator contract. Scope is deliberately narrow:
-// a mapping change may only fill gaps, so manual assignments and existing
-// categories are never revisited, and no transaction outside the supplied set
-// is touched.
-func (c *SICMappingCategorizer) RecategorizeBySICCodes(sicCodes []model.SICCode) (int, error) {
-	if len(sicCodes) == 0 {
-		return 0, nil
+// This is a thin adapter on purpose. It replaced RecategorizeBySICCodes, which
+// loaded transactions by affected code and applied SIC mappings itself — a
+// second implementation of a decision that now has exactly one. Keeping the
+// scoped path would have meant two places deciding where a transaction
+// belongs, and FR15 is a claim about a single outcome.
+//
+// A nil decider means no Categorizer was attached, which is a wiring fault
+// rather than a state a caller can recover from; production wiring always
+// attaches one.
+func (c *SICMappingCategorizer) Reexamine() (RecategorizationCounts, error) {
+	if c.reexaminer == nil {
+		return RecategorizationCounts{}, fmt.Errorf("SIC categorizer has no re-examination target attached")
 	}
-	codes := make([]string, 0, len(sicCodes))
-	for _, code := range sicCodes {
-		codes = append(codes, string(code))
-	}
-
-	transactions, err := c.txnRepo.GetUncategorizedBySICCodes(codes)
+	result, err := c.reexaminer.Reexamine()
 	if err != nil {
-		return 0, fmt.Errorf("failed to load transactions for SIC recategorization: %w", err)
+		return RecategorizationCounts{}, err
 	}
-	if len(transactions) == 0 {
-		return 0, nil
-	}
-
-	byCategory := make(map[int][]int)
-	for _, txn := range transactions {
-		categoryID, ok := c.decideForTransaction(txn)
-		if !ok {
-			continue
-		}
-		byCategory[categoryID] = append(byCategory[categoryID], txn.TransactionID)
-	}
-
-	recategorized := 0
-	for categoryID, ids := range byCategory {
-		if err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, ids); err != nil {
-			slog.Error("Failed to apply SIC recategorization",
-				slog.Int("category_id", categoryID),
-				slog.Int("transaction_count", len(ids)),
-				slog.String("error", err.Error()))
-			return recategorized, fmt.Errorf("failed to recategorize by SIC mapping: %w", err)
-		}
-		recategorized += len(ids)
-	}
-	return recategorized, nil
+	return RecategorizationCounts{
+		Moved:           result.MovedCount,
+		Uncategorized:   result.UncategorizedCount,
+		ManualProtected: result.ManualProtectedCount,
+	}, nil
 }

@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,9 +47,24 @@ type SICRecategorizationCollaborator interface {
 	// ReloadMappings refreshes cached mapping rules after a committed change.
 	ReloadMappings() error
 
-	// RecategorizeBySICCodes processes a de-duplicated set of canonical codes
-	// and returns how many transactions were recategorized.
-	RecategorizeBySICCodes(sicCodes []model.SICCode) (int, error)
+	// Reexamine applies the current rules to every transaction the user did
+	// not categorize by hand, and reports what moved, what became
+	// uncategorized, and what was left alone because it is manual.
+	//
+	// It takes no scope. Under FR15 a rule change re-examines everything the
+	// rules govern, so there is no affected set to pass — and a text-pattern
+	// change, which reaches the same entry point, has no SIC codes to offer.
+	// This replaced RecategorizeBySICCodes(sicCodes) for that reason, and
+	// because a single count cannot carry FR16's three.
+	Reexamine() (RecategorizationCounts, error)
+}
+
+// RecategorizationCounts carries FR16's three counts across the collaborator
+// boundary without exposing the service-layer result type.
+type RecategorizationCounts struct {
+	Moved           int
+	Uncategorized   int
+	ManualProtected int
 }
 
 // noopSICRecategorizationCollaborator is the UOW-2 checkpoint implementation.
@@ -60,8 +74,8 @@ type noopSICRecategorizationCollaborator struct{}
 
 func (noopSICRecategorizationCollaborator) ReloadMappings() error { return nil }
 
-func (noopSICRecategorizationCollaborator) RecategorizeBySICCodes([]model.SICCode) (int, error) {
-	return 0, nil
+func (noopSICRecategorizationCollaborator) Reexamine() (RecategorizationCounts, error) {
+	return RecategorizationCounts{}, nil
 }
 
 // NewNoopSICRecategorizationCollaborator returns the checkpoint collaborator
@@ -649,11 +663,9 @@ func (s *SICMappingService) CreateMapping(ctx context.Context, input model.SICMa
 	}
 
 	result := &model.SICMappingMutationResult{Mapping: candidate, MappingCommitted: true}
-	affected := []model.SICCode(nil)
-	if candidate.HasCategory() {
-		affected = []model.SICCode{candidate.SICCode}
-	}
-	s.runPostCommit(affected, &result.RecategorizedRows, &result.PostCommitWarnings)
+	// A new mapping with a category is a rule change. One with an empty
+	// category assigns nothing and changes nothing.
+	s.runPostCommit(candidate.HasCategory(), &result.RecategorizedRows, &result.PostCommitWarnings)
 	logSavedOutcome(ctx, "create_sic_mapping",
 		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
@@ -699,23 +711,30 @@ func (s *SICMappingService) UpdateMapping(ctx context.Context, id int, input mod
 	}
 
 	result := &model.SICMappingMutationResult{Mapping: candidate, MappingCommitted: true}
-	// A code change makes the new code newly mapped, so treat it like a
-	// creation. Otherwise only a real category change is worth handing off;
-	// a description-only edit changes no categorization.
+	// A code change or a category change alters what this mapping assigns; a
+	// description-only edit does not (BR-U5-04).
+	//
+	// The HasCategory() condition this replaced is deliberately gone. Clearing
+	// a mapping's category used to hand off nothing, on the reasoning that an
+	// empty mapping assigns nothing and so could not affect anyone. Under FR15
+	// it very much can: transactions that mapping had categorized must now be
+	// re-examined, and most will become uncategorized.
 	codeChanged := candidate.SICCode != existing.SICCode
 	categoryChanged := !sameCategoryID(candidate.CategoryID, existing.CategoryID)
-	affected := []model.SICCode(nil)
-	if candidate.HasCategory() && (codeChanged || categoryChanged) {
-		affected = []model.SICCode{candidate.SICCode}
-	}
-	s.runPostCommit(affected, &result.RecategorizedRows, &result.PostCommitWarnings)
+	s.runPostCommit(codeChanged || categoryChanged, &result.RecategorizedRows, &result.PostCommitWarnings)
 	logSavedOutcome(ctx, "update_sic_mapping",
 		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
 }
 
-// DeleteMapping removes one mapping. Categories already assigned to
-// transactions are never cleared, so deletion hands off no affected codes.
+// DeleteMapping removes one mapping. Transactions that mapping had categorized
+// are re-examined afterwards and follow whatever the remaining rules say, or
+// become uncategorized if nothing claims them.
+//
+// This reverses the UOW-2 behaviour recorded here, where deletion handed off
+// nothing because assigned categories were never cleared. FR14's bullet saying
+// so was struck by UOW-5: leaving a category assigned by a mapping that no
+// longer exists is exactly the history-dependence FR15 forbids.
 func (s *SICMappingService) DeleteMapping(ctx context.Context, id int) (*model.SICMappingMutationResult, error) {
 	release, err := s.acquire(ctx)
 	if err != nil {
@@ -730,7 +749,7 @@ func (s *SICMappingService) DeleteMapping(ctx context.Context, id int) (*model.S
 		return nil, err
 	}
 	result := &model.SICMappingMutationResult{MappingCommitted: true}
-	s.runPostCommit(nil, &result.RecategorizedRows, &result.PostCommitWarnings)
+	s.runPostCommit(true, &result.RecategorizedRows, &result.PostCommitWarnings)
 	logSavedOutcome(ctx, "delete_sic_mapping",
 		slog.Int("warnings", len(result.PostCommitWarnings)))
 	return result, nil
@@ -757,22 +776,31 @@ func logSavedOutcome(ctx context.Context, operation string, attrs ...any) {
 		}, attrs...)...)
 }
 
-func (s *SICMappingService) runPostCommit(affected []model.SICCode, recategorized *int, warnings *[]string) {
+// rulesChanged says whether a committed mapping write could alter any
+// categorization. It replaces the affected-code set, which described a scope
+// nothing uses now: under FR15 the question is no longer "which codes" but
+// simply "is a re-examination warranted".
+//
+// It is still worth asking. BR-U5-04 keeps the one exclusion that survives —
+// a description-only edit changes no categorization, so a full pass there
+// would be a provable no-op.
+func (s *SICMappingService) runPostCommit(rulesChanged bool, recategorized *int, warnings *[]string) {
 	if err := s.collaborator.ReloadMappings(); err != nil {
 		*warnings = append(*warnings,
 			fmt.Sprintf("Mappings were saved, but reloading categorization rules failed: %v", err))
 		return
 	}
-	if len(affected) == 0 {
+	if !rulesChanged {
 		return
 	}
-	count, err := s.collaborator.RecategorizeBySICCodes(affected)
+	counts, err := s.collaborator.Reexamine()
 	if err != nil {
 		*warnings = append(*warnings,
-			fmt.Sprintf("Mappings were saved, but recategorizing matching transactions failed: %v", err))
+			fmt.Sprintf("Mappings were saved, but re-examining transactions failed: %v", err))
 		return
 	}
-	*recategorized = count
+	// RecategorizedRows keeps its meaning: transactions this change moved.
+	*recategorized = counts.Moved
 }
 
 // ensureActive reports whether the caller is still waiting for this result.
@@ -924,7 +952,7 @@ func (s *SICMappingService) MergeUpload(ctx context.Context, reader io.Reader) (
 		previous[mapping.SICCode] = mapping
 	}
 
-	created, updated, unchanged, affected := diffSICMappings(previous, candidates)
+	created, updated, unchanged, rulesChanged := diffSICMappings(previous, candidates)
 
 	if err := ensureActive(ctx); err != nil {
 		return nil, err
@@ -947,7 +975,7 @@ func (s *SICMappingService) MergeUpload(ctx context.Context, reader io.Reader) (
 	result.UpdatedRows = updated
 	result.UnchangedRows = unchanged
 
-	s.runPostCommit(affected, &result.RecategorizedRows, &result.PostCommitWarnings)
+	s.runPostCommit(rulesChanged, &result.RecategorizedRows, &result.PostCommitWarnings)
 	logSavedOutcome(ctx, "merge_sic_mappings",
 		slog.Int("created_rows", result.CreatedRows),
 		slog.Int("updated_rows", result.UpdatedRows),
@@ -958,24 +986,29 @@ func (s *SICMappingService) MergeUpload(ctx context.Context, reader io.Reader) (
 }
 
 // diffSICMappings classifies each uploaded row against the pre-merge state and
-// collects the codes worth recategorizing.
+// reports whether any of them changed what the rules assign.
 //
-// A code is affected only when it newly assigns a category or moves to a
-// different one. Description-only edits, unchanged categories, and rows that
-// clear a category all change no categorization, and omitted codes are not
-// touched at all, so none of them belong in the handoff set.
+// It used to collect a set of affected codes. That set described a scope
+// nothing consumes now: under FR15 a rule change re-examines everything the
+// rules govern, so the only question left is whether a re-examination is
+// warranted at all.
+//
+// One exclusion survives, and only one. A description-only edit changes no
+// categorization, so a merge containing nothing else is a provable no-op
+// (BR-U5-04). Clearing a category no longer qualifies: an emptied mapping
+// assigns nothing, which means the transactions it had categorized must be
+// re-examined and will mostly become uncategorized.
 func diffSICMappings(
 	previous map[model.SICCode]*model.SICMapping,
 	candidates []*model.SICMapping,
-) (created, updated, unchanged int, affected []model.SICCode) {
-	affectedSet := make(map[model.SICCode]struct{})
+) (created, updated, unchanged int, rulesChanged bool) {
 	for _, candidate := range candidates {
 		prior, existed := previous[candidate.SICCode]
 		switch {
 		case !existed:
 			created++
 			if candidate.HasCategory() {
-				affectedSet[candidate.SICCode] = struct{}{}
+				rulesChanged = true
 			}
 		case prior.Description == candidate.Description &&
 			prior.DescriptionDetail == candidate.DescriptionDetail &&
@@ -983,16 +1016,11 @@ func diffSICMappings(
 			unchanged++
 		default:
 			updated++
-			if candidate.HasCategory() && !sameCategoryID(prior.CategoryID, candidate.CategoryID) {
-				affectedSet[candidate.SICCode] = struct{}{}
+			if !sameCategoryID(prior.CategoryID, candidate.CategoryID) {
+				rulesChanged = true
 			}
 		}
 	}
 
-	affected = make([]model.SICCode, 0, len(affectedSet))
-	for code := range affectedSet {
-		affected = append(affected, code)
-	}
-	sort.Slice(affected, func(i, j int) bool { return affected[i] < affected[j] })
-	return created, updated, unchanged, affected
+	return created, updated, unchanged, rulesChanged
 }

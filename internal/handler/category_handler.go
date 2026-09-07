@@ -148,11 +148,12 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		patterns = append(patterns, *pattern)
 	}
 
-	// Trigger re-categorization if patterns were added. RecategorizeByCategory
-	// reloads rules itself, so no separate reload is needed here.
+	// Creating a pattern is a rule change, so every transaction the rules
+	// govern is re-examined, not only the uncategorized ones. Reexamine
+	// reloads rules itself.
 	if len(patterns) > 0 {
-		if _, err := h.categorizer.RecategorizeByCategory(category.CategoryID); err != nil {
-			slog.Error("Failed to recategorize after creating category patterns",
+		if _, err := h.categorizer.Reexamine(); err != nil {
+			slog.Error("Failed to re-examine after creating category patterns",
 				slog.Int("category_id", category.CategoryID),
 				slog.String("error", err.Error()))
 		}
@@ -253,7 +254,27 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
+	// Deleting a category is a rule change twice over: the cascade removes its
+	// patterns, and its SIC mappings are left with no category so they assign
+	// nothing. Re-examination runs after that cascade has completed, never
+	// before, so it evaluates against the rules that remain (BR-U5-09).
+	//
+	// The ClearCategory above is still what detaches this category's own
+	// transactions; re-examination then decides where the remaining rules put
+	// them, which may be a different category rather than nowhere.
+	result, err := h.categorizer.Reexamine()
+	if err != nil {
+		slog.Error("Failed to re-examine after deleting a category",
+			slog.Int("category_id", id),
+			slog.String("error", err.Error()))
+		c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Category deleted successfully",
+		"result":  result,
+	})
 }
 
 // AddPatternRequest represents the request body for adding a pattern to a category
@@ -302,10 +323,9 @@ func (h *CategoryHandler) AddPattern(c *gin.Context) {
 		return
 	}
 
-	// Trigger re-categorization for this category. RecategorizeByCategory
-	// reloads rules itself.
-	if _, err := h.categorizer.RecategorizeByCategory(categoryID); err != nil {
-		slog.Error("Failed to recategorize after adding a pattern",
+	// Adding a pattern is a rule change. Reexamine reloads rules itself.
+	if _, err := h.categorizer.Reexamine(); err != nil {
+		slog.Error("Failed to re-examine after adding a pattern",
 			slog.Int("category_id", categoryID),
 			slog.String("error", err.Error()))
 	}
@@ -347,21 +367,27 @@ func (h *CategoryHandler) DeletePattern(c *gin.Context) {
 		return
 	}
 
-	// Reload rules synchronously. This was a detached goroutine, which raced
-	// with in-flight reads of the rule cache and let a caller act on rules it
-	// believed were already refreshed.
-	if err := h.categorizer.LoadRules(); err != nil {
-		slog.Error("Failed to reload rules after deleting a pattern",
+	// Deleting a pattern is a rule change, so transactions it had categorized
+	// are re-examined and follow whatever the remaining rules say — or become
+	// uncategorized if nothing claims them. Reexamine reloads rules itself,
+	// synchronously; this was once a detached goroutine that raced with
+	// in-flight reads of the rule cache.
+	if _, err := h.categorizer.Reexamine(); err != nil {
+		slog.Error("Failed to re-examine after deleting a pattern",
 			slog.String("error", err.Error()))
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Pattern deleted successfully"})
 }
 
-// RecategorizeAll triggers re-categorization of all uncategorized transactions
+// RecategorizeAll re-examines every transaction against the current rules.
 // POST /api/categories/recategorize
+//
+// The route and handler name are unchanged so the existing page keeps working;
+// what changed is the scope, which now includes transactions a rule already
+// categorized.
 func (h *CategoryHandler) RecategorizeAll(c *gin.Context) {
-	result, err := h.categorizer.RecategorizeAll()
+	result, err := h.categorizer.Reexamine()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

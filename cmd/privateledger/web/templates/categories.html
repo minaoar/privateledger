@@ -535,21 +535,38 @@ async function recategorizeAll() {
         }
         const result = await response.json();
 
-        if (result.categorized_count === 0) {
-            showToast(`No transactions matched. ${result.processed_count} left uncategorized.`, 'info');
-            return;
-        }
-
-        // The split is what shows whether the mappings are behaving as
-        // intended; a combined total would hide it.
-        showToast(
-            `Re-categorized ${result.categorized_count} of ${result.processed_count} transactions ` +
-            `(${result.pattern_categorized_count} by pattern, ${result.sic_categorized_count} by SIC mapping)`,
-            'success'
-        );
+        showToast(describeReexamination(result),
+            result.moved_count === 0 && result.uncategorized_count === 0 ? 'info' : 'success');
     } catch (error) {
         showToast('The result is unknown. Refresh and check before retrying.', 'warning');
     }
+}
+
+// Named describeReexamination rather than anything generic: layout.html loads
+// app.js after page content, so a page function sharing a name with an app.js
+// global is silently overwritten while the markup still looks correct. That
+// was defect U2-F09.
+function describeReexamination(result) {
+    const parts = [];
+
+    if (result.moved_count === 0 && result.uncategorized_count === 0) {
+        parts.push(`No categories changed across ${result.processed_count} transactions.`);
+    } else {
+        parts.push(`${result.moved_count} moved to a different category`);
+        // Reported separately from moves, and never omitted when zero: a rule
+        // change can now remove a category, and that is worth seeing plainly
+        // rather than being folded into a total.
+        parts.push(`${result.uncategorized_count} became uncategorized`);
+        parts.push(`(${result.pattern_categorized_count} by pattern, ${result.sic_categorized_count} by SIC mapping)`);
+    }
+
+    if (result.manual_protected_count > 0) {
+        // The question anyone asks after a bulk rewrite is whether their
+        // hand-set categories survived. This answers it with a number.
+        parts.push(`${result.manual_protected_count} left alone because you set them by hand`);
+    }
+
+    return parts.join('. ');
 }
 </script>
 {{end}}

@@ -85,11 +85,16 @@ func NewCategorizerWithSIC(
 ) *Categorizer {
 	c := NewCategorizer(patternRepo, txnRepo)
 	c.sicLookup = sicLookup
-	// Scoped recategorization lives on the mapping source but must apply the
-	// same priority as every other entry point, so it is given the shared
-	// decision function rather than deciding for itself.
+	// The mapping source applies the same priority as every other entry point,
+	// so it is given the shared decision function rather than deciding for
+	// itself.
 	if host, ok := sicLookup.(interface{ attachDecider(sicDecider) }); ok {
 		host.attachDecider(c)
+	}
+	// It also serves as the mapping service's collaborator, where it does
+	// nothing but forward to the one re-examination entry point.
+	if host, ok := sicLookup.(interface{ attachReexaminer(reexaminer) }); ok {
+		host.attachReexaminer(c)
 	}
 	return c
 }
@@ -161,16 +166,50 @@ func (c *Categorizer) LoadRules() error {
 // "Recategorize All", per-category recategorization and SIC-scoped
 // recategorization all route through it, so the rules cannot differ depending
 // on which entry point the user reached.
+// decide applies the guards that import needs, then the shared matcher.
 func (c *Categorizer) decide(txn *model.Transaction) (int, categorySource) {
 	// Manual assignments are never revisited.
 	if txn.CategorySource == model.CategorySourceManual {
 		return 0, sourceNone
 	}
-	// Automatic categorization fills gaps; it does not revise existing work.
+	// Import fills gaps; it does not revise existing work. Re-examination is
+	// the path that does, and it uses decideOnReexamination instead.
 	if txn.CategoryID != nil {
 		return 0, sourceNone
 	}
+	return c.evaluate(txn)
+}
 
+// decideOnReexamination applies the current rules to a transaction as if it
+// carried no category, which is what FR15 requires: what a transaction is
+// categorized as must follow from the rules that exist now, not from the rules
+// that existed when it was first seen.
+//
+// The manual guard still applies and is the only guard that does. BR-U5-06.
+func (c *Categorizer) decideOnReexamination(txn *model.Transaction) (int, categorySource) {
+	if txn.CategorySource == model.CategorySourceManual {
+		return 0, sourceNone
+	}
+	return c.evaluate(txn)
+}
+
+// evaluate is the shared matcher: text patterns in order, then a SIC mapping
+// if none matched. One implementation, so the priority order cannot drift
+// between import and re-examination — the property FR15 rests on.
+//
+// It deliberately carries NO guards, not even the manual one. That is required
+// by BR-U5-14: FR16 reports how many manual transactions the rules would
+// otherwise have moved, and a matcher that stopped on manual could not answer
+// that question.
+//
+// Every caller must therefore guard for itself. decide and
+// decideOnReexamination both do. The one caller that does not is the
+// manual-protection count inside Reexamine, and that call sits in a branch
+// which counts and continues before reaching any write: there is no code path
+// from it to a database write. Treat that as a property to preserve, not an
+// accident — if a write ever becomes reachable from an unguarded evaluate,
+// manual protection is gone.
+func (c *Categorizer) evaluate(txn *model.Transaction) (int, categorySource) {
 	// The lock is held across both rule sources so one decision sees one
 	// generation. Sampling patterns, releasing, then consulting mappings would
 	// let a concurrent reload land in between.
@@ -215,112 +254,138 @@ type RecategorizeResult struct {
 
 	PatternCategorizedCount int `json:"pattern_categorized_count"`
 	SICCategorizedCount     int `json:"sic_categorized_count"`
+
+	// FR16. A rule change reports what it moved, what it uncategorized, and
+	// what it left alone because the user had set it by hand.
+	//
+	// Added rather than replacing the four fields above, which the categories
+	// and import pages already render. Import does not re-examine, so these
+	// three are simply zero there.
+	//
+	// No omitempty: FR16 requires a rule change that moved nothing to say so,
+	// and an absent field reads as "unknown" rather than "none".
+	MovedCount           int `json:"moved_count"`
+	UncategorizedCount   int `json:"uncategorized_count"`
+	ManualProtectedCount int `json:"manual_protected_count"`
 }
 
-// RecategorizeAll re-categorizes all uncategorized transactions.
-// Called when rules change or from the Categories page action.
+// Reexamine applies the current rules to every transaction the user did not
+// categorize by hand, and is the single entry point for every rule change:
+// a pattern created, changed or deleted; a SIC mapping created, changed or
+// deleted; a category deleted; a mapping file uploaded.
 //
-// Because it routes through the decision function, SIC mappings apply here as
-// well as during import. Before, this re-implemented pattern matching inline,
-// so SIC would have applied on import and been silently skipped by an explicit
-// "Recategorize All" - the same rules giving different answers depending on
-// which path the user took.
-func (c *Categorizer) RecategorizeAll() (*RecategorizeResult, error) {
+// It replaces RecategorizeAll and RecategorizeByCategory. Both read only
+// uncategorized transactions, which is the behaviour FR15 reverses — a
+// category that came from a rule must follow that rule when it changes.
+// RecategorizeByCategory additionally took a category ID it never used.
+//
+// Import does not call this. Re-examining on import would make the result
+// depend on the order transactions arrived, which is exactly what FR15
+// forbids.
+//
+// Read scope and write scope differ. Every transaction is read, because FR16
+// reports how many manual ones the rules would otherwise have moved; only
+// non-manual ones are written.
+func (c *Categorizer) Reexamine() (*RecategorizeResult, error) {
 	if err := c.LoadRules(); err != nil {
 		return nil, err
 	}
 
-	transactions, err := c.txnRepo.GetUncategorized()
+	transactions, err := c.txnRepo.GetAllForReexamination()
 	if err != nil {
-		slog.Error("Error getting uncategorized transactions in RecategorizeAll", slog.String("error", err.Error()))
-		return nil, fmt.Errorf("failed to get uncategorized transactions: %w", err)
+		slog.Error("Error reading transactions for re-examination", slog.String("error", err.Error()))
+		return nil, fmt.Errorf("failed to read transactions for re-examination: %w", err)
 	}
 
 	result := &RecategorizeResult{ProcessedCount: len(transactions)}
 
-	categoryMap := make(map[int][]int)
-	patternAssigned := make(map[int]int)
-	sicAssigned := make(map[int]int)
+	assignments := make(map[int][]int)
+	patternAssigned := make(map[int]bool)
+	sicAssigned := make(map[int]bool)
+	clearIDs := make([]int, 0)
 
 	for _, txn := range transactions {
-		categoryID, source := c.decide(txn)
-		switch source {
-		case sourcePattern:
-			patternAssigned[txn.TransactionID] = categoryID
-		case sourceSIC:
-			sicAssigned[txn.TransactionID] = categoryID
-		default:
+		if txn.CategorySource == model.CategorySourceManual {
+			// Counting only. evaluate carries no manual guard, which is what
+			// makes this question answerable at all; the guard is here, and
+			// this branch continues before any write is reachable.
+			categoryID, source := c.evaluate(txn)
+			if wouldChangeCategory(txn, categoryID, source) {
+				result.ManualProtectedCount++
+			}
 			continue
 		}
-		categoryMap[categoryID] = append(categoryMap[categoryID], txn.TransactionID)
+
+		categoryID, source := c.decideOnReexamination(txn)
+		if !wouldChangeCategory(txn, categoryID, source) {
+			// BR-U5-17: an unchanged outcome is neither written nor counted.
+			continue
+		}
+
+		if source == sourceNone {
+			// The rules that put this transaction here no longer say so.
+			clearIDs = append(clearIDs, txn.TransactionID)
+			continue
+		}
+
+		assignments[categoryID] = append(assignments[categoryID], txn.TransactionID)
+		switch source {
+		case sourcePattern:
+			patternAssigned[txn.TransactionID] = true
+		case sourceSIC:
+			sicAssigned[txn.TransactionID] = true
+		}
 	}
 
-	// Counts are claimed only after the corresponding update commits, so a
-	// failure part-way through never reports rows it did not write.
-	for categoryID, txnIDs := range categoryMap {
+	// Counts are claimed only after the corresponding write commits, so a
+	// failure part-way through never reports rows it did not write. The manual
+	// count is the exception and was claimed above, because it corresponds to
+	// no write at all.
+	for categoryID, txnIDs := range assignments {
 		if err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, txnIDs); err != nil {
-			slog.Error("Error in bulk update category", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
-			return nil, fmt.Errorf("failed to bulk update category %d: %w", categoryID, err)
+			slog.Error("Error assigning categories during re-examination",
+				slog.Int("category_id", categoryID), slog.String("error", err.Error()))
+			return nil, fmt.Errorf("failed to assign category %d during re-examination: %w", categoryID, err)
 		}
 		for _, id := range txnIDs {
-			if _, ok := patternAssigned[id]; ok {
+			if patternAssigned[id] {
 				result.PatternCategorizedCount++
-			} else if _, ok := sicAssigned[id]; ok {
+			} else if sicAssigned[id] {
 				result.SICCategorizedCount++
 			}
 			result.CategorizedCount++
+			result.MovedCount++
 		}
 	}
+
+	if len(clearIDs) > 0 {
+		if err := c.txnRepo.BulkClearCategory(clearIDs); err != nil {
+			slog.Error("Error clearing categories during re-examination", slog.String("error", err.Error()))
+			return nil, fmt.Errorf("failed to clear categories during re-examination: %w", err)
+		}
+		result.UncategorizedCount = len(clearIDs)
+	}
+
+	slog.Info("Re-examined transactions against current rules",
+		slog.Int("processed", result.ProcessedCount),
+		slog.Int("moved", result.MovedCount),
+		slog.Int("uncategorized", result.UncategorizedCount),
+		slog.Int("manual_protected", result.ManualProtectedCount))
 
 	return result, nil
 }
 
-// RecategorizeByCategory re-categorizes transactions that this category's
-// rules now claim. Called when a category's patterns are modified.
+// wouldChangeCategory reports whether applying the rules would leave the
+// transaction somewhere other than where it is now.
 //
-// It routes through the same decision function, so a transaction is assigned
-// here only if the full priority order would assign it - a higher-priority
-// pattern belonging to another category still wins.
-func (c *Categorizer) RecategorizeByCategory(categoryID int) (*RecategorizeResult, error) {
-	if err := c.LoadRules(); err != nil {
-		return nil, err
+// Used for both the write decision and the manual count, so "would have been
+// moved" means exactly the same thing in the report as it does in the writes
+// beside it.
+func wouldChangeCategory(txn *model.Transaction, categoryID int, source categorySource) bool {
+	if source == sourceNone {
+		return txn.CategoryID != nil
 	}
-
-	transactions, err := c.txnRepo.GetUncategorized()
-	if err != nil {
-		slog.Error("Error getting uncategorized transactions", slog.String("error", err.Error()))
-		return nil, fmt.Errorf("failed to get uncategorized transactions: %w", err)
-	}
-
-	result := &RecategorizeResult{ProcessedCount: len(transactions)}
-
-	var matchedTxnIDs []int
-	patternCount, sicCount := 0, 0
-
-	for _, txn := range transactions {
-		resolved, source := c.decide(txn)
-		if source == sourceNone || resolved != categoryID {
-			continue
-		}
-		matchedTxnIDs = append(matchedTxnIDs, txn.TransactionID)
-		if source == sourceSIC {
-			sicCount++
-		} else {
-			patternCount++
-		}
-	}
-
-	if len(matchedTxnIDs) > 0 {
-		if err := c.txnRepo.BulkUpdateCategory(categoryID, model.CategorySourceRule, matchedTxnIDs); err != nil {
-			slog.Error("Error in bulk update transactions", slog.Int("category_id", categoryID), slog.String("error", err.Error()))
-			return nil, fmt.Errorf("failed to bulk update transactions: %w", err)
-		}
-		result.CategorizedCount = len(matchedTxnIDs)
-		result.PatternCategorizedCount = patternCount
-		result.SICCategorizedCount = sicCount
-	}
-
-	return result, nil
+	return txn.CategoryID == nil || *txn.CategoryID != categoryID
 }
 
 // ClearCategory removes category assignments for a deleted category
