@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Shared SIC mapping bounds. These live in the domain package so the startup
@@ -21,6 +23,22 @@ const (
 	// service that produces them, so a large invalid file can neither retain
 	// unbounded diagnostics nor return an unbounded response body.
 	MaxSICMappingDiagnostics = 50
+
+	// maxDiagValueRunes bounds one user-controlled value interpolated into a
+	// diagnostic message, per NFR-U4-SEC-01. A category name is unbounded from
+	// both directions: a CSV field may be as large as the whole upload, and
+	// category.name carries no length constraint in the schema. Sixty-four
+	// runes is far beyond any real category name, so the value stays useful
+	// for the single edit that repairs the file.
+	maxDiagValueRunes = 64
+
+	// maxDiagMessageRunes bounds an assembled diagnostic message, per
+	// NFR-U4-SEC-04. It is a backstop, not the primary bound: the largest
+	// well-formed message is roughly 250 runes, so this never fires in normal
+	// operation. It exists because DiagValue makes bypass conspicuous without
+	// making it impossible, and it bounds the worst case of a future
+	// diagnostic that interpolates a raw string directly.
+	maxDiagMessageRunes = 512
 )
 
 // Stable mapping errors. Handlers map these to transport status codes without
@@ -195,10 +213,59 @@ type SICMappingImportReport struct {
 	DiagnosticsTruncated bool `json:"diagnostics_truncated"`
 }
 
+// DiagValue is a bounded, sanitized value that is safe to interpolate into a
+// diagnostic message. It wraps an unexported field, so the only way to obtain
+// one is NewDiagValue: a raw string cannot be converted into a DiagValue, and
+// cannot be passed where one is required.
+//
+// That is the point. Diagnostics name values the user must fix, and those
+// values are unbounded user-controlled text from a CSV field or a category
+// name. Requiring this type at the interpolation boundary makes the bounded
+// path the path of least resistance.
+type DiagValue struct {
+	s string
+}
+
+// NewDiagValue bounds and sanitizes one value for use in a diagnostic.
+//
+// Control characters are replaced before truncation, so a truncation boundary
+// can never split a replaced rune. The result is valid UTF-8, so JSON encoding
+// and DOM insertion cannot produce mojibake or silently dropped bytes.
+func NewDiagValue(raw string) DiagValue {
+	var b strings.Builder
+	kept := 0
+	truncated := false
+	for _, r := range raw {
+		if kept == maxDiagValueRunes {
+			truncated = true
+			break
+		}
+		if unicode.IsControl(r) {
+			r = utf8.RuneError
+		}
+		b.WriteRune(r)
+		kept++
+	}
+	if truncated {
+		b.WriteRune('\u2026')
+	}
+	return DiagValue{s: b.String()}
+}
+
+// String renders the bounded value, so a DiagValue formats with %s.
+func (v DiagValue) String() string {
+	return v.s
+}
+
 // AddError appends a row diagnostic under the shared bound. Diagnostics past
 // the cap are counted as truncated rather than retained. Callers must not use
 // len(Errors) to decide whether a row was valid: once the cap is reached the
 // list stops growing while rows keep being rejected.
+//
+// The message is truncated to maxDiagMessageRunes as a final backstop. Callers
+// interpolating user-controlled text must use AddErrorf, which bounds each
+// value individually and keeps the message readable; this cap only limits the
+// damage when something bypasses that.
 func (r *SICMappingImportReport) AddError(row int, field, code, message string) {
 	if r == nil {
 		return
@@ -211,8 +278,42 @@ func (r *SICMappingImportReport) AddError(row int, field, code, message string) 
 		RowNumber: row,
 		Field:     field,
 		Code:      code,
-		Message:   message,
+		Message:   truncateRunes(message, maxDiagMessageRunes),
 	})
+}
+
+// AddErrorf appends a row diagnostic whose message interpolates user-controlled
+// values. Accepting only DiagValue means a raw string will not compile here,
+// so a value reaches a diagnostic bounded or not at all.
+func (r *SICMappingImportReport) AddErrorf(row int, field, code, format string, values ...DiagValue) {
+	if r == nil {
+		return
+	}
+	args := make([]any, len(values))
+	for i, v := range values {
+		args[i] = v
+	}
+	r.AddError(row, field, code, fmt.Sprintf(format, args...))
+}
+
+// truncateRunes bounds a string by rune count, appending an ellipsis only when
+// it actually truncated. Counting runes rather than bytes keeps a multi-byte
+// value from being cut mid-character.
+func truncateRunes(s string, limit int) string {
+	if utf8.RuneCountInString(s) <= limit {
+		return s
+	}
+	var b strings.Builder
+	kept := 0
+	for _, r := range s {
+		if kept == limit {
+			break
+		}
+		b.WriteRune(r)
+		kept++
+	}
+	b.WriteRune('\u2026')
+	return b.String()
 }
 
 // SICMappingInput is a transport-neutral create/update command. It never

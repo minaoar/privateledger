@@ -251,7 +251,11 @@ func (s *SICMappingService) ValidateCSV(reader io.Reader) ([]*model.SICMapping, 
 		Errors:  make([]model.SICMappingImportError, 0),
 	}
 	csvReader := csv.NewReader(reader)
-	csvReader.FieldsPerRecord = len(sicMappingCSVHeader)
+	// The header is read without a field-count expectation so a wrong column
+	// count is diagnosed here, naming both counts, rather than surfacing as a
+	// generic malformed-CSV error that says nothing about columns. Rows are
+	// held to the canonical count immediately afterwards, unchanged.
+	csvReader.FieldsPerRecord = -1
 
 	header, err := csvReader.Read()
 	if err == io.EOF {
@@ -270,11 +274,13 @@ func (s *SICMappingService) ValidateCSV(reader io.Reader) ([]*model.SICMapping, 
 		report.Outcome = model.SICMappingImportReadFailed
 		return nil, report, fmt.Errorf("failed to read CSV header: %w", err)
 	}
-	if !matchesSICMappingHeader(header) {
-		report.AddError(1, "header", "invalid_header", "CSV header does not match the required fields")
+	if mismatch := matchSICMappingHeader(header); mismatch != nil {
+		report.AddError(1, "header", "invalid_header", mismatch.message())
 		report.RejectedRows = 1
 		return nil, report, nil
 	}
+	// The header matched, so every row must carry the canonical column count.
+	csvReader.FieldsPerRecord = len(sicMappingCSVHeader)
 
 	categories, err := s.categoryRepo.GetAll()
 	if err != nil {
@@ -284,7 +290,7 @@ func (s *SICMappingService) ValidateCSV(reader io.Reader) ([]*model.SICMapping, 
 		report.Outcome = model.SICMappingImportPersistenceFailed
 		return nil, report, fmt.Errorf("failed to load categories for mapping validation: %w", err)
 	}
-	exactCategories, foldedCategories := indexCategories(categories)
+	categoryIndexes := indexCategories(categories)
 	seenSICCodes := make(map[model.SICCode]int)
 	mappings := make([]*model.SICMapping, 0)
 
@@ -318,8 +324,7 @@ func (s *SICMappingService) ValidateCSV(reader io.Reader) ([]*model.SICMapping, 
 			row,
 			record[3],
 			record[4],
-			exactCategories,
-			foldedCategories,
+			categoryIndexes,
 		)
 		if !row.invalid {
 			mappings = append(mappings, model.NewSICMapping(sicCode, record[1], record[2], categoryID))
@@ -335,16 +340,58 @@ func (s *SICMappingService) ValidateCSV(reader io.Reader) ([]*model.SICMapping, 
 	return mappings, report, nil
 }
 
-func matchesSICMappingHeader(header []string) bool {
+// utf8BOM is the byte-order mark a spreadsheet on Windows writes at the start
+// of a UTF-8 CSV. It is invisible, so a header carrying one previously failed
+// with a diagnostic that gave no hint the cause was a byte nobody can see.
+const utf8BOM = "\ufeff"
+
+// headerMismatch describes why a header failed, so the diagnostic can name the
+// specific repair instead of restating that something is wrong. It carries no
+// text from the file: a position and two counts are all that is needed, and
+// echoing nothing keeps the header path outside the value-bounding rules
+// entirely rather than dependent on them.
+type headerMismatch struct {
+	// column is the 1-based position that failed, zero when the count is wrong.
+	column int
+	// gotColumns and wantColumns are set only for a count mismatch.
+	gotColumns  int
+	wantColumns int
+}
+
+func (m headerMismatch) message() string {
+	if m.column == 0 {
+		return fmt.Sprintf("CSV header must have %d columns; this file has %d", m.wantColumns, m.gotColumns)
+	}
+	return fmt.Sprintf("CSV header column %d must be %s", m.column, sicMappingCSVHeader[m.column-1])
+}
+
+// matchSICMappingHeader compares the header after normalization, returning nil
+// when it matches. Normalization strips a leading byte-order mark, trims
+// surrounding whitespace per column, and compares case-insensitively.
+//
+// Column order and count remain required, and the canonical spelling in
+// sicMappingCSVHeader is untouched, so export output does not drift: the
+// tolerance is one-directional by construction.
+func matchSICMappingHeader(header []string) *headerMismatch {
 	if len(header) != len(sicMappingCSVHeader) {
-		return false
+		// Checked before names so a file with a missing column is diagnosed as
+		// a count problem, rather than against a position that has shifted.
+		return &headerMismatch{gotColumns: len(header), wantColumns: len(sicMappingCSVHeader)}
 	}
 	for i := range header {
-		if header[i] != sicMappingCSVHeader[i] {
-			return false
+		name := header[i]
+		if i == 0 {
+			// The mark can only appear at the start of the file, so only the
+			// first column can carry one.
+			name = strings.TrimPrefix(name, utf8BOM)
+		}
+		// TrimSpace uses unicode.IsSpace, which already covers the
+		// non-breaking space a spreadsheet may emit.
+		if !strings.EqualFold(strings.TrimSpace(name), sicMappingCSVHeader[i]) {
+			return &headerMismatch{column: i + 1}
 		}
 	}
-	return true
+	return nil
 }
 
 func isCSVValidationError(err error) bool {
@@ -370,23 +417,114 @@ func (v *sicRowValidator) reject(field, code, message string) {
 	v.report.AddError(v.row, field, code, message)
 }
 
-func indexCategories(categories []*model.Category) (map[string]*model.Category, map[string][]*model.Category) {
-	exact := make(map[string]*model.Category, len(categories))
-	folded := make(map[string][]*model.Category, len(categories))
-	for _, category := range categories {
-		exact[category.Name] = category
-		key := strings.ToLower(category.Name)
-		folded[key] = append(folded[key], category)
-	}
-	return exact, folded
+// rejectf is reject for a message naming user-controlled values. Taking
+// model.DiagValue rather than any or string means a raw name cannot be
+// interpolated here without being bounded first.
+func (v *sicRowValidator) rejectf(field, code, format string, values ...model.DiagValue) {
+	v.invalid = true
+	v.report.AddErrorf(v.row, field, code, format, values...)
 }
+
+// rejectCategoryNotFound reports a name that does not resolve, naming the
+// category the row's Category_ID currently refers to when there is one. That
+// pairing is the whole point: told that "Groceries" is unknown and that
+// Category_ID 1 is now "Food", the user repairs the file with one
+// find-and-replace.
+//
+// The ID form is used only when the ID parses, is positive and resolves. A
+// malformed ID keeps the short form, because this diagnostic must not double
+// as ID validation, which invalid_category_id owns.
+func (v *sicRowValidator) rejectCategoryNotFound(name, idText string, categories categoryIndex) {
+	if idText != "" {
+		if id, err := strconv.Atoi(idText); err == nil && id > 0 {
+			if current := categories.byID[id]; current != nil {
+				v.rejectf("Category_Name", "category_not_found",
+					"Category_Name %q does not exist; Category_ID %s is currently %q",
+					model.NewDiagValue(name), diagInt(id), model.NewDiagValue(current.Name))
+				return
+			}
+		}
+	}
+	v.rejectf("Category_Name", "category_not_found",
+		"Category_Name %q does not exist", model.NewDiagValue(name))
+}
+
+// rejectAmbiguousCategory names the colliding categories so the user can
+// resolve the collision, rather than the application choosing one and
+// categorizing transactions against a category nobody picked.
+//
+// Each name is bounded individually and the list is capped, because bounding
+// per name alone does not bound this message: the number of collisions is
+// itself unbounded. The format string is assembled from constants and counts
+// only, never from user text.
+func (v *sicRowValidator) rejectAmbiguousCategory(name string, matches []*model.Category) {
+	shown := matches
+	if len(shown) > maxNamedCollisions {
+		shown = shown[:maxNamedCollisions]
+	}
+
+	values := make([]model.DiagValue, 0, len(shown)+3)
+	values = append(values, model.NewDiagValue(name), diagInt(len(matches)))
+
+	placeholders := make([]string, len(shown))
+	for i, category := range shown {
+		placeholders[i] = "%q"
+		values = append(values, model.NewDiagValue(category.Name))
+	}
+
+	format := "Category_Name %q matches %s categories: " + strings.Join(placeholders, ", ")
+	if remaining := len(matches) - len(shown); remaining > 0 {
+		format += " and %s more"
+		values = append(values, diagInt(remaining))
+	}
+	v.rejectf("Category_Name", "category_ambiguous", format, values...)
+}
+
+// diagInt renders a count for a diagnostic. An integer cannot be unbounded, so
+// this is a formatting convenience rather than a way around the value bound.
+func diagInt(n int) model.DiagValue {
+	return model.NewDiagValue(strconv.Itoa(n))
+}
+
+// categoryIndex holds the three lookups row validation needs, built in one
+// pass over categories the caller has already loaded. The by-ID map exists so
+// a diagnostic can name the category a stale Category_ID currently refers to;
+// it costs one extra pass over a slice already in memory and issues no query.
+type categoryIndex struct {
+	exact  map[string]*model.Category
+	folded map[string][]*model.Category
+	byID   map[int]*model.Category
+}
+
+func indexCategories(categories []*model.Category) categoryIndex {
+	index := categoryIndex{
+		exact:  make(map[string]*model.Category, len(categories)),
+		folded: make(map[string][]*model.Category, len(categories)),
+		byID:   make(map[int]*model.Category, len(categories)),
+	}
+	for _, category := range categories {
+		index.exact[category.Name] = category
+		key := strings.ToLower(category.Name)
+		// Appended in GetAll order, which is ORDER BY name ASC. That is what
+		// makes an ambiguity diagnostic deterministic without a redundant
+		// sort here; if that ordering ever changes, these messages change and
+		// the tests covering them fail loudly, which is the right outcome.
+		index.folded[key] = append(index.folded[key], category)
+		index.byID[category.CategoryID] = category
+	}
+	return index
+}
+
+// maxNamedCollisions bounds how many colliding categories an ambiguity
+// diagnostic lists. A per-name length bound alone does not bound that message,
+// because the number of collisions is itself unbounded.
+const maxNamedCollisions = 3
 
 func resolveSICCategory(
 	row *sicRowValidator,
 	rawName string,
 	rawID string,
-	exact map[string]*model.Category,
-	folded map[string][]*model.Category,
+	categories categoryIndex,
 ) *int {
 	name := strings.TrimSpace(rawName)
 	idText := strings.TrimSpace(rawID)
@@ -398,17 +536,17 @@ func resolveSICCategory(
 		return nil
 	}
 
-	category := exact[name]
+	category := categories.exact[name]
 	if category == nil {
-		matches := folded[strings.ToLower(name)]
+		matches := categories.folded[strings.ToLower(name)]
 		switch len(matches) {
 		case 0:
-			row.reject("Category_Name", "category_not_found", "Category_Name does not resolve")
+			row.rejectCategoryNotFound(name, idText, categories)
 			return nil
 		case 1:
 			category = matches[0]
 		default:
-			row.reject("Category_Name", "category_ambiguous", "Category_Name is ambiguous")
+			row.rejectAmbiguousCategory(name, matches)
 			return nil
 		}
 	}

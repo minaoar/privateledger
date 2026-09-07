@@ -3,7 +3,7 @@
 ## Project Information
 - **Project Type**: Brownfield
 - **Start Date**: 2026-08-17T05:48:26Z
-- **Current Stage**: CONSTRUCTION - UOW-4 Code Generation Part 1 (planning)
+- **Current Stage**: CONSTRUCTION - UOW-4 Code Generation Part 3 (independent review, separate provider)
 - **Branch**: support-mcc-for-category
 
 ## Workspace State
@@ -71,7 +71,7 @@
 - [x] NFR Requirements — COMPLETED FOR UOW-4 (approved 2026-09-07)
 - [x] NFR Design — COMPLETED FOR UOW-4 (approved 2026-09-07)
 - [ ] Infrastructure Design — SKIP
-- [ ] Code Generation — Part 1 plan created 2026-09-07; awaiting plan approval before production generation
+- [ ] Code Generation — Part 2 production code COMPLETE 2026-09-07; Part 3 independent review not started
 
 #### UOW-5 — Rule-Sourced Recategorization
 - [ ] Requirements/story amendment (FR7, US-03) — NOT STARTED
@@ -90,9 +90,9 @@
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
 - **Current Unit**: UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
-- **Current Stage**: UOW-4 Code Generation Part 1 — plan created, awaiting approval
-- **Last Completed**: UOW-4 NFR Design approved on 2026-09-07. Two further amendments applied: UOW-1 NFR-U1-SEC-02 and NFRP-U1-08, both of which forbade logging file contents that Q1 A now permits in bounded form.
-- **Next Step**: Approve `aidlc-docs/construction/plans/category-lifecycle-restore-code-generation-plan.md`, then production generation of three files. The independent provider owns all tests and must report PASS. UOW-5 remains registered and not started.
+- **Current Stage**: UOW-4 Code Generation Part 3 — awaiting the independent provider session
+- **Last Completed**: UOW-4 production code generated and pushed on 2026-09-07. Three files changed; no test authored. Two reviewer-owned tests fail against deliberately changed behaviour and were not edited.
+- **Next Step**: Run the independent review/test session in a different provider. It owns all tests and `category-lifecycle-restore/code-review/independent-review.md`, and must report PASS. UOW-5 remains registered and not started.
 - **Status**: UOW-1, UOW-2 and UOW-3 are complete with independent gates PASS, plus two post-gate UOW-2 defects found by the user and independently re-reviewed: U2-F09, a delete handler shadowed by an `app.js` global, and U2-USER-02, the SIC page appearing in top-level navigation against the approved decision. UOW-4 is a narrow two-finding unit: header normalization for BOM, whitespace and case, and three more specific diagnostics. It adds no table, column, index, endpoint, page, route or dependency and mutates nothing new; only the header becomes more tolerant, and existing diagnostic codes are unchanged so anything matching on them is unaffected. U4-01 is recorded as MITIGATED, not resolved — a renamed category still makes a file fail to import, and the fix makes that failure repairable in one edit. Resolving by `Category_ID` was declined because nothing in a file distinguishes a rename from a delete-and-recreate, and because the startup seed file is read on databases where IDs are meaningless. UOW-5 is registered and not started; it would reverse FR7 so rule-sourced transactions follow a changed rule, and requires a requirements amendment first.
 
 ## Notes

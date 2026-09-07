@@ -274,11 +274,21 @@ func logSICMappingImportOutcome(path string, report *model.SICMappingImportRepor
 			limit = maxSICSeedDiagnostics
 		}
 		for _, validationErr := range report.Errors[:limit] {
+			// The message is included because the seed path has no screen.
+			// Without it a stale category name in sic_mappings.csv reports only
+			// code=category_not_found, with nothing identifying the value or
+			// its replacement, and the mitigation this diagnostic exists for
+			// never reaches the longest-lived mapping file in the product.
+			// Every value inside the message is bounded and sanitized by
+			// model.NewDiagValue, and the assembled message is capped, so this
+			// cannot become a payload carrier. See NFR-U4-SEC-01 as amended,
+			// with NFR-U1-SEC-02 and NFRP-U1-08 narrowed to match.
 			slog.Warn("Rejected SIC mapping seed row",
 				slog.String("path", path),
 				slog.Int("row", validationErr.RowNumber),
 				slog.String("field", validationErr.Field),
-				slog.String("code", validationErr.Code))
+				slog.String("code", validationErr.Code),
+				slog.String("message", validationErr.Message))
 		}
 		slog.Warn("SIC mapping seed validation failed; no mappings imported",
 			slog.String("path", path),
