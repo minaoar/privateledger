@@ -87,10 +87,12 @@ Its founding problem is that a category rename silently invalidates previously e
 including application-written backups, and that no story covers restoring from a backup at all — US-11
 mentions restore only as a hoped-for side effect of upload.
 
-Candidate stories, admitted findings, and their reproductions are recorded in
-`aidlc-docs/construction/uow-4-findings-register.md`. They are promoted into this map when the unit's
-scope freezes at UOW-3 Code Generation completion. No acceptance criteria are written in advance of
-requirements gathering, so this section deliberately assigns nothing yet.
+| Story | Requirements | Unit-Level Acceptance Focus |
+|---|---|---|
+| US-14 — Accept cosmetic mapping-file variation and explain what must be fixed | FR4 as amended 2026-09-07 | Header normalized for BOM, whitespace and case while order and count stay required; stale category name rejected with a one-edit-repairable diagnostic; case-collision reported with the colliding names; no mutation on any rejected upload |
+
+U4-01 closes as *mitigated*, not resolved: a renamed category still fails to import, and the fix makes
+that failure repairable rather than removing it.
 
 ## Requirement Coverage by Unit
 
@@ -116,5 +118,6 @@ requirements gathering, so this section deliberately assigns nothing yet.
 - Duplicate primary assignments: none.
 - UOW-1 assignments: US-01, US-07, US-08, US-09.
 - UOW-2 assignments: US-04, US-05, US-10, US-11.
-- UOW-4 assignments: none yet; scope freezes at UOW-3 Code Generation completion.
+- UOW-4 assignments: US-14.
+- UOW-5 assignments: none yet; expected from the FR7 and US-03 amendments this unit requires.
 - UOW-3 assignments: US-02, US-03, US-06, US-12, US-13.

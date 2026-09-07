@@ -164,7 +164,8 @@ Candidate scope, to be confirmed when the unit's scope freezes:
 
 - A restore path that trusts `Category_ID` for application-generated backups while leaving user-authored
   uploads name-first exactly as FR4 requires.
-- A story for restoring from a backup file, provisionally US-14.
+- ~~A story for restoring from a backup file, provisionally US-14.~~ **Superseded 2026-09-07**: restore
+  removed from scope, and US-14 now names a different story.
 - Category rename, retype, and delete behaviour across mappings, exports, and backups.
 - Further findings admitted under the rule below.
 
@@ -189,16 +190,100 @@ one. Freezing at UOW-3 completion is what allows the boundary below to be stated
 
 ### Assigned Stories
 
-To be defined when scope freezes. Candidate stories and admitted findings are recorded in
-`aidlc-docs/construction/uow-4-findings-register.md` until then. No acceptance criteria are invented in
-advance of requirements gathering.
+- **US-14 — Accept cosmetic mapping-file variation and explain what must be fixed** (added 2026-09-07).
+
+Scope was narrowed on 2026-09-07: the restore capability originally sketched here was removed. It came
+from an "adjacent gap" observation made when U4-01 was admitted, not from the finding itself, and the
+finding is a stale-name resolution defect rather than a missing restore feature. Nothing in this unit
+deletes or replaces mappings. If a restore capability is wanted it should be proposed on its own merits.
 
 ### Completion Boundary
 
-The unit is complete when a backup produced by the application can be restored through the application
-after any category rename or retype, when user-authored uploads retain name-first resolution unchanged,
-and when every finding admitted before the scope freeze is resolved or explicitly deferred with a
-recorded reason.
+The unit is complete when a mapping file that differs only cosmetically imports, when a file that cannot
+be imported says precisely what to change, and when both admitted findings are closed or explicitly
+recorded as mitigated with the residual friction named.
+
+U4-01 is expected to close as **mitigated**: a renamed category still makes a file fail to import, and
+the chosen fix makes that failure repairable in one edit rather than resolving it. Trusting
+`Category_ID` was considered and declined, because nothing in a file distinguishes a rename from a
+delete-and-recreate.
+
+## UOW-5 — Rule-Sourced Recategorization
+
+**Added 2026-09-07**, while UOW-4 Functional Design was in its question stage. Registered as a
+placeholder; no stage started.
+
+### Outcome
+
+A transaction categorized by a rule follows that rule when the rule changes, while a transaction the
+user categorized by hand stays exactly where they put it.
+
+### Origin
+
+Observed by the user while examining what a mapping change does. Repointing SIC `5412` from Groceries to
+Travel moved only the uncategorized transaction; a transaction already categorized Groceries **by the
+old rule** kept Groceries, as did a manually categorized one. Verified through both the CSV import and
+the UI edit path, which behave identically.
+
+Protecting the manual row is right and is not in question. The open question is the rule-sourced row:
+the reason it sits in Groceries is a rule that no longer says Groceries, yet it does not move, and
+nothing in the result reports the divergence.
+
+### Why This Is Its Own Unit
+
+This is a **requirements change, not a defect**. FR7 states in terms: "Existing rule-based
+categorizations are not changed by SIC mapping creation." That is the sentence this unit would reverse.
+The same rule is encoded in BR-U3-03, BR-U2-29 through BR-U2-31, NFR-U3-REL-01, US-03's acceptance
+criteria, and in shipped code at `Categorizer.decide` and the `category_source = 0 AND category_id IS
+NULL` filter in `GetUncategorizedBySICCodes`.
+
+It was deliberately not folded into UOW-4. UOW-4 is two narrow file-format fixes that cannot make
+anything worse; this changes which transactions get rewritten, touching UOW-2's collaborator contract
+and UOW-3's decision function. UOW-4's scope froze at U4-01 and U4-02, and the freeze rule exists so a
+later idea gets its own unit rather than quietly widening an approved one.
+
+### Constraint Found During Registration
+
+**A transaction does not record which rule categorized it.** `ledger_transaction.category_source` is
+constrained to `0=none, 1=rule, 2=manual`; no column identifies the responsible pattern or mapping. So
+"follow the rule that created it" is not directly implementable as stated.
+
+A schema-free approach exists: re-run the shared decision function over rule-sourced rows while ignoring
+their existing category. Text patterns are evaluated first, so a pattern-categorized row keeps its
+category naturally, and a mapping-categorized row follows the new mapping. Manual rows stay excluded
+throughout. This needs design confirmation rather than assumption.
+
+### Open Design Questions
+
+Recorded now so they are not rediscovered later. None are decided.
+
+- A row categorized by a text pattern that has since been deleted would move or become uncategorized
+  under the re-run approach. Correct, but surprising.
+- Should this apply to text-pattern changes as well as SIC mapping changes? Symmetry argues yes; scope
+  may argue otherwise.
+- Automatic on every rule edit, or an explicit "reapply rules" action the user triggers?
+- Should the result report transactions that did **not** move, which is a gap today regardless of what
+  this unit decides?
+
+### Scope
+
+Requirements and stories must be amended before construction: FR7 at minimum, and US-03. Treat the
+Inception amendment as part of this unit rather than a precondition to it.
+
+### Assigned Stories
+
+None yet. FR7 and US-03 amendments are expected to define them.
+
+### Completion Boundary
+
+The unit is complete when a rule change moves the transactions that rule had categorized, manual
+assignments are provably untouched, the behaviour is identical across the UI and CSV paths, and the
+result reports what moved and what did not.
+
+### Sequencing
+
+Starts after UOW-4 completes. UOW-4 is small, nearly designed, and carries no behavioural risk;
+finishing it first keeps the two apart.
 
 ## Cross-Unit Rules
 
@@ -214,5 +299,6 @@ recorded reason.
 2. Complete UOW-2 so mappings can be managed and exchanged locally.
 3. Complete UOW-3 so import and user workflows consume mappings with the approved priority and preservation rules.
 4. Freeze UOW-4 scope at UOW-3 completion, then complete UOW-4 so category lifecycle changes cannot strand a mapping file or a backup.
+5. Complete UOW-5 so a rule change moves the transactions that rule categorized, while manual assignments stay untouched.
 
 Incremental vertical checkpoints should keep each unit buildable and testable, while cross-unit verification is finalized in UOW-3.

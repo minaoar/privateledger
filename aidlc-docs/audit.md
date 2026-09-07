@@ -1543,3 +1543,67 @@ batch would make legacy database startup fail before the column migration ran.
 **Status**: Fixed. As a production change to a unit whose gate already closed, it requires an independent re-review pass before UOW-2 is considered closed again.
 
 ---
+
+## UOW-2 Navigation Fix — Independent Re-Review PASS
+**Timestamp**: 2026-09-07T03:20:00Z
+**User Input**: "Uow 2 review is done. Check and confirm."
+**Reviewed Revision**: `8e1d981`
+**Gate**: PASS, with a fresh revalidation pass also recorded at 2026-09-07T03:12:14Z.
+**Verification Confirmed Locally**: both reviewer regressions pass on this tree — `TestReviewU2SICMappingsNavigationIsSecondaryFromCategories` and `TestReviewU2DeleteHandlerIsNotShadowedBySharedScript`. `gofmt`, `go build ./...`, `go vet ./...`, `git diff --check` clean.
+**Reviewer Action on the Handoff Gap**: commit `465c003` adds a navigation placement regression that reads the embedded production templates and asserts no top-level entry in `layout.html`, exactly one secondary link with the expected `data-testid` in `categories.html`, and the route and reverse link intact. Both post-gate UOW-2 defects now have standing regressions requiring no browser.
+**Process Correction Accepted by the Reviewer**: future handoffs for UI placement decisions should include the approved application-design summary and the answered application-design plan, or restate the controlling decision directly. Their artifact notes the missing reference explains why the original top-level link passed review without changing the production acceptance condition.
+**Standing Limitation**: browser discovery again returned no available connection, so live visual confirmation is not claimed. This is the fourth review round without a browser. Non-blocking for a static placement change, but no pass in this feature has yet inspected the pages visually.
+**Correction to a Prior Statement**: an earlier message asserted the reviewer's commits were local and unpushed and offered to push them. That was inferred rather than checked and was wrong — the reviewer had already pushed, carrying the production navigation commits with them. Verified afterwards that the branch is level with origin with nothing uncommitted.
+**Status**: UOW-2 closed again. UOW-1, UOW-2, UOW-3 all complete.
+
+---
+
+## UOW-4 Functional Design — Plan and Clarification Questions Created
+**Timestamp**: 2026-09-07T03:30:00Z
+**User Input**: "Move to uow-4"
+**Artifact**: `aidlc-docs/construction/plans/category-lifecycle-restore-functional-design-plan.md`
+**Context**: UOW-4 carries exactly the two findings admitted before the 2026-09-06 scope freeze — U4-01, a category rename making exported mapping files and application-written backups unrestorable, and U4-02, the CSV header rejecting lowercase, mixed case, stray whitespace and a UTF-8 BOM.
+**Distinguishing Feature of This Unit**: it was registered with no assigned stories, deliberately, so acceptance criteria would not be invented ahead of requirements gathering. Defining them is part of this stage, which is why the questions settle behaviour before any artifact is written.
+**Questions Created**: Q1 how an application-written backup becomes restorable, recommending an explicit restore action that trusts `Category_ID` because the user choosing to restore is itself the signal that makes ID trust safe, a signal the upload path does not have; Q2 whether restore replaces or merges, recommending replacement after confirmation with a fresh backup taken first, since a restore that leaves later mappings in place has not restored anything; Q3 header tolerance, recommending BOM stripping, per-column whitespace trimming and case-insensitive comparison while keeping column order and count required; Q4 category names differing only by case, recommending the ambiguity be reported with the colliding names rather than resolved by migration or by silent choice, because assigning transactions to a category nobody picked is worse than failing; Q5 story scope, recommending two stories rather than one so each capability stays testable on its own.
+**Status**: Awaiting answers to five questions. No UOW-4 artifact, requirement, story, or production code generated.
+
+---
+
+## UOW-5 Registered — Rule-Sourced Recategorization
+**Timestamp**: 2026-09-07T04:10:00Z
+**User Input**: "i think we should consider the third option and apply in both ui and import case. should it be a different work now?" / "yes"
+**Decision**: Registered UOW-5 as a placeholder. No stage started. UOW-4 continues first.
+**Origin**: While examining what a mapping change does, the user observed that repointing SIC `5412` from Groceries to Travel moved only the uncategorized transaction. A transaction already categorized Groceries by the old rule kept Groceries, as did a manually categorized one. Verified through both the CSV import and the UI edit path, which behave identically because both call the same collaborator and the same scoped query.
+**Why a Separate Unit**: this is a requirements change, not a defect. FR7 states "Existing rule-based categorizations are not changed by SIC mapping creation", which is the sentence UOW-5 would reverse. The same rule is encoded in BR-U3-03, BR-U2-29 through BR-U2-31, NFR-U3-REL-01, US-03 acceptance criteria, and in shipped code at `Categorizer.decide` and the `category_source = 0 AND category_id IS NULL` filter. UOW-4 is two narrow file-format fixes that cannot make anything worse, whereas this changes which transactions get rewritten and touches UOW-2's collaborator contract and UOW-3's decision function. UOW-4's scope froze at U4-01 and U4-02, and the freeze rule exists precisely so a later idea gets its own unit rather than widening an approved one — this is the first time that rule was tested and it was honoured.
+**Constraint Found During Registration**: a transaction does not record which rule categorized it. `ledger_transaction.category_source` is constrained to `0=none, 1=rule, 2=manual` with no column identifying the responsible pattern or mapping, so "follow the rule that created it" is not directly implementable as stated. A schema-free approach was recorded for design confirmation: re-run the shared decision function over rule-sourced rows while ignoring their existing category, so text-pattern rows keep their category naturally because patterns are evaluated first, mapping-categorized rows follow the new mapping, and manual rows stay excluded.
+**Open Design Questions Recorded**: whether a row categorized by a since-deleted text pattern moving is acceptable; whether text-pattern changes should behave symmetrically with mapping changes; whether the behaviour is automatic on every rule edit or an explicit reapply action; and whether the result should report transactions that did not move, which is a reporting gap today regardless of what UOW-5 decides.
+**Artifacts Updated**: `unit-of-work.md` with the full unit definition, `unit-of-work-dependency.md` with hard dependencies on UOW-2 and UOW-3 and a sequencing dependency on UOW-4, `unit-of-work-story-map.md`, and `aidlc-state.md` with an explicit requirements/story amendment stage ahead of Functional Design.
+**Status**: UOW-5 registered, not started. UOW-4 Functional Design remains open with four unanswered questions.
+
+---
+
+## UOW-4 Functional Design — Answers Analyzed, Scope Narrowed, Artifacts Generated
+**Timestamp**: 2026-09-07T04:40:00Z
+**User Input**: "Rewrite the plan. Ask for my input." / "answers to uow-4 would be B, A, A, A" / "A"
+**Scope Correction Before Answering**: the plan was rewritten to remove the restore capability, restore semantics, and the extras question. That scope came from an "adjacent gap" observation I recorded when U4-01 was admitted — that no story covers restoring from a backup — which is a separate want from the defect. The defect is stale-name resolution. The correction is written into the plan rather than made silently.
+**Answers**: Q1 B keep rejecting with an actionable message, Q2 A normalize the header for BOM, whitespace and case while keeping order and count required, Q3 A report case collisions rather than migrating or guessing, Q4 A one story.
+**Conflict Found and Raised**: Q1 B contradicted Q4 A's story title, which promised files that "survive ordinary category and formatting changes". Under Q1 B a renamed category still fails to import; only formatting variation is survived. Follow-up FQ1 was raised rather than resolving it silently, and answered A: retitle the story and record U4-01 as mitigated rather than resolved.
+**Disposition Recorded**: U4-01 is **MITIGATED, not resolved**, in the findings register, the unit definition, the story map, and the story's own scope note. A renamed category still makes a file fail to import; the fix makes that failure repairable in one find-and-replace. Resolving by `Category_ID` was considered and declined because nothing in a file distinguishes a rename, where the ID is correct, from a delete-and-recreate, where it may point at a different category.
+**Amended Artifacts**: `requirements.md` FR4 gained a dated UOW-4 amendment covering header normalization and the three diagnostic improvements, stating explicitly that the ID still never resolves a row alone and that the amendment changes what the user is told rather than what is accepted. `stories.md` gained US-14, "Accept cosmetic mapping-file variation and explain what must be fixed", with a scope note recording the residual friction. `unit-of-work.md`, `unit-of-work-dependency.md` and `unit-of-work-story-map.md` were updated.
+**Stale Reference Corrected**: two artifacts still described US-14 as a provisional restore story from the earlier scope. Both were marked superseded rather than deleted, since the register is evidence, and a restore story would now need a new number.
+**Generated Artifacts**: `business-logic-model.md`, `business-rules.md`, `domain-entities.md`, `frontend-components.md` under `aidlc-docs/construction/category-lifecycle-restore/functional-design/`.
+**Design Characteristics**: no table, column, index, endpoint, page, route or dependency is added; nothing is created, updated or deleted that the current code does not already; existing diagnostic codes are retained with only their messages made specific, so anything matching on codes including the reviewers' tests is unaffected; export output stays byte-identical.
+**Status**: UOW-4 Functional Design complete; awaiting explicit approval before NFR Requirements. No production code or test changed.
+
+---
+
+## UOW-4 — User Rationale for Declining the Category_ID Fallback
+**Timestamp**: 2026-09-07T05:00:00Z
+**User Input**: "before i move on, i want to be clear why i chose answer B. in my opinion, if i am trying to change the mapping en masse, only then i would use the import csv. in that case, i should first download the current mapping and then modify the csv, i should not modify the the live mapping in between."
+**Rationale Recorded**: a CSV import is a deliberate bulk operation whose intended workflow is download, edit, upload. The file is a snapshot of the database it came from, so editing categories in the UI midway means the snapshot no longer describes that database, and the correct response is to say so rather than guess which of two conflicting edits was meant. A stale category name is therefore a signal that the world moved underneath the file, not a defect for the application to paper over.
+**Assessment**: this is a stronger justification than the risk-avoidance argument production had offered for the same option, and it was recorded in both `business-logic-model.md` and the findings register so a future reader does not reopen the decision.
+**Reinforcing Point Added**: the reasoning is strongest for the startup seed file. FR4 makes `sic_mappings.csv` a long-lived, hand-maintained interchange file read on a database with no mappings — a reinstall or a new machine — where `Category_ID` values are meaningless or belong to entirely different categories. Name-first is the only sane key there, and the ID fallback production had recommended would have been worst precisely where files live longest.
+**Limitation Also Recorded**: the reasoning is weakest for automatically written backups, which the user never chose to download and to which the download-first discipline never applied. That case remains narrow because a backup is written immediately before every merge, so the one a user would restore is seconds old.
+**Status**: no design change; rationale added to the approved-pending artifacts. UOW-4 Functional Design still awaiting explicit approval.
+
+---

@@ -50,6 +50,22 @@ On first startup with the SIC feature, the application must check for an existin
 - Category references resolve by `Category_Name` first, with `Category_ID` as a tiebreaker/hint. Rows where the two disagree must be rejected. Resolving by ID alone is unsafe: a category that was deleted and recreated leaves a stale ID that still resolves to a valid but wrong category, so an upload would silently mis-map every affected row.
 - `Description` and `Description_Detail` are stored with SIC mappings for display/help text.
 
+**Amended 2026-09-07 (UOW-4).** Header matching and diagnostic quality:
+
+- The header is matched after normalization: a leading UTF-8 byte-order mark is stripped, surrounding
+  whitespace is trimmed per column, and column names are compared case-insensitively. Column order and
+  column count remain required, and export continues to emit the canonical spelling. A file saved by a
+  spreadsheet, which commonly writes a byte-order mark, must import.
+- `Category_ID` still never resolves a row on its own; the amendment below changes only what the user is
+  told, not what is accepted.
+- When `Category_Name` does not resolve, the row is still rejected, and the diagnostic must name the
+  unresolved value and, when `Category_ID` refers to an existing category, that category's current name.
+  This makes a file stale after a category rename repairable in one edit. It does not make it import
+  unaided; that residual friction is accepted deliberately rather than resolved by trusting the ID.
+- When `Category_Name` matches more than one category case-insensitively, the diagnostic must name the
+  colliding categories. Category names remain unique case-sensitively; no migration is introduced, and
+  the ambiguity is reported rather than resolved by guessing.
+
 ### FR5 — SIC mappings may map to categories or remain intentionally unmapped
 A SIC mapping may point directly to a category, or it may intentionally have an empty category.
 

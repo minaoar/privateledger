@@ -67,6 +67,14 @@
 
 #### UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
 - [x] Scope freeze — FROZEN at UOW-3 Code Generation completion, 2026-09-06. Admitted: U4-01, U4-02.
+- [ ] Functional Design — artifacts generated; awaiting explicit approval
+- [ ] NFR Requirements — NOT STARTED
+- [ ] NFR Design — NOT STARTED
+- [ ] Infrastructure Design — SKIP
+- [ ] Code Generation — NOT STARTED
+
+#### UOW-5 — Rule-Sourced Recategorization
+- [ ] Requirements/story amendment (FR7, US-03) — NOT STARTED
 - [ ] Functional Design — NOT STARTED
 - [ ] NFR Requirements — NOT STARTED
 - [ ] NFR Design — NOT STARTED
@@ -81,11 +89,11 @@
 
 ## Current Status
 - **Lifecycle Phase**: CONSTRUCTION
-- **Current Unit**: none active — UOW-1, UOW-2 and UOW-3 complete; UOW-4 scope now frozen
-- **Current Stage**: Between units — UOW-2 navigation defect outstanding, UOW-4 not started
-- **Last Completed**: UOW-2 navigation defect U2-USER-02 fixed on 2026-09-06; the SIC mappings page is now a secondary link from Categories rather than a top-level nav item, matching the approved decision.
-- **Next Step**: Independent re-review of the UOW-2 navigation fix, then UOW-4 (scope frozen: U4-01, U4-02), then Build and Test.
-- **Status**: UOW-2 Code Generation gate is CLOSED. Independent review (OpenAI/Codex, separate provider) reviewed Revision 1 `ee24446` as BLOCKED with eight findings, then Revision 2 `1c37d22` as PASS with all eight RESOLVED and no Blocking, High, or Medium finding remaining. The single Low finding U2-R2-F01, a stale constructor comment contradicting the nil-collaborator contract, was fixed in Revision 3. Full suite, long tests, and `-race` pass across all seven packages with zero data races. PERF-01 measured a 1.4255 s median against the 10 s target; SCALE-01 verified at 1,000 rows; rapid properties replay at seed 20260906. Five verification limitations are recorded and adjudicated as non-blocking by the independent role, including no injected `os.File.Close` fault in `writeBackup` (no production seam advised) and no live browser for visual/keyboard checks. F-13/F-14/F-15/F-16 are verified corrected; F-04 and F-05 remain deferred.
+- **Current Unit**: UOW-4 — Category Lifecycle and Mapping-File Restore Integrity
+- **Current Stage**: UOW-4 Functional Design — artifacts generated, awaiting explicit approval
+- **Last Completed**: UOW-4 Functional Design questions answered (Q1 B, Q2 A, Q3 A, Q4 A, FQ1 A) and the four functional-design artifacts generated on 2026-09-07.
+- **Next Step**: Review and explicitly approve the four UOW-4 functional-design artifacts, then proceed to NFR Requirements. UOW-5 remains registered and not started.
+- **Status**: UOW-1, UOW-2 and UOW-3 are complete with independent gates PASS, plus two post-gate UOW-2 defects found by the user and independently re-reviewed: U2-F09, a delete handler shadowed by an `app.js` global, and U2-USER-02, the SIC page appearing in top-level navigation against the approved decision. UOW-4 is a narrow two-finding unit: header normalization for BOM, whitespace and case, and three more specific diagnostics. It adds no table, column, index, endpoint, page, route or dependency and mutates nothing new; only the header becomes more tolerant, and existing diagnostic codes are unchanged so anything matching on them is unaffected. U4-01 is recorded as MITIGATED, not resolved — a renamed category still makes a file fail to import, and the fix makes that failure repairable in one edit. Resolving by `Category_ID` was declined because nothing in a file distinguishes a rename from a delete-and-recreate, and because the startup seed file is read on databases where IDs are meaningless. UOW-5 is registered and not started; it would reverse FR7 so rule-sourced transactions follow a changed rule, and requires a requirements amendment first.
 
 ## Notes
 - Production code and verification tests have mandatory cross-provider ownership. Each role runs in a separate session, the handoff is manual and artifact-based, and the independent review must report PASS before Code Generation completes.

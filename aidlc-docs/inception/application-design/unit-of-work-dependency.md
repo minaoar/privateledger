@@ -10,6 +10,9 @@
 | UOW-3 — Transaction Categorization Integration | UOW-2 | Hard | Mapping CRUD/read contracts, CSV-merge affected-code handoff, reloadable mapping source, modal upsert service contract |
 | UOW-4 — Category Lifecycle and Mapping-File Restore Integrity | UOW-2 | Hard | CSV column contract, category resolution rules, backup file format and write path |
 | UOW-4 — Category Lifecycle and Mapping-File Restore Integrity | UOW-3 | Sequencing | Scope freezes only when UOW-3 Code Generation completes; UOW-4 has no runtime dependency on categorization |
+| UOW-5 — Rule-Sourced Recategorization | UOW-3 | Hard | Shared decision function, scoped recategorization query, and `category_source` semantics |
+| UOW-5 — Rule-Sourced Recategorization | UOW-2 | Hard | Collaborator contract and affected-code handoff rules BR-U2-29 through BR-U2-31 |
+| UOW-5 — Rule-Sourced Recategorization | UOW-4 | Sequencing | Starts after UOW-4 completes; no runtime dependency |
 
 ## Dependency Direction
 

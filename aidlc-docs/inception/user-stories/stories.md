@@ -295,3 +295,42 @@ Stories are ordered using the approved hybrid Journey + Feature-Based approach. 
 | NFR4 | US-07, US-08 |
 | NFR5 | US-13 |
 | NFR6 | US-13 |
+
+---
+
+## US-14 — Accept cosmetic mapping-file variation and explain what must be fixed
+
+**Added 2026-09-07 (UOW-4).**
+
+**As a** Local Personal Finance User,
+**I want** a mapping file the application produced to import despite harmless formatting differences,
+and to be told exactly what to change when it genuinely cannot be imported,
+**so that** ordinary editing and ordinary category housekeeping do not leave me with an unusable file
+and no idea why.
+
+**Personas**: Local Personal Finance User
+
+**Acceptance Criteria**:
+- **Given** a mapping CSV whose header differs only in letter case, **when** I upload it, **then** it is
+  accepted.
+- **Given** a mapping CSV saved by a spreadsheet with a UTF-8 byte-order mark, **when** I upload it,
+  **then** it is accepted.
+- **Given** a mapping CSV whose header has surrounding whitespace around column names, **when** I upload
+  it, **then** it is accepted.
+- **Given** a mapping CSV whose header has the wrong columns or wrong number of columns, **when** I
+  upload it, **then** it is still rejected and the diagnostic identifies the header.
+- **Given** a mapping CSV naming a category that has since been renamed, **when** I upload it, **then**
+  the row is rejected and the diagnostic names the unresolved value and the current name of the category
+  its `Category_ID` refers to, so the file can be repaired in one edit.
+- **Given** a mapping CSV naming a category that matches two categories differing only by case, **when**
+  I upload it, **then** the row is rejected and the diagnostic names the colliding categories.
+- **Given** any rejected upload, **when** it is rejected, **then** no mapping is created, updated or
+  deleted, and no diagnostic echoes arbitrary file content.
+
+**Requirement Mapping**: FR4 as amended 2026-09-07.
+
+**Scope note**: a renamed category still makes a file fail to import. This story makes that failure
+diagnosable and repairable in a single edit; it does not resolve it. UOW-4 finding U4-01 is recorded as
+mitigated rather than resolved.
+
+**INVEST Check**: Independent, Negotiable, Valuable, Estimable, Small, Testable.

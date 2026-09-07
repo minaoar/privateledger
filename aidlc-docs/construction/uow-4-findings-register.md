@@ -23,6 +23,11 @@ is a prompt to investigate, not an entry.
 **Admitted** 2026-09-06. Founding finding for this unit.
 **Reported by** the user, while reviewing the UOW-3 Code Generation plan.
 **Severity** Medium for exports; higher for backups, because a backup's only purpose is restoration.
+**Disposition (2026-09-07)** — **MITIGATED, not resolved.** UOW-4 Q1 chose to keep rejecting the row and
+make the diagnostic name the unresolved value and the current name of the category its `Category_ID`
+refers to, so the file is repairable in one edit. Resolving by `Category_ID` was considered and declined:
+nothing in a file distinguishes a rename, where the ID is correct, from a delete-and-recreate, where it
+may not be. The residual manual step is accepted deliberately and left visible here.
 
 #### Reproduction
 
@@ -83,7 +88,34 @@ Not yet decided; UOW-4's own stages own the decision.
   separate endpoint, or the file's provenance.
 - Cheaper interim: omit `Category_Name` from backups, or mark backups as ID-authoritative in a header
   line.
-- Provisional story **US-14 — Restore mappings from an application backup**.
+- ~~Provisional story **US-14 — Restore mappings from an application backup**.~~ **Superseded
+  2026-09-07.** The restore capability was removed from scope, and US-14 is now
+  "Accept cosmetic mapping-file variation and explain what must be fixed". A restore story, if wanted,
+  needs a new number and its own justification.
+
+## Why the ID Fallback Was Declined — User Rationale, 2026-09-07
+
+Recorded because "why B" is the question a future reader is most likely to reopen.
+
+A CSV import is a **deliberate bulk operation**. The intended workflow is: download the current
+mappings, edit the file, upload it. The file is a snapshot of the database it came from. Editing
+categories in the UI midway through that workflow means the snapshot no longer describes the database,
+and the correct response is to say so rather than guess which of two conflicting edits the user meant.
+
+Under that model a stale category name is not a product defect the application should paper over. It is
+a signal that the world moved underneath the file, and the user is the only one who can say what should
+happen.
+
+This reasoning is strongest for the **startup seed file**. FR4 makes `sic_mappings.csv` a long-lived,
+hand-maintained interchange file, read on a database with no mappings — a reinstall or a new machine,
+where `Category_ID` values are meaningless or belong to entirely different categories. Name-first is not
+merely safer there; it is the only sane key, and trusting the ID would be actively wrong. The proposed
+ID fallback would have been worst precisely where files live longest.
+
+It is weakest for the automatically written backups, which the user never chose to download and to which
+the download-first discipline never applied. That case stays narrow: a backup is written immediately
+before every merge, so the one a user would restore is seconds old and a rename in that window is
+improbable.
 
 #### Artifacts implicated
 
