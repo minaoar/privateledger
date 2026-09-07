@@ -4,8 +4,17 @@
 
 - BR-U5-01: Re-examination is triggered by any rule change — a text pattern or SIC mapping created,
   changed or deleted, and a category deleted.
-- BR-U5-02: Re-examination considers **all** transactions with `category_source != 2`. There is no
-  scoped variant, and no caller supplies a scope.
+- BR-U5-02: Re-examination **reads every transaction** and **writes only those with
+  `category_source != 2`**. There is no scoped variant, and no caller supplies a scope.
+
+  **Amended 2026-09-07 at NFR Requirements (Q5 A).** As first written this rule said re-examination
+  considers only transactions with `category_source != 2`, which contradicted BR-U5-14: manual
+  transactions cannot be both excluded and evaluated, and FR16's manual count requires evaluating them.
+  Read scope and write scope differ, and the rule now says so.
+
+  This is a correction, not a new decision — the requirements stage had already settled that the manual
+  count is reported. Its consequence is one of scale, and it is why the read covers the whole table
+  rather than a subset.
 - BR-U5-03: Importing transactions does not trigger re-examination. Import categorizes what it brings in
   and leaves existing transactions alone.
 - BR-U5-04: A description-only SIC mapping edit triggers nothing, because it cannot alter any
@@ -46,7 +55,8 @@
 ## Reporting
 
 - BR-U5-14: Counting manual protections requires evaluating rules for manual transactions. That
-  evaluation **must never write**. It exists only to produce the count.
+  evaluation **must never write**. It exists only to produce the count. Per Q5 A it happens in the same
+  single traversal as the rest of the pass, so the count cannot disagree with the writes beside it.
 - BR-U5-15: A rule change reports three counts: transactions moved to a different category,
   transactions that became uncategorized, and manual transactions the rules would otherwise have moved.
 - BR-U5-16: Zero counts are reported as zero, never omitted. A rule change that moved nothing says so.

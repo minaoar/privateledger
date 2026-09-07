@@ -27,6 +27,16 @@ five uninstrumented runs. Record CPU, logical cores, RAM, OS, Go version, storag
 absence of intentionally competing heavy work. If that environment is unavailable, report
 the difference for review instead of silently claiming equivalent acceptance evidence.
 
+**Amended 2026-09-07 by UOW-5 NFR Requirements (Q2 A).** The harness behind this target
+(`sic_management_perf_review_test.go`) contains **no transactions**. That was correct when written —
+UOW-2's collaborator was a no-op, and UOW-3's was scoped to codes the fixture had no transactions for.
+Under UOW-5 a merge triggers a full re-examination of every transaction, so as written this benchmark
+omits the cost that now dominates it and would report PASS while a real regression shipped.
+
+The fixture must therefore also hold **20,000 transactions**. The ten-second budget is unchanged and
+needs no relief: a 1.41 s merge plus a re-examination measured at a 826.8 ms median is nowhere near it.
+What changes is that a PASS starts meaning something about the operation as it actually runs.
+
 The target includes backup I/O. A backup-failure path cannot substitute for the successful
 backup benchmark. UOW-3 must assess the real recategorization cost separately; this target
 does not promise ten-second completion for arbitrary collaborator workloads or hardware.

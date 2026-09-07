@@ -1770,3 +1770,31 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 Functional Design Approved; NFR Requirements Opened
+**Timestamp**: 2026-09-07T11:45:00Z
+**User Input**: "push it and continue to next stage"
+**AI Response**: Pushed the four functional-design artifacts and the stage plan as `db82db4`, then opened UOW-5 NFR Requirements with five questions.
+**Baseline Measured Rather Than Estimated**: the existing UOW-3 harness was run before writing the plan. A full pass over 20,000 transactions with 1,000 mappings and 100 categories, all recategorized, has a median of 826.8 ms with samples between 789 and 893 ms, against NFR-U3-PERF-01's five-second budget. The scoped pass over 2,000 matching transactions is 203.7 ms. The full pass therefore costs roughly four times the scoped pass and stays under a second, which is what makes the performance question answerable from evidence. The 827 ms figure includes writing all 20,000 rows, so under BR-U5-17 the common case where nothing changes should be substantially cheaper; 827 ms is near the worst case rather than the typical one.
+**Verified Gap Found**: `sic_management_perf_review_test.go`, the harness behind NFR-U2-PERF-01's blocking ten-second merge target, contains no transactions at all. That was correct when written, because UOW-2's collaborator was a no-op and UOW-3's was scoped to codes the fixture had no transactions for. Under UOW-5 a merge triggers a full re-examination, so an approved blocking benchmark now omits the cost that dominates it and would report PASS while a real regression shipped.
+**Contradiction Found in the Just-Approved Functional Design**: BR-U5-02 says re-examination considers all transactions with `category_source != 2`, while BR-U5-14 requires evaluating rules for manual transactions in order to count them. Manual transactions cannot be both excluded and evaluated. The reconciliation is that read scope and write scope differ — re-examination reads every transaction and writes only non-manual ones. This is a correction to production's own artifact rather than a new decision, since Q3 A had already settled that the manual count is reported and reporting it requires the read. It surfaces at this stage because its consequence is a scale one: the read covers the whole table.
+**Question Shape**: Q1 performance targets now that the work sits on the interactive save path, Q2 the blind merge benchmark, Q3 whether the grown gate hold reopens UOW-3's no-deadline decision, Q4 property-based verification of FR15, Q5 how the manual count is read. Each carries a marked recommendation.
+**Q1 Framed From the Measurement**: the recommended 1.5-second bound is roughly 1.8 times the measured 827 ms median rather than a round number, and the second bound is deliberately stated as a relation — the no-op pass must be measurably faster — because the no-write path does not exist yet and a millisecond figure for it would be false precision.
+**Status**: UOW-5 Functional Design COMPLETE and approved. NFR Requirements open, awaiting answers. Nothing committed.
+
+---
+
+## UOW-5 NFR Requirements — Answers Recorded, Amendments Applied, Artifacts Generated
+**Timestamp**: 2026-09-07T12:15:00Z
+**User Input**: "answered with all A"
+**Answers**: Q1 A two bounds derived from the measured baseline, Q2 A the merge benchmark gains a populated transaction fixture, Q3 A the gate hold keeps no deadline, Q4 A order-independence and idempotence properties, Q5 A one traversal reads everything and writes non-manual rows.
+**Two Dated Amendments Applied**: BR-U5-02 now separates read scope from write scope, resolving its contradiction with BR-U5-14 — manual transactions cannot be both excluded and evaluated, and FR16's count requires evaluating them. This was a correction to production's own artifact approved the previous day rather than a new decision. UOW-2's NFR-U2-PERF-01 now requires 20,000 transactions in its fixture; the ten-second budget is unchanged and needs no relief, since 1.41 s of merge plus roughly 0.83 s of re-examination is nowhere near it.
+**Reasoning Recorded for the Tightened Budget**: NFR-U5-PERF-01 sets 1.5 seconds where NFR-U3-PERF-01 set five. The reason is placement rather than scale — five seconds was set for an explicit "Recategorize All" the user chose to trigger, and the same work now happens when saving a single pattern. A budget that would tolerate a sixfold slowdown on an interactive save is not a useful budget. The figure is roughly 1.8 times the measured 826.8 ms median rather than a round number.
+**Second Bound Stated as a Relation**: the no-op pass must be measurably faster than the worst case rather than meeting a millisecond constant, because the no-write path does not exist yet and a constant for unwritten code would be false precision. What it does assert is the useful thing: if the no-op pass is not faster, BR-U5-17 is not working.
+**Contingency Recorded Before Measurement**: NFR-U5-CON-01 keeps UOW-3's no-deadline gate hold, and states explicitly that if NFR-U5-PERF-01's bound fails, the deadline decision reopens rather than the budget being relaxed. Recorded now so a failure is a planned branch rather than an argument had under pressure.
+**Framing Recorded Against a Likely Misreading**: TD-U5-02 states that retiring the scoped query does not retire the `json_each` technique. `BulkUpdateCategory` still needs it, because a worst-case pass writes every non-manual transaction, far past the 32,764-variable ceiling measured during UOW-3. "The scoped query is no longer used" is easy to misread as "the technique was unnecessary".
+**Manual Protection Restated Deliberately Again**: NFR-U5-REL-02 restates it because this unit removes the guard immediately beside it — BR-U3-03's existing-category stop — and a reader could take the pair as weakened together.
+**Generated Artifacts**: `nfr-requirements.md` (PERF-01 through PERF-03, CON-01 and CON-02, SCALE-01 and SCALE-02, REL-01 through REL-03, TEST-01 through TEST-08) and `tech-stack-decisions.md` (TD-U5-01 through TD-U5-05) under `aidlc-docs/construction/rule-sourced-recategorization/nfr-requirements/`. No dependency added, removed or upgraded.
+**Status**: UOW-5 NFR Requirements complete; awaiting explicit approval before NFR Design. No production code or test changed.
+
+---
+
