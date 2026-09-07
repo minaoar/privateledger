@@ -18,6 +18,7 @@ import (
 
 type uow3RecategorizeMeasurement struct {
 	elapsed      time.Duration
+	noOpElapsed  time.Duration
 	databaseSize int64
 	result       *RecategorizeResult
 }
@@ -71,7 +72,7 @@ func runUOW3RecategorizeAllOnce(t *testing.T) uow3RecategorizeMeasurement {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	result, err := categorizer.RecategorizeAll()
+	result, err := categorizer.Reexamine()
 	elapsed := time.Since(start)
 	if err != nil {
 		t.Fatalf("RecategorizeAll: %v", err)
@@ -79,7 +80,16 @@ func runUOW3RecategorizeAllOnce(t *testing.T) uow3RecategorizeMeasurement {
 	if result.ProcessedCount != 20_000 || result.CategorizedCount != 20_000 || result.PatternCategorizedCount != 0 || result.SICCategorizedCount != 20_000 {
 		t.Fatalf("unexpected result: %+v", result)
 	}
-	return uow3RecategorizeMeasurement{elapsed: elapsed, databaseSize: info.Size(), result: result}
+	noOpStart := time.Now()
+	noOpResult, err := categorizer.Reexamine()
+	noOpElapsed := time.Since(noOpStart)
+	if err != nil {
+		t.Fatalf("no-op Reexamine: %v", err)
+	}
+	if noOpResult.MovedCount != 0 || noOpResult.UncategorizedCount != 0 || noOpResult.ManualProtectedCount != 0 {
+		t.Fatalf("no-op result: %+v", noOpResult)
+	}
+	return uow3RecategorizeMeasurement{elapsed: elapsed, noOpElapsed: noOpElapsed, databaseSize: info.Size(), result: result}
 }
 
 func durationMedian(samples []time.Duration) time.Duration {
@@ -88,7 +98,7 @@ func durationMedian(samples []time.Duration) time.Duration {
 	return sorted[len(sorted)/2]
 }
 
-func TestReviewU3RecategorizeAllPerformance(t *testing.T) {
+func TestReviewU5ReexaminationPerformance(t *testing.T) {
 	if testing.Short() {
 		t.Skip("performance evidence is skipped in short mode")
 	}
@@ -98,44 +108,23 @@ func TestReviewU3RecategorizeAllPerformance(t *testing.T) {
 	runUOW3RecategorizeAllOnce(t) // warm-up, discarded
 	const runs = 5
 	samples := make([]time.Duration, 0, runs)
+	noOpSamples := make([]time.Duration, 0, runs)
 	var databaseSize int64
 	for i := 0; i < runs; i++ {
 		measurement := runUOW3RecategorizeAllOnce(t)
 		samples = append(samples, measurement.elapsed)
+		noOpSamples = append(noOpSamples, measurement.noOpElapsed)
 		databaseSize = measurement.databaseSize
 	}
 	median := durationMedian(samples)
-	t.Logf("NFR-U3-PERF-01 fixture: transactions=20000 mappings=1000 categories=100 SIC proportion=100%% database_bytes=%d", databaseSize)
-	t.Logf("NFR-U3-PERF-01 samples=%v median=%v", samples, median)
-	if median > 5*time.Second {
-		t.Fatalf("NFR-U3-PERF-01 median %v exceeds 5s", median)
+	noOpMedian := durationMedian(noOpSamples)
+	t.Logf("NFR-U5-PERF-01 fixture: transactions=20000 manual=0 (0%%) mappings=1000 categories=100 SIC proportion=100%% database_bytes=%d", databaseSize)
+	t.Logf("NFR-U5-PERF-01 worst-case samples=%v median=%v; no-op samples=%v median=%v", samples, median, noOpSamples, noOpMedian)
+	if median > 1500*time.Millisecond {
+		t.Fatalf("NFR-U5-PERF-01 worst-case median %v exceeds 1.5s", median)
 	}
-}
-
-func TestReviewU3ScopedRecategorizationPerformance(t *testing.T) {
-	if testing.Short() || raceDetectorEnabled {
-		t.Skip("performance evidence requires an uninstrumented non-short run")
-	}
-	sic, categorizer, _ := buildUOW3RecategorizeFixture(t, 20_000, 1_000, 100)
-	if err := categorizer.LoadRules(); err != nil {
-		t.Fatal(err)
-	}
-	codes := make([]model.SICCode, 100)
-	for i := range codes {
-		codes[i] = model.SICCode(fmt.Sprint(i + 1))
-	}
-	start := time.Now()
-	count, err := sic.RecategorizeBySICCodes(codes)
-	elapsed := time.Since(start)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2_000 {
-		t.Fatalf("scoped categorized=%d, want 2000", count)
-	}
-	t.Logf("NFR-U3-PERF-01 scoped fixture: affected_codes=100 matching_transactions=2000 elapsed=%v", elapsed)
-	if elapsed > 5*time.Second {
-		t.Fatalf("scoped recategorization %v is not inside the 5s full-pass bound", elapsed)
+	if noOpMedian >= median {
+		t.Fatalf("NFR-U5-PERF-01 no-op median %v is not measurably faster than worst-case %v", noOpMedian, median)
 	}
 }
 

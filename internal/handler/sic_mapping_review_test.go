@@ -231,8 +231,8 @@ func (c reviewHandlerCollaborator) ReloadMappings() error {
 	}
 	return nil
 }
-func (c reviewHandlerCollaborator) RecategorizeBySICCodes([]model.SICCode) (int, error) {
-	return 0, nil
+func (c reviewHandlerCollaborator) Reexamine() (service.RecategorizationCounts, error) {
+	return service.RecategorizationCounts{}, nil
 }
 func TestReviewU2HandlerBusyAndCommittedWarning(t *testing.T) {
 	f := newHandlerReview(t)

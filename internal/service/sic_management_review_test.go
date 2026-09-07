@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -23,7 +22,7 @@ const reviewHeader = "SIC_Code,Description,Description_Detail,Category_Name,Cate
 
 type reviewCollaborator struct {
 	reload  func() error
-	handoff func([]model.SICCode) (int, error)
+	handoff func() (RecategorizationCounts, error)
 }
 
 func (c reviewCollaborator) ReloadMappings() error {
@@ -32,11 +31,11 @@ func (c reviewCollaborator) ReloadMappings() error {
 	}
 	return nil
 }
-func (c reviewCollaborator) RecategorizeBySICCodes(codes []model.SICCode) (int, error) {
+func (c reviewCollaborator) Reexamine() (RecategorizationCounts, error) {
 	if c.handoff != nil {
-		return c.handoff(codes)
+		return c.handoff()
 	}
-	return 0, nil
+	return RecategorizationCounts{}, nil
 }
 func reviewService(f *seedFixture, c SICRecategorizationCollaborator) *SICMappingService {
 	return NewSICMappingManagementService(f.sicRepo, f.catRepo, f.dir, 40*time.Millisecond, c)
@@ -70,10 +69,10 @@ func TestReviewU2MergeCountsBackupRoundTrip(t *testing.T) {
 	if e := f.sicRepo.BulkInsertAtomic(initial); e != nil {
 		t.Fatal(e)
 	}
-	var calls [][]model.SICCode
-	s := reviewService(f, reviewCollaborator{handoff: func(c []model.SICCode) (int, error) {
-		calls = append(calls, append([]model.SICCode(nil), c...))
-		return 7, nil
+	calls := 0
+	s := reviewService(f, reviewCollaborator{handoff: func() (RecategorizationCounts, error) {
+		calls++
+		return RecategorizationCounts{Moved: 7}, nil
 	}})
 	var before bytes.Buffer
 	if e := s.ExportCSV(&before); e != nil {
@@ -85,7 +84,7 @@ func TestReviewU2MergeCountsBackupRoundTrip(t *testing.T) {
 	if r.CreatedRows != 1 || r.UpdatedRows != 1 || r.UnchangedRows != 1 || r.ImportedRows != 0 || r.Outcome != model.SICMappingImportMerged || r.RecategorizedRows != 7 {
 		t.Fatalf("counts: %+v", r)
 	}
-	if len(calls) != 1 || !reflect.DeepEqual(calls[0], []model.SICCode{"1000", "2"}) {
+	if calls != 1 {
 		t.Fatalf("handoff %v", calls)
 	}
 	got := f.mappings()
@@ -101,7 +100,7 @@ func TestReviewU2MergeCountsBackupRoundTrip(t *testing.T) {
 		t.Fatalf("backup mode: %v %v", info, e)
 	}
 	r2 := reviewMerge(t, s, body)
-	if r2.UnchangedRows != 3 || r2.CreatedRows != 0 || r2.UpdatedRows != 0 || len(calls) != 1 || r2.BackupPath == r.BackupPath {
+	if r2.UnchangedRows != 3 || r2.CreatedRows != 0 || r2.UpdatedRows != 0 || calls != 1 || r2.BackupPath == r.BackupPath {
 		t.Fatalf("repeat: %+v calls=%v", r2, calls)
 	}
 	var exported bytes.Buffer
@@ -121,18 +120,18 @@ func TestReviewU2MergeCountsBackupRoundTrip(t *testing.T) {
 	}
 }
 
-func TestReviewU2CRUDAndAffectedCodes(t *testing.T) {
+func TestReviewU2CRUDAndRuleChangeHandoff(t *testing.T) {
 	f := newSeedFixture(t)
 	a := f.addCategory("A")
 	b := f.addCategory("B")
-	var calls [][]model.SICCode
+	calls := 0
 	reloads := 0
-	s := reviewService(f, reviewCollaborator{reload: func() error { reloads++; return nil }, handoff: func(c []model.SICCode) (int, error) {
-		calls = append(calls, append([]model.SICCode(nil), c...))
-		return 1, nil
+	s := reviewService(f, reviewCollaborator{reload: func() error { reloads++; return nil }, handoff: func() (RecategorizationCounts, error) {
+		calls++
+		return RecategorizationCounts{Moved: 1}, nil
 	}})
 	r, e := s.CreateMapping(context.Background(), model.SICMappingInput{SICCode: " 0002 ", Description: " trimmed ", DescriptionDetail: " detail ", CategoryID: &a})
-	if e != nil || r.Mapping.Description != "trimmed" || r.Mapping.DescriptionDetail != "detail" || len(calls) != 1 {
+	if e != nil || r.Mapping.Description != "trimmed" || r.Mapping.DescriptionDetail != "detail" || calls != 1 {
 		t.Fatalf("create %+v %v", r, e)
 	}
 	id := r.Mapping.SICMappingID
@@ -140,9 +139,9 @@ func TestReviewU2CRUDAndAffectedCodes(t *testing.T) {
 		code string
 		cat  *int
 		want int
-	}{{"2", &a, 1}, {"2", &b, 2}, {"2", nil, 2}, {"10", nil, 2}, {"10", &a, 3}, {"100", &a, 4}} {
+	}{{"2", &a, 1}, {"2", &b, 2}, {"2", nil, 3}, {"10", nil, 4}, {"10", &a, 5}, {"100", &a, 6}} {
 		r, e = s.UpdateMapping(context.Background(), id, model.SICMappingInput{SICCode: tc.code, Description: "edited", CategoryID: tc.cat})
-		if e != nil || !r.MappingCommitted || r.Mapping.SICMappingID != id || len(calls) != tc.want {
+		if e != nil || !r.MappingCommitted || r.Mapping.SICMappingID != id || calls != tc.want {
 			t.Fatalf("update %s: %+v %v calls=%v", tc.code, r, e, calls)
 		}
 	}
@@ -167,7 +166,7 @@ func TestReviewU2CRUDAndAffectedCodes(t *testing.T) {
 	if _, e = s.DeleteMapping(context.Background(), id); !errors.Is(e, model.ErrSICMappingNotFound) {
 		t.Fatal(e)
 	}
-	if len(calls) != 4 || reloads != 8 {
+	if calls != 7 || reloads != 8 {
 		t.Fatalf("calls=%v reloads=%d", calls, reloads)
 	}
 	// Every preceding error must have released admission.
@@ -227,7 +226,10 @@ func TestReviewU2PostCommitWarnings(t *testing.T) {
 						return errors.New("reload failed")
 					}
 					return nil
-				}, handoff: func([]model.SICCode) (int, error) { handoffs++; return 0, errors.New("handoff failed") }}
+				}, handoff: func() (RecategorizationCounts, error) {
+					handoffs++
+					return RecategorizationCounts{}, errors.New("handoff failed")
+				}}
 				s := reviewService(f, c)
 				var committed bool
 				var warnings []string
@@ -262,7 +264,7 @@ func TestReviewU2PostCommitWarnings(t *testing.T) {
 						warnings = r.PostCommitWarnings
 					}
 				}
-				wantWarning := phase == "reload" || op != "delete"
+				wantWarning := true
 				if err != nil || !committed || (len(warnings) > 0) != wantWarning {
 					t.Fatalf("committed=%v warnings=%v err=%v", committed, warnings, err)
 				}

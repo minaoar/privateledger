@@ -81,11 +81,10 @@ type uow3TxnSnapshot struct {
 	source   model.CategorySource
 }
 
-// TestReviewU3ScopedRecategorizationProperty generates affected sets and
-// transaction states. Only a category-less, source-none row inside the set may
-// change; every other row must remain byte-for-byte identical in the fields the
-// pass owns.
-func TestReviewU3ScopedRecategorizationProperty(t *testing.T) {
+// TestReviewU5WholeTableReexaminationProperty checks the amended whole-table
+// contract across generated transaction states. Current rules decide every
+// non-manual row; manual rows remain byte-for-byte unchanged.
+func TestReviewU5WholeTableReexaminationProperty(t *testing.T) {
 	withUOW3RapidSeed(t)
 	db, txnRepo, _, sicRepo, sic, categorizer, accountID := newUOW3ServiceHarness(t)
 	mappedCategory := createUOW3Category(t, db, "Mapped")
@@ -103,25 +102,18 @@ func TestReviewU3ScopedRecategorizationProperty(t *testing.T) {
 		if _, err := db.Exec(`DELETE FROM ledger_transaction`); err != nil {
 			rt.Fatal(err)
 		}
-		affected := map[model.SICCode]bool{}
-		var codes []model.SICCode
-		for _, code := range []model.SICCode{"100", "200", "300"} {
-			if rapid.Bool().Draw(rt, "affect "+string(code)) {
-				affected[code] = true
-				codes = append(codes, code)
-			}
-		}
 		count := rapid.IntRange(1, 16).Draw(rt, "transaction count")
 		before := map[int]uow3TxnSnapshot{}
 		transactionCodes := map[int]model.SICCode{}
-		eligible := 0
+		wantMoved, wantUncategorized, wantManual := 0, 0, 0
 		for i := 0; i < count; i++ {
 			code := rapid.SampledFrom([]model.SICCode{"100", "200", "300", "999"}).Draw(rt, fmt.Sprintf("code %d", i))
-			source := rapid.SampledFrom([]model.CategorySource{model.CategorySourceNone, model.CategorySourceRule, model.CategorySourceManual}).Draw(rt, fmt.Sprintf("source %d", i))
 			hasCategory := rapid.Bool().Draw(rt, fmt.Sprintf("has category %d", i))
 			var category *int
+			source := model.CategorySourceNone
 			if hasCategory {
 				category = &otherCategory
+				source = rapid.SampledFrom([]model.CategorySource{model.CategorySourceNone, model.CategorySourceRule, model.CategorySourceManual}).Draw(rt, fmt.Sprintf("source %d", i))
 			}
 			txn := createUOW3Txn(t, txnRepo, accountID, fmt.Sprintf("prop-%d", i), "MERCHANT", string(code), category, source)
 			oldCategory := sql.NullInt64{Valid: category != nil}
@@ -130,37 +122,49 @@ func TestReviewU3ScopedRecategorizationProperty(t *testing.T) {
 			}
 			before[txn.TransactionID] = uow3TxnSnapshot{category: oldCategory, source: source}
 			transactionCodes[txn.TransactionID] = code
-			if affected[code] && category == nil && source == model.CategorySourceNone {
-				eligible++
+			hasMapping := code != "999"
+			wouldChange := hasMapping && (category == nil || *category != mappedCategory) || !hasMapping && category != nil
+			if source == model.CategorySourceManual {
+				if wouldChange {
+					wantManual++
+				}
+			} else if wouldChange {
+				if hasMapping {
+					wantMoved++
+				} else {
+					wantUncategorized++
+				}
 			}
 		}
 
-		gotCount, err := sic.RecategorizeBySICCodes(codes)
+		got, err := sic.Reexamine()
 		if err != nil {
 			rt.Fatal(err)
 		}
-		if gotCount != eligible {
-			rt.Fatalf("changed count=%d, want %d eligible rows", gotCount, eligible)
+		if got.Moved != wantMoved || got.Uncategorized != wantUncategorized || got.ManualProtected != wantManual {
+			rt.Fatalf("counts=%+v, want moved=%d uncategorized=%d manual=%d", got, wantMoved, wantUncategorized, wantManual)
 		}
 		for id, old := range before {
 			stored, err := txnRepo.GetByID(id)
 			if err != nil {
 				rt.Fatal(err)
 			}
-			mayChange := affected[transactionCodes[id]] && !old.category.Valid && old.source == model.CategorySourceNone
-			if mayChange {
-				if stored.CategoryID == nil || *stored.CategoryID != mappedCategory || stored.CategorySource != model.CategorySourceRule {
-					rt.Fatalf("eligible transaction %d not mapped: category=%v source=%v", id, stored.CategoryID, stored.CategorySource)
+			if old.source == model.CategorySourceManual {
+				newCategory := sql.NullInt64{}
+				if stored.CategoryID != nil {
+					newCategory = sql.NullInt64{Valid: true, Int64: int64(*stored.CategoryID)}
+				}
+				if newCategory != old.category || stored.CategorySource != old.source {
+					rt.Fatalf("manual transaction %d changed from category=%v source=%v to category=%v source=%v", id, old.category, old.source, newCategory, stored.CategorySource)
 				}
 				continue
 			}
-			newCategory := sql.NullInt64{}
-			if stored.CategoryID != nil {
-				newCategory.Valid = true
-				newCategory.Int64 = int64(*stored.CategoryID)
-			}
-			if newCategory != old.category || stored.CategorySource != old.source {
-				rt.Fatalf("out-of-scope transaction %d changed from category=%v source=%v to category=%v source=%v", id, old.category, old.source, newCategory, stored.CategorySource)
+			if transactionCodes[id] == "999" {
+				if stored.CategoryID != nil || stored.CategorySource != model.CategorySourceNone {
+					rt.Fatalf("unmatched transaction %d stored=%+v, want uncategorized", id, stored)
+				}
+			} else if stored.CategoryID == nil || *stored.CategoryID != mappedCategory || stored.CategorySource != model.CategorySourceRule {
+				rt.Fatalf("mapped transaction %d stored=%+v, want category=%d source=rule", id, stored, mappedCategory)
 			}
 		}
 	})

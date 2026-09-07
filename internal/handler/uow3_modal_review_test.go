@@ -58,6 +58,7 @@ func newUOW3ModalFixture(t *testing.T) *uow3ModalFixture {
 	sicRepo := repository.NewSICMappingRepository(db)
 	patternRepo := repository.NewCategoryPatternRepository(db)
 	sicCategorizer := service.NewSICMappingCategorizer(sicRepo, txnRepo)
+	_ = service.NewCategorizerWithSIC(patternRepo, txnRepo, sicCategorizer)
 	mappingService := service.NewSICMappingManagementService(
 		sicRepo, repository.NewCategoryRepository(db), dir, time.Second, sicCategorizer,
 	)

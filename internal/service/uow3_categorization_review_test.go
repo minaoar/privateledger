@@ -57,6 +57,7 @@ func TestReviewU3UOW2MergeFiftyThousandAffectedCodes(t *testing.T) {
 	}
 	txnRepo := repository.NewTransactionRepository(f.db)
 	sic := NewSICMappingCategorizer(f.sicRepo, txnRepo)
+	_ = NewCategorizerWithSIC(repository.NewCategoryPatternRepository(f.db), txnRepo, sic)
 	mappingService := NewSICMappingManagementService(f.sicRepo, f.catRepo, f.dir, 5*time.Second, sic)
 	result, err := mappingService.MergeUpload(context.Background(), strings.NewReader(reviewCSV(t, rows)))
 	if err != nil {
@@ -209,11 +210,7 @@ func TestReviewU3RecategorizeEntryPointParity(t *testing.T) {
 
 			var result *RecategorizeResult
 			var err error
-			if byCategory {
-				result, err = categorizer.RecategorizeByCategory(patternCategory)
-			} else {
-				result, err = categorizer.RecategorizeAll()
-			}
+			result, err = categorizer.Reexamine()
 			if err != nil {
 				t.Fatalf("recategorize: %v", err)
 			}
@@ -242,7 +239,7 @@ func TestReviewU3RecategorizeSplitCounts(t *testing.T) {
 	createUOW3Txn(t, txnRepo, accountID, "sic", "HOTEL", "5812", nil, model.CategorySourceNone)
 	createUOW3Txn(t, txnRepo, accountID, "none", "UNKNOWN", "9999", nil, model.CategorySourceNone)
 
-	result, err := categorizer.RecategorizeAll()
+	result, err := categorizer.Reexamine()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +258,7 @@ func TestReviewU3RecategorizeByCategoryAppliesSIC(t *testing.T) {
 		t.Fatal(err)
 	}
 	txn := createUOW3Txn(t, txnRepo, accountID, "sic-only", "HOTEL", "5812", nil, model.CategorySourceNone)
-	result, err := categorizer.RecategorizeByCategory(sicCategory)
+	result, err := categorizer.Reexamine()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,57 +271,21 @@ func TestReviewU3RecategorizeByCategoryAppliesSIC(t *testing.T) {
 	}
 }
 
-func TestReviewU3ScopedEmptySetDoesNoWork(t *testing.T) {
+func TestReviewU5AttachedAdapterEmptyPassDoesNoWork(t *testing.T) {
 	_, _, _, _, sic, _, _ := newUOW3ServiceHarness(t)
-	count, err := sic.RecategorizeBySICCodes(nil)
-	if err != nil || count != 0 {
-		t.Fatalf("empty scoped pass count=%d err=%v, want 0 nil", count, err)
+	counts, err := sic.Reexamine()
+	if err != nil || counts != (RecategorizationCounts{}) {
+		t.Fatalf("empty pass counts=%+v err=%v, want zeros and nil", counts, err)
 	}
 }
 
-// UOW-2 may construct the mapping collaborator without attaching it to the
-// main Categorizer. That compatibility path must still apply SIC mappings and
-// preserve manual or existing assignments.
-func TestReviewU3StandaloneSICCategorizerFallback(t *testing.T) {
-	db, txnRepo, _, sicRepo, _, _, accountID := newUOW3ServiceHarness(t)
-	mappedCategory := createUOW3Category(t, db, "Standalone mapping")
-	protectedCategory := createUOW3Category(t, db, "Protected")
-	if err := sicRepo.Create(model.NewSICMapping("5812", "", "", &mappedCategory)); err != nil {
-		t.Fatalf("create mapping: %v", err)
-	}
-
-	eligible := createUOW3Txn(t, txnRepo, accountID, "standalone-eligible", "HOTEL", "5812", nil, model.CategorySourceNone)
-	existing := createUOW3Txn(t, txnRepo, accountID, "standalone-existing", "HOTEL", "5812", &protectedCategory, model.CategorySourceNone)
-	manual := createUOW3Txn(t, txnRepo, accountID, "standalone-manual", "HOTEL", "5812", &protectedCategory, model.CategorySourceManual)
-
+// The no-scope contract needs the shared Categorizer. A standalone adapter
+// must report a wiring fault instead of silently pretending it re-examined.
+func TestReviewU5StandaloneSICCategorizerReportsMissingTarget(t *testing.T) {
+	_, txnRepo, _, sicRepo, _, _, _ := newUOW3ServiceHarness(t)
 	standalone := NewSICMappingCategorizer(sicRepo, txnRepo)
-	if err := standalone.ReloadMappings(); err != nil {
-		t.Fatalf("reload mappings: %v", err)
-	}
-	count, err := standalone.RecategorizeBySICCodes([]model.SICCode{"5812"})
-	if err != nil {
-		t.Fatalf("standalone recategorization: %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("standalone recategorized=%d, want 1", count)
-	}
-
-	for _, check := range []struct {
-		txn      *model.Transaction
-		category int
-		source   model.CategorySource
-	}{
-		{eligible, mappedCategory, model.CategorySourceRule},
-		{existing, protectedCategory, model.CategorySourceNone},
-		{manual, protectedCategory, model.CategorySourceManual},
-	} {
-		stored, err := txnRepo.GetByID(check.txn.TransactionID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if stored.CategoryID == nil || *stored.CategoryID != check.category || stored.CategorySource != check.source {
-			t.Fatalf("transaction %s stored=%+v, want category=%d source=%v", check.txn.FitID, stored, check.category, check.source)
-		}
+	if _, err := standalone.Reexamine(); err == nil {
+		t.Fatal("standalone adapter silently accepted a missing re-examination target")
 	}
 }
 
@@ -346,7 +307,7 @@ func TestReviewU3ScopedRecategorizationUsesSharedPriority(t *testing.T) {
 	}
 	txn := createUOW3Txn(t, txnRepo, accountID, "scoped-priority", "CAFE NOIR", "5812", nil, model.CategorySourceNone)
 
-	count, err := sic.RecategorizeBySICCodes([]model.SICCode{"5812"})
+	counts, err := sic.Reexamine()
 	if err != nil {
 		t.Fatalf("RecategorizeBySICCodes: %v", err)
 	}
@@ -354,14 +315,13 @@ func TestReviewU3ScopedRecategorizationUsesSharedPriority(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count != 1 || stored.CategoryID == nil || *stored.CategoryID != patternCategory {
-		t.Fatalf("scoped recategorization count=%d category=%v, want text-rule category %d", count, stored.CategoryID, patternCategory)
+	if counts.Moved != 1 || stored.CategoryID == nil || *stored.CategoryID != patternCategory {
+		t.Fatalf("re-examination counts=%+v category=%v, want text-rule category %d", counts, stored.CategoryID, patternCategory)
 	}
 }
 
-// An inconsistent legacy row can carry category_id with category_source=none.
-// BR-U3-03 protects every existing category regardless of source metadata.
-func TestReviewU3ScopedRecategorizationPreservesExistingCategory(t *testing.T) {
+// UOW-5 supersedes BR-U3-03 for a non-manual legacy row: current rules win.
+func TestReviewU5ReexaminationRevisesExistingNonManualCategory(t *testing.T) {
 	db, txnRepo, _, sicRepo, sic, categorizer, accountID := newUOW3ServiceHarness(t)
 	originalCategory := createUOW3Category(t, db, "Existing")
 	sicCategory := createUOW3Category(t, db, "SIC rule")
@@ -373,7 +333,7 @@ func TestReviewU3ScopedRecategorizationPreservesExistingCategory(t *testing.T) {
 	}
 	txn := createUOW3Txn(t, txnRepo, accountID, "existing-category", "MERCHANT", "5812", &originalCategory, model.CategorySourceNone)
 
-	count, err := sic.RecategorizeBySICCodes([]model.SICCode{"5812"})
+	counts, err := sic.Reexamine()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -381,8 +341,8 @@ func TestReviewU3ScopedRecategorizationPreservesExistingCategory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if count != 0 || stored.CategoryID == nil || *stored.CategoryID != originalCategory {
-		t.Fatalf("existing category changed: count=%d category=%v, want unchanged %d", count, stored.CategoryID, originalCategory)
+	if counts.Moved != 1 || stored.CategoryID == nil || *stored.CategoryID != sicCategory || stored.CategorySource != model.CategorySourceRule {
+		t.Fatalf("existing category not revised: counts=%+v stored=%+v, want category %d source rule", counts, stored, sicCategory)
 	}
 }
 
