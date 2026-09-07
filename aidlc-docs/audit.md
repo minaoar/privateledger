@@ -1742,3 +1742,31 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 Requirements Amendment Approved; Functional Design Opened
+**Timestamp**: 2026-09-07T10:45:00Z
+**User Input**: "approved. push it and continue to functional design"
+**AI Response**: Committed and pushed the amendments as `2e6b777` across twelve files, then opened UOW-5 Functional Design with a six-question stage plan.
+**Verification Performed Before Writing the Plan**: all three recategorization entry points were traced. `RecategorizeAll` and `RecategorizeByCategory` both read `GetUncategorized()` despite the latter's name, and the scoped SIC path reads `GetUncategorizedBySICCodes`. Every current entry point reads only uncategorized transactions, which is the single largest change this unit makes. The category-deletion cascades were also read directly: `category_pattern.category_id` is `ON DELETE CASCADE` and `sic_mapping.category_id` is `ON DELETE SET NULL`, so deleting a category is a rule change in two distinct ways.
+**Subtlety Found and Recorded Before Proposing a Scope**: keeping the existing SIC-scoped query for mapping changes is almost sound. A mapping change cannot alter the outcome for a manual transaction, a pattern-matched transaction, or a transaction whose SIC code is outside the affected set. The exception is a rule-sourced transaction with no matching pattern and no SIC code, which can only exist if the pattern that categorized it was deleted without re-examination — precisely the pre-UOW-5 behaviour that R6 A accepts as a one-time backlog. Scoping is therefore sound only once the FR15 invariant holds continuously, and unsound for exactly the rows R6 A hands the unit. Any scoped design owes a one-time full pass. This was worked out before Q1 was written rather than discovered during code generation.
+**Question Shape**: Q1 scope of re-examination, Q2 whether category deletion is a rule change, Q3 what the FR16 manual count counts, Q4 whether pattern and mapping triggers converge on one contract, Q5 what "becomes uncategorized" writes, Q6 whether import triggers re-examination. Each carries a marked recommendation.
+**Q6 Noted as Principled Rather Than Cheap**: re-examining on import would make the outcome depend on import order, which FR15 forbids in terms. The recommended answer is what FR15 requires, not merely the less expensive option.
+**Status**: UOW-5 requirements and story amendment COMPLETE and approved. Functional Design open, awaiting answers. Nothing committed since the push.
+
+---
+
+## UOW-5 Functional Design — Answers Analyzed, Artifacts Generated
+**Timestamp**: 2026-09-07T11:15:00Z
+**User Input**: "answered with all A"
+**Answers**: Q1 A full re-examination of all non-manual transactions, Q2 A category deletion is a rule change, Q3 A the manual count reports transactions the rules would otherwise have moved, Q4 A one contract for both triggers, Q5 A uncategorized writes NULL and source 0, Q6 A import does not trigger re-examination. The user edited the `[Answer]:` tags directly.
+**Consequence Found That No Question Asked About**: Q1 A and Q4 A together retire the scoped query and, with it, the collaborator's argument. UOW-2 defined `RecategorizeBySICCodes(sicCodes)` and UOW-3 implemented it over `GetUncategorizedBySICCodes` — the query that needed the `json_each` fix after the SQLite parameter ceiling was measured at 32,764. Under Q1 A there is no affected set, and under Q4 A a text-pattern change reaches the same entry point with no codes to pass. Leaving the parameter in place would mean one that is accepted, documented and ignored, which reads as a defect and invites someone to reintroduce scoping.
+**Follow-up Raised and Answered**: FD-FQ1 A. The contract takes no scope and returns the three FR16 counts, superseding UOW-2's signature. A second reason emerged while writing it: the single integer the collaborator returns today cannot express three counts, so the return type had to change regardless of the argument.
+**Recorded So It Is Not Read As Loss**: the `json_each` construction is not retired. It remains the proven way to pass a large set to SQLite and `BulkUpdateCategory` still needs it to write results back. Only the scoping use of `GetUncategorizedBySICCodes` retires.
+**Consequences Assigned to Later Stages Rather Than Resolved Here**: every rule change now reads all non-manual transactions, so what UOW-3 measured as a one-off full pass becomes the cost of every mapping CRUD edit — assigned to NFR Requirements. `decide` must evaluate a transaction as if it had no category without weakening the manual guard, and Q3 A needs rules evaluated for manual transactions purely to count them without ever writing — both assigned to NFR Design and stated as BR-U5-06 and BR-U5-14.
+**Generated Artifacts**: `business-logic-model.md`, `business-rules.md` (BR-U5-01 through BR-U5-20 plus an explicit superseded-rules table), `domain-entities.md`, `frontend-components.md` under `aidlc-docs/construction/rule-sourced-recategorization/functional-design/`.
+**Design Characteristics**: no table, column, index, dependency, page or route is added, and `category_source` gains no value — R1 B was declined at the requirements stage precisely to avoid that. What changes is which rows existing operations read and write, and one interface contract.
+**Manual Protection Restated Deliberately**: BR-U5-05 repeats BR-U3-02 verbatim in substance even though it is unchanged, because three rules that do supersede earlier behaviour sit directly beside it and a reader skimming the section could otherwise take the whole group as weakened.
+**Two Visible Behaviours Recorded in the Frontend Artifact Rather Than Softened**: a rule change can now remove a category, and creating a text pattern can move transactions away from mapping-assigned categories because patterns outrank mappings.
+**Status**: UOW-5 Functional Design complete; awaiting explicit approval before NFR Requirements. No production code or test changed.
+
+---
+
