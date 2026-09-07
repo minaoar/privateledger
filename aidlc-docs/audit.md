@@ -1633,3 +1633,17 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-4 NFR Requirements Approved; NFR Design Opened
+**Timestamp**: 2026-09-07T06:40:00Z
+**User Input**: "push it and continue to next stage"
+**AI Response**: Pushed `de07a54`, `a9d6828` and `33beb41` to `origin/support-mcc-for-category` (`e50f621..33beb41`, zero unpushed remaining). Recorded the NFR Requirements approval, updated `aidlc-state.md`, and opened UOW-4 NFR Design with a stage plan carrying four questions.
+**Context**: "Continue to Next Stage" of the standardized two-option completion message for NFR Requirements. The two artifacts and the three dated amendments are approved as generated, including NFR-FQ1 A.
+**Verification Performed Before Writing the Plan**: ten diagnostic sites enumerated in `sic_mapping_service.go`; the upload rendering path traced to `sic_mappings.html:187`, confirming one `<p>` per line assigned through `textContent` with no `white-space: pre` styling. The `frontend-components.md` escaping claim was therefore verified rather than repeated, and the finding recorded that this downgrades NFR-U4-SEC-01's control-character clause from an injection defence to a legibility one. The length bound, not the sanitization, carries the security weight.
+**Substantive Gap Found**: `main.go:271-288` logs seed validation failures with `path`, `row`, `field` and `code`, and deliberately omits `Message`. That satisfies NFR-U4-SEC-01 as written and means the entire U4-01 mitigation does not reach the startup seed path. A user whose `sic_mappings.csv` carries a stale category name is told only `code=category_not_found`, with no indication of which value is stale or what it should become. The one-edit repair Q1 B was chosen to enable is unavailable precisely where the approved user rationale argued it matters most: the seed file is the long-lived hand-maintained interchange file read on a database where `Category_ID` values are meaningless.
+**Self-Assessment Recorded**: the "never logged" clause was written as a carry-forward of UOW-2's rule without tracing what the seed path does with diagnostics. Having traced it, the blanket rule defeats the unit's own purpose in its most important case. Raised as Q1 rather than designed around silently.
+**Cost Checked**: the existing reviewer tests assert the number of seed log records (`maxSICSeedDiagnostics + 1`). Adding an attribute to an existing record changes no record count, so those tests are unaffected.
+**Stage Plan Created**: `aidlc-docs/construction/plans/category-lifecycle-restore-nfr-design-plan.md` — Q1 seed-path diagnosis, Q2 enforcement mechanism for the bound, Q3 category ID index construction, Q4 exact message wording. Each carries a marked recommendation.
+**Status**: UOW-4 NFR Requirements COMPLETE and approved. NFR Design open, awaiting answers.
+
+---
+
