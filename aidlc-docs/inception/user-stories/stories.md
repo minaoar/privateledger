@@ -51,10 +51,13 @@ Stories are ordered using the approved hybrid Journey + Feature-Based approach. 
 
 **Acceptance Criteria**:
 - **Given** a transaction has a manual category, **when** SIC mappings are created or updated, **then** the manual category is not changed.
-- **Given** a transaction has an existing rule-based category, **when** a new SIC mapping is created, **then** that existing rule-based category is not changed.
+- ~~**Given** a transaction has an existing rule-based category, **when** a new SIC mapping is created, **then** that existing rule-based category is not changed.~~
+- **Given** a transaction has an existing rule-based category, **when** any rule is created, changed or deleted, **then** the transaction is re-examined and takes the category the current rules give it, or none if no rule matches.
 - **Given** an uncategorized transaction has a matching SIC code, **when** a relevant SIC mapping is created or updated, **then** the transaction may be categorized by the SIC mapping.
 
-**Requirement Mapping**: FR7, FR14
+**Amended 2026-09-07 by UOW-5.** The struck criterion is superseded by FR7 as amended and by FR15. The first criterion — manual protection — is unchanged and is the point of this story; only the rule-sourced criterion moved.
+
+**Requirement Mapping**: FR7, FR14, FR15
 
 **INVEST Check**: Independent, Negotiable, Valuable, Estimable, Small, Testable.
 
@@ -281,14 +284,17 @@ Stories are ordered using the approved hybrid Journey + Feature-Based approach. 
 | FR4 | US-08 |
 | FR5 | US-02 |
 | FR6 | US-02 |
-| FR7 | US-03 |
+| FR7 | US-03, US-15 |
+
 | FR8 | US-04, US-05, US-11 |
 | FR9 | US-04, US-10, US-11 |
 | FR10 | US-06, US-12 |
 | FR11 | US-05, US-11 |
 | FR12 | US-01, US-02 |
 | FR13 | US-04, US-10, US-11 |
-| FR14 | US-03, US-04, US-06, US-12 |
+| FR14 | US-03, US-04, US-06, US-12, US-15 |
+| FR15 | US-03, US-15 |
+| FR16 | US-16 |
 | NFR1 | US-09 |
 | NFR2 | US-07 |
 | NFR3 | US-13 |
@@ -332,5 +338,56 @@ and no idea why.
 **Scope note**: a renamed category still makes a file fail to import. This story makes that failure
 diagnosable and repairable in a single edit; it does not resolve it. UOW-4 finding U4-01 is recorded as
 mitigated rather than resolved.
+
+**INVEST Check**: Independent, Negotiable, Valuable, Estimable, Small, Testable.
+
+## US-15 — Rule changes reach the transactions those rules categorized
+
+**Added 2026-09-07 by UOW-5.**
+
+**As a** Local Personal Finance User,
+**I want** a change to my categorization rules to reach the transactions those rules already categorized,
+**so that** my categories reflect the rules I have now rather than the rules I once had.
+
+**Personas**: Local Personal Finance User
+
+**Acceptance Criteria**:
+- **Given** a transaction categorized by a rule, **when** any pattern or SIC mapping is created, changed or deleted, **then** the transaction is re-examined against the current rules.
+- **Given** a re-examined transaction that a text pattern still matches, **when** re-examination runs, **then** it keeps that pattern's category, because patterns are evaluated before SIC mappings.
+- **Given** a re-examined transaction that no pattern matches but a SIC mapping now covers, **when** re-examination runs, **then** it takes the mapping's category.
+- **Given** a re-examined transaction that no rule matches, **when** re-examination runs, **then** it becomes uncategorized and appears on the uncategorized dashboard.
+- **Given** a transaction with a manual category, **when** any re-examination runs, **then** it is not touched.
+- **Given** two databases with identical transactions, rules and manual assignments, **when** their rules were created in different orders, **then** both categorize identically.
+- **Given** a new text pattern matching a transaction a SIC mapping had categorized, **when** the pattern is created, **then** the transaction moves to the pattern's category.
+
+**Requirement Mapping**: FR7, FR14, FR15
+
+**Scope note**: the last criterion is the sharpest consequence of this story and is deliberate. Because
+text patterns outrank SIC mappings, creating a pattern can move transactions away from mapping-assigned
+categories. Under FR15 the alternative would make the outcome depend on creation order, which is exactly
+what FR15 forbids.
+
+**INVEST Check**: Independent, Negotiable, Valuable, Estimable, Small, Testable.
+
+## US-16 — See what a rule change did
+
+**Added 2026-09-07 by UOW-5.**
+
+**As a** Local Personal Finance User,
+**I want** a rule change to tell me what it moved, what it uncategorized, and what it left alone,
+**so that** I can confirm a bulk rewrite did what I expected and did not disturb my manual choices.
+
+**Personas**: Local Personal Finance User
+
+**Acceptance Criteria**:
+- **Given** a rule change that re-examines transactions, **when** it completes, **then** the result reports how many moved to a different category.
+- **Given** the same change, **when** it completes, **then** the result reports how many became uncategorized.
+- **Given** the same change, **when** it completes, **then** the result reports how many were left unchanged because they are manual.
+- **Given** a rule change that moved nothing, **when** it completes, **then** the counts are reported as zero rather than omitted.
+
+**Requirement Mapping**: FR16
+
+**Scope note**: counts only, not per-transaction detail. A bulk operation can affect thousands of rows,
+and the uncategorized dashboard already lists the transactions that became uncategorized.
 
 **INVEST Check**: Independent, Negotiable, Valuable, Estimable, Small, Testable.

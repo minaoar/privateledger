@@ -16,7 +16,8 @@ One decision function serves import, "Recategorize All", and scoped recategoriza
 rules cannot drift between entry points.
 
 1. If `category_source = manual`, stop. Nothing automatic ever changes it.
-2. If the transaction already has a category, stop. Automatic categorization fills gaps; it does not
+2. **[Superseded 2026-09-07 by UOW-5 — FR7 as amended, FR15.]** If the transaction already has a
+   category, stop. Automatic categorization fills gaps; it does not
    revise existing assignments.
 3. Try text patterns in their existing order. First match wins, assigning `category_source = rule`.
 4. Only if no text pattern matched, and the transaction carries a SIC code, look up the mapping.
@@ -56,7 +57,9 @@ combined total would hide it.
 UOW-3 supplies the real implementation of the contract UOW-2 defined.
 
 - `ReloadMappings` refreshes the mapping cache from SQLite.
-- `RecategorizeBySICCodes` takes the de-duplicated affected codes, reads only currently uncategorized
+- **[Scope widened 2026-09-07 by UOW-5 — see FR15; the affected-set definition is UOW-5 Functional
+  Design's to settle.]** `RecategorizeBySICCodes` takes the de-duplicated affected codes, reads only
+  currently uncategorized
   transactions carrying those codes, applies the decision function, and returns how many changed.
 
 Scope is deliberately narrow: a mapping change may only fill gaps. It never revisits a manual
@@ -119,3 +122,13 @@ exactly as the mapping page does. Creating a mapping means the same thing wherev
 | US-06 | SIC code and description fallback in both modals; no new table column |
 | US-12 | Modal-created mappings with required category, rule source, and mapping-change recategorization |
 | US-13 | Layer direction, guarded caches, single reload entry point, properties and full test run |
+
+## UOW-5 Amendment Notice — 2026-09-07
+
+Two steps above are marked superseded. Step 2's "already has a category, stop" guard no longer applies
+to rule-sourced transactions, and `RecategorizeBySICCodes`'s uncategorized-only scope widens to include
+them. The manual guard in step 1 is unchanged and still absolute.
+
+This document is left as approved with inline markers rather than rewritten. It describes what UOW-3
+built and what is in shipped code today; UOW-5 has not yet changed either. Rewriting it now would
+describe code that does not exist.

@@ -85,8 +85,37 @@ If a SIC mapping matches and has a non-empty category, the transaction is catego
 Manual categorizations must never be overwritten.
 
 - Transactions with `category_source = 2` are excluded from automatic categorization changes.
-- Creating or updating SIC mappings only re-categorizes currently uncategorized transactions.
-- Existing rule-based categorizations are not changed by SIC mapping creation.
+- ~~Creating or updating SIC mappings only re-categorizes currently uncategorized transactions.~~
+- ~~Existing rule-based categorizations are not changed by SIC mapping creation.~~
+- Rule-sourced categorizations follow the rules. When any rule changes, is created or is deleted, every
+  rule-sourced transaction is re-examined against the current rules and takes the category those rules
+  now give it, or none if no rule matches.
+
+**Amended 2026-09-07 by UOW-5** (answers R1 A, R1a A, R2 A, R3 A, R4 A, R5 A, R6 A). The two struck
+bullets are superseded, and shown struck rather than deleted because they were the approved behaviour
+through UOW-1 to UOW-4 and explain why the shipped code looks as it does.
+
+**The first bullet is unchanged and is not weakened by this amendment.** Manual stays manual. That was
+never in question at any point in this unit.
+
+What changed is the second and third. They made a rule-sourced categorization permanent, so a
+transaction could sit in a category assigned by a rule that no longer said so, with nothing reporting
+the divergence. In the user's framing: keeping it there makes it "almost like a manual categorization",
+which corrupts the one signal the system treats as authoritative.
+
+Consequences, all deliberate:
+
+- Re-examination is triggered by **creating** a rule as well as changing or deleting one (R1a A), and by
+  **text-pattern** changes as well as SIC mapping changes (R3 A).
+- Because text patterns outrank SIC mappings, a **new pattern can move transactions away from a
+  category a mapping assigned**. This is the sharpest edge of the amendment and is intended, not
+  incidental.
+- A re-examined transaction matching no rule **becomes uncategorized** (R2 A) rather than keeping an
+  unsupported category. It surfaces on the uncategorized dashboard.
+- Re-examination is **automatic** (R4 A), consistent with how rule changes already recategorize
+  uncategorized transactions.
+- The first rule change after this ships re-examines every pre-existing rule-sourced transaction at once
+  (R6 A). Its size is visible in the FR16 counts.
 
 ### FR8 — Enforce globally unique SIC mappings
 Each SIC code may have only one mapping globally.
@@ -180,7 +209,49 @@ When a SIC mapping is created from the Create Categorization Pattern modal:
 When a SIC mapping is deleted:
 
 - Reload categorization rules/mappings.
-- Do not automatically clear categories already assigned by that mapping unless explicitly requested in a future feature.
+- ~~Do not automatically clear categories already assigned by that mapping unless explicitly requested in a future feature.~~
+- Re-examine rule-sourced transactions that carried that mapping's code; each takes whatever the current
+  rules give it, or becomes uncategorized if nothing matches.
+
+**Amended 2026-09-07 by UOW-5.** Three statements above are superseded by FR7 as amended and by FR15.
+"Re-categorize only currently uncategorized transactions" and "preserve existing rule-based
+categorizations" now read as: re-examine every rule-sourced transaction against the current rules.
+Manual preservation is unchanged. The deletion bullet is struck because leaving a category assigned by a
+mapping that no longer exists is precisely the history-dependence FR15 forbids — the "future feature" it
+anticipated is UOW-5.
+
+### FR15 — Categorization is determined by the current rules, not by rule history
+
+**Added 2026-09-07 by UOW-5**, from the user's stated principle:
+
+> I want the same rule book to create the same transaction categorization, irrespective of when the
+> rules were created.
+
+Categorization is a function of the current rule set and the user's manual choices. It is **not** a
+function of the order in which rules were created, changed or deleted, nor of the order in which
+transactions were imported.
+
+Two databases holding identical transactions, identical patterns, identical SIC mappings and identical
+manual assignments must categorize identically.
+
+This is why FR7's rule-permanence bullets could not stand: they made the outcome depend on whether a
+rule existed before or after a transaction was categorized. It is also why rule *creation* triggers
+re-examination — a rule set that only applies to transactions it happens to encounter first is not a
+rule set that determines an outcome.
+
+FR15 governs all future categorization work, not only UOW-5. Any proposal whose result depends on when
+a rule was created contradicts it and needs an explicit amendment rather than an exception.
+
+### FR16 — Report what a rule change did
+
+**Added 2026-09-07 by UOW-5** (answer R5 A).
+
+The result of a rule change reports three counts: transactions moved to a different category,
+transactions that became uncategorized, and transactions left unchanged because they are manual.
+
+The third exists because it answers the question a user actually has after a bulk rewrite — whether the
+categories they set by hand were touched — and answering it needs a number, not a list. Reporting only
+what changed leaves that question open exactly when it matters most.
 
 ## Non-Functional Requirements
 

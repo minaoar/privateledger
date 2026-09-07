@@ -341,3 +341,13 @@ same class of defect in the mapping service constructor. Comment-only change; no
 altered. `gofmt`, `go build`, `go vet` clean, and the four cache acceptance tests still pass.
 
 All findings from every UOW-3 review pass are now closed.
+
+## UOW-5 Amendment Notice — 2026-09-07
+
+This summary describes UOW-3 as built and as currently shipped, and remains accurate as such. UOW-5
+amends the behaviour it documents: a transaction whose category came from a rule is no longer permanent,
+and will be re-examined whenever any rule changes (FR7 as amended, FR15).
+
+The manual guarantee this summary describes is unchanged — `category_source = manual` is still never
+overwritten by any automatic path.
+

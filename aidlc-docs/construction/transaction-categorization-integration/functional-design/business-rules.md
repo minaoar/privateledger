@@ -5,8 +5,17 @@
 - BR-U3-01: One decision function serves import, "Recategorize All", and scoped recategorization. No
   entry point re-implements matching inline.
 - BR-U3-02: `category_source = manual` is never overwritten by any automatic path.
-- BR-U3-03: A transaction that already has a category is never revised automatically. Automatic
-  categorization fills gaps only.
+- BR-U3-03: ~~A transaction that already has a category is never revised automatically. Automatic
+  categorization fills gaps only.~~
+
+  **Superseded 2026-09-07 by UOW-5** (FR7 as amended, FR15). A transaction whose category came from a
+  rule is re-examined whenever any rule is created, changed or deleted, and takes whatever the current
+  rules give it — or none. A transaction with `category_source = manual` is still never revised; that is
+  BR-U3-02 and it is untouched.
+
+  This rule is left visible rather than deleted because it explains why UOW-1 through UOW-4 behave as
+  they do, and because the guard it describes is still in shipped code at `Categorizer.decide` until
+  UOW-5 changes it.
 - BR-U3-04: Text patterns are tried first, in their existing order, first match wins.
 - BR-U3-05: A SIC mapping is consulted only when no text pattern matched and the transaction carries a
   SIC code.

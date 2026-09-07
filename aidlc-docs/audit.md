@@ -1703,3 +1703,42 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 Opened — Requirements and Story Amendment
+**Timestamp**: 2026-09-07T09:30:00Z
+**User Input**: "review done. UOW-4 can be marked complete and the workflow can proceed to UOW-5." / "push changes only related to uow-4 now."
+**AI Response**: Split the working tree so the UOW-4 closure commit stands alone. `aidlc-state.md` and `audit.md` carried both units, so each was reduced to UOW-4 scope, committed as `88a40f2` and pushed, then the UOW-5 edits were restored uncommitted. The staged diff was inspected before committing to confirm its eight UOW-5 mentions were all "not started" context or the user's own quoted words, never UOW-5 work.
+**Stage Plan Created**: `aidlc-docs/construction/plans/rule-sourced-recategorization-requirements-amendment-plan.md`, six questions each with a marked recommendation.
+**Why This Stage Comes First**: FR7's third bullet — "Existing rule-based categorizations are not changed by SIC mapping creation" — states in terms what UOW-5 reverses. Designing before amending it would mean designing against a requirement that still forbids the outcome. US-03's second acceptance criterion says the same and changes with it.
+**Constraint Restated**: no column records which rule categorized a transaction, so "follow the rule that created it" is not directly implementable. The schema-free path re-runs the shared decision function over rule-sourced rows while ignoring their current category, which approximates the stated outcome rather than being it. Q1 makes that difference an explicit decision rather than an assumption.
+**Boundary Held**: manual protection is out of scope for weakening under every option presented. `category_source = 2` stays excluded throughout.
+**Status**: UOW-5 Requirements and Story Amendment open, awaiting answers. Nothing committed, per the standing instruction.
+
+---
+
+## UOW-5 Requirements Stage — Questions Restated as Behaviour
+**Timestamp**: 2026-09-07T09:50:00Z
+**User Input**: "should we first finalize the requirement?"
+**AI Response**: Yes, and the question prompted a re-read that found a flaw in the plan. The original Q1 asked whether to re-run the decision function or add a column recording which rule categorized each transaction. That is a mechanism question and does not belong in a requirements stage. It also overlapped two other questions: one of its options was "SIC mappings only", which Q3 already asked.
+**Correction Applied**: all six questions restated as observable behaviour and renumbered R1 through R6. Mechanism is deferred to Functional Design. Where a promise carries an unavoidable structural cost — R1 B requires recording rule identity that no column holds, and requires deciding what to do about transactions whose responsible rule is now unknowable — that cost is stated as a consequence of the promise rather than offered as a competing option, because it changes what the user is agreeing to rather than how it gets built.
+**Overlap Removed**: the old Q1 C and Q3 B were the same proposition stated twice. R1 now asks which transactions are re-examined and R3 asks which kinds of rule change trigger it; they are independent.
+**R2 Flagged to the User**: it is the only decision in the unit that can remove a category from a transaction, and the user has previously said they dislike deletion in principle. The recommendation is A, and B was written as a coherent position trading completeness for never removing anything, rather than as a strawman.
+**Status**: UOW-5 Requirements and Story Amendment open, questions restated, awaiting answers. Nothing committed.
+
+---
+
+## UOW-5 Requirements and Story Amendment — Complete
+**Timestamp**: 2026-09-07T10:20:00Z
+**User Input**: "R1a's answer would be A. I want the same rule book to create the same transaction categorization, irrespective of when the rules were created. please note down the decision in the planning document, requirements document and all other documents related to AI DLC."
+**Answers**: R1 A, R1a A, R2 A, R3 A, R4 A, R5 A, R6 A.
+**Governing Principle Recorded as FR15**: "I want the same rule book to create the same transaction categorization, irrespective of when the rules were created." This is stronger than the reasoning production had offered for R1a A, which argued from the awkwardness of order-dependence. Stated positively it is a determinism principle: categorization is a function of the current rule set and the user's manual choices, never of rule history or import order. Two databases with identical transactions, rules and manual assignments must categorize identically. It was recorded as a numbered requirement rather than a note inside this unit's plan so it governs future work — any proposal whose result depends on when a rule was created now contradicts an approved requirement and needs an explicit amendment rather than an exception.
+**User Reasoning Also Recorded at R2**: "everything which is rule based, should remain rule based. Keeping it in the old category means it becomes almost like a manual categorization." This names the actual corruption more precisely than production's framing did — a rule-sourced row silently acquiring manual-like permanence — and is recorded in the FR7 amendment.
+**Requirements Amended**: FR7's two rule-permanence bullets struck and replaced; FR14's deletion bullet struck, since leaving a category assigned by a mapping that no longer exists is exactly the history-dependence FR15 forbids, and the "future feature" that bullet anticipated is UOW-5. FR15 and FR16 added. Struck text is shown struck rather than deleted, because it was the approved behaviour through UOW-1 to UOW-4 and explains why the shipped code looks as it does.
+**Stories**: US-03's rule-sourced acceptance criterion replaced; its manual-protection criterion is untouched and remains the point of the story, so US-03 stays primary to UOW-3. US-15 and US-16 defined and assigned to UOW-5. The story count moved from 13 to 16.
+**Downstream Construction Artifacts Amended**: BR-U3-03, BR-U2-29 through BR-U2-31, and NFR-U3-REL-01. In each case the manual-protection clause was called out as explicitly unchanged, since three of the four amendments sit directly beside it.
+**Marked Rather Than Amended**: `transaction-categorization-integration/functional-design/business-logic-model.md` and `code/production-summary.md` carry inline supersession markers instead of rewrites, because they describe what is in shipped code today and UOW-5 has not yet changed it. Rewriting them now would describe code that does not exist. `tech-stack-decisions.md` TD-U3-03 needed no change: reusing `category_source = rule` for both rule kinds is reinforced by this amendment.
+**Cross-Unit Contract Question Recorded**: UOW-2's collaborator was defined for SIC mapping changes only. Under R3 A it must also be reached by text-pattern changes, which today take a different path through the category handler via `RecategorizeByCategory` and `LoadRules`. Whether those converge on one contract is UOW-5 Functional Design's decision, recorded in `unit-of-work-dependency.md` because it is a cross-unit contract question rather than an implementation detail.
+**Sharpest Consequence Stated Explicitly**: because text patterns outrank SIC mappings, creating a pattern can move transactions away from mapping-assigned categories. This is recorded in FR7, in US-15's acceptance criteria and in its scope note, because production's original R1 wording gave only the reassuring direction and the user's question exposed the omission.
+**Status**: UOW-5 Requirements and Story Amendment COMPLETE; awaiting explicit approval before Functional Design. Nothing committed.
+
+---
+

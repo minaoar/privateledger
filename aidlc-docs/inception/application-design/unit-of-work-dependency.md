@@ -116,3 +116,14 @@ Shared files require sequential integration or coordinated commits, but they do 
 - Every hard dependency corresponds to an approved component or service contract.
 - Cross-unit callbacks are resolved through service-level dependency injection rather than repository-to-service calls.
 - Deleting or replacing SIC mappings does not orphan transaction rows because transactions store the SIC value, not a mapping foreign key.
+
+**Updated 2026-09-07** by the UOW-5 requirements and story amendment stage. UOW-5 depends on UOW-2's
+collaborator contract and UOW-3's decision function, and it amends both — BR-U2-29 through BR-U2-31 and
+BR-U3-03. The graph stays acyclic: UOW-5 sits after UOW-4 and depends on UOW-2 and UOW-3, adding no
+edge back into them.
+
+One dependency is new in kind rather than in shape. UOW-2's collaborator was defined for SIC mapping
+changes alone; under FR15 and R3 A it must also be reached by **text-pattern** changes, which today call
+`RecategorizeByCategory` and `LoadRules` on a different path in the category handler. UOW-5 Functional
+Design must decide whether those converge on one contract or stay separate. Recorded here because it is
+a cross-unit contract question, not an implementation detail.

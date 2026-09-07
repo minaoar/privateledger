@@ -69,6 +69,14 @@
 - BR-U2-29: Affected codes are de-duplicated and include a created code with non-empty category or an existing code whose category changes to a different non-empty category.
 - BR-U2-30: Description-only changes, unchanged categories, post-state empty categories, omitted codes, and deletions do not trigger the collaborator.
 - BR-U2-31: CRUD invokes the collaborator for its one affected code; upload invokes it once for the complete affected set.
+
+**Amended 2026-09-07 by UOW-5** (FR7 as amended, FR15, R1a A, R3 A). BR-U2-29 and BR-U2-30 defined the affected set narrowly, because a mapping change could only ever reach uncategorized transactions. Under FR15 that narrowing no longer holds:
+
+- BR-U2-30's exclusions are superseded where they turn on the *outcome* rather than the *change*. A code whose category becomes empty, an omitted code and a deletion all now matter, because a transaction the mapping had categorized must be re-examined and may become uncategorized. A description-only change still triggers nothing, since it cannot alter any categorization.
+- BR-U2-31's shape is unchanged: one invocation for a CRUD change, one for a complete upload set.
+- The collaborator contract now spans text-pattern changes too, not only SIC mappings. UOW-2 defined it for mappings because that was the only trigger then.
+
+The exact affected-set definition is UOW-5 Functional Design's to settle. Recorded here so a reader of UOW-2 does not apply a superseded narrowing.
 - BR-U2-32: UOW-3 owns the guarantee that only currently uncategorized matching transactions are considered and text patterns retain priority.
 - BR-U2-46: Until UOW-3, production wiring supplies a no-op collaborator returning zero; UOW-2 tests
   use a fake to verify calls and affected codes. Because the checkpoint count is structurally zero, the

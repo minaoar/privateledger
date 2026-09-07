@@ -112,12 +112,19 @@ that failure repairable rather than removing it.
 
 ## Coverage Validation
 
-- Stories defined: 13 (US-01 through US-13).
-- Primary assignments: 13.
+- Stories defined: 16 (US-01 through US-16).
+- Primary assignments: 16.
 - Unassigned stories: none.
 - Duplicate primary assignments: none.
 - UOW-1 assignments: US-01, US-07, US-08, US-09.
 - UOW-2 assignments: US-04, US-05, US-10, US-11.
-- UOW-4 assignments: US-14.
-- UOW-5 assignments: none yet; expected from the FR7 and US-03 amendments this unit requires.
 - UOW-3 assignments: US-02, US-03, US-06, US-12, US-13.
+- UOW-4 assignments: US-14.
+- UOW-5 assignments: US-15, US-16.
+
+**Updated 2026-09-07** by the UOW-5 requirements and story amendment stage. US-15 and US-16 were
+defined there; the count moved from 13 to 16 across UOW-4 and UOW-5.
+
+**US-03 stays primary to UOW-3** even though UOW-5 amends one of its acceptance criteria. Its subject is
+manual protection, which UOW-3 implements and UOW-5 leaves untouched. Moving it would misattribute the
+guarantee.

@@ -253,9 +253,36 @@ their existing category. Text patterns are evaluated first, so a pattern-categor
 category naturally, and a mapping-categorized row follows the new mapping. Manual rows stay excluded
 throughout. This needs design confirmation rather than assumption.
 
-### Open Design Questions
+### Open Design Questions — ALL SETTLED 2026-09-07
 
-Recorded now so they are not rediscovered later. None are decided.
+Settled at the requirements and story amendment stage. Answers R1 A, R1a A, R2 A, R3 A, R4 A, R5 A,
+R6 A. The original wording is kept below with each resolution attached.
+
+| Question | Resolution |
+|---|---|
+| A row whose text pattern was deleted would move or become uncategorized | **Accepted.** R2 A: it becomes uncategorized and is reported as such. Keeping an unsupported category is the staleness this unit removes |
+| Should this apply to text-pattern changes as well as SIC mapping changes? | **Yes.** R3 A: both. No principle would justify different behaviour |
+| Automatic on every rule edit, or an explicit action? | **Automatic.** R4 A, consistent with how rule changes already recategorize uncategorized transactions |
+| Should the result report transactions that did not move? | **Yes.** R5 A: three counts — moved, uncategorized, and left alone because manual. Recorded as FR16 |
+
+Two further questions were raised and settled during the stage:
+
+| Question | Resolution |
+|---|---|
+| Does *creating* a rule trigger re-examination, or only changing and deleting one? | **Yes, creation too.** R1a A. Raised by the user while answering R1 |
+| What happens to transactions categorized before UOW-5 ships? | **Re-examined with everything else** on the first rule change. R6 A |
+
+**The governing principle**, added to `requirements.md` as **FR15** in the user's own framing:
+
+> I want the same rule book to create the same transaction categorization, irrespective of when the
+> rules were created.
+
+That principle is what settles R1a. A rule set that applies only to transactions it happens to
+encounter first does not determine an outcome. It also decides future questions this unit never asked.
+
+### Original Open Questions, For Reference
+
+Recorded when the unit was registered. None were decided then.
 
 - A row categorized by a text pattern that has since been deleted would move or become uncategorized
   under the re-run approach. Correct, but surprising.
@@ -270,9 +297,21 @@ Recorded now so they are not rediscovered later. None are decided.
 Requirements and stories must be amended before construction: FR7 at minimum, and US-03. Treat the
 Inception amendment as part of this unit rather than a precondition to it.
 
+**Amendment completed 2026-09-07.** FR7's two rule-permanence bullets struck; FR14's deletion bullet
+struck; **FR15** added as the governing determinism principle and **FR16** for the result counts; US-03's
+rule-sourced criterion replaced with manual protection untouched; US-15 and US-16 defined. Four
+downstream construction artifacts amended: BR-U3-03, BR-U2-29 through BR-U2-31, and NFR-U3-REL-01. Two
+further UOW-3 artifacts carry inline supersession markers rather than amendments — `business-logic-model.md`
+and `code/production-summary.md` — because they describe what is in shipped code today, which UOW-5 has
+not yet changed. `tech-stack-decisions.md` TD-U3-03 needed nothing: reusing `category_source = rule` for
+both rule kinds is reinforced by this amendment, not contradicted by it.
+
 ### Assigned Stories
 
-None yet. FR7 and US-03 amendments are expected to define them.
+**US-15** — Rule changes reach the transactions those rules categorized.
+**US-16** — See what a rule change did.
+
+Both added 2026-09-07 by the requirements and story amendment stage.
 
 ### Completion Boundary
 

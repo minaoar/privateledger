@@ -94,6 +94,17 @@ matched. A mapping with an empty category assigns nothing.
 revised automatically. Scoped recategorization considers only currently uncategorized transactions whose
 SIC code is in the supplied affected set. Deleting a mapping never clears categories already assigned.
 
+**Amended 2026-09-07 by UOW-5** (FR7 as amended, FR15). The three sentences after the first are
+superseded. An existing *rule-sourced* category **is** revised automatically when the rules change;
+scoped recategorization considers rule-sourced transactions as well as uncategorized ones; and deleting
+a mapping does re-examine the transactions it had categorized.
+
+**The first clause is unchanged and still binding**: `category_source = manual` is never overwritten by
+any automatic path. That guarantee survives UOW-5 intact and is the one thing this amendment does not
+touch.
+
+The paragraphs below on collaborator failure and rollback are also unchanged.
+
 A collaborator failure after a committed mapping change remains a committed-with-warning result under
 BR-U2-45. A mapping change is never rolled back because categorization failed afterwards.
 
