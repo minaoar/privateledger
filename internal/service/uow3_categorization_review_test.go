@@ -447,14 +447,28 @@ func TestReviewU3RuleCachesPublishAtomically(t *testing.T) {
 	go func() { done <- categorizer.LoadRules() }()
 	<-lookup.started
 	txn := &model.Transaction{TransactionDetails: "CAFE", SICCode: uow3SIC("5812")}
-	if !categorizer.Categorize(txn) || txn.CategoryID == nil {
-		t.Fatal("categorization unexpectedly produced no result")
+	decisionDone := make(chan bool, 1)
+	go func() { decisionDone <- categorizer.Categorize(txn) }()
+
+	var earlyDecision *bool
+	select {
+	case categorized := <-decisionDone:
+		earlyDecision = &categorized
+	case <-time.After(100 * time.Millisecond):
+		// Blocking until the complete reload is published is valid.
 	}
-	observed := *txn.CategoryID
 	close(lookup.release)
 	if err := <-done; err != nil {
 		t.Fatalf("LoadRules: %v", err)
 	}
+	if earlyDecision == nil {
+		categorized := <-decisionDone
+		earlyDecision = &categorized
+	}
+	if !*earlyDecision || txn.CategoryID == nil {
+		t.Fatal("categorization unexpectedly produced no result")
+	}
+	observed := *txn.CategoryID
 	if observed != 30 && observed != newCategory {
 		t.Fatalf("observed mixed cache generation category %d; valid old/new results are 30 or %d", observed, newCategory)
 	}

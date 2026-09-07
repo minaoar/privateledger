@@ -249,3 +249,75 @@ Suggested resolutions, for the reviewer to choose:
 `TestReviewU3RuleCachesPublishAtomically` alone, for the reason above. Every other Revision 1 and
 Revision 2 test passes, including the retained Rapid replay, the 50,000-code cross-unit fixture, the
 standalone fallback test, and the performance fixtures.
+
+---
+
+# Revision 4 — U3-R2-F01 Fallback Reader Exclusion
+
+Date: 2026-09-06. Responds to the Revision 3 cache-test adjudication.
+
+## Correction to the Revision 3 analysis
+
+Revision 3 argued the two cache tests were contradictory and proposed moving the fake's mapping
+assignment after its blocking point. **That analysis was wrong on both counts.**
+
+The reviewer corrected `TestReviewU3RuleCachesPublishAtomically` to run `Categorize` in a goroutine and
+tolerate a blocked decision, which removes the deadlock that made blocking look impossible. With that,
+the two tests state one coherent rule: a pending fallback reload may expose the complete old generation
+or block, and must never expose a mixed generation or patterns from a reload that fails.
+
+More importantly, the proposed fake change would have been harmful. As the adjudication puts it, the
+caller has no contract permitting it to assume publication occurs only at method return. A non-staging
+`ReloadMappings` may legitimately mutate its state before returning, so production must be safe against
+that. Editing the fake would have hidden a valid interleaving rather than fixed the code. Revision 3
+reached for the one outcome its own caveat had flagged as the risk — the production author concluding
+the test was at fault.
+
+## Fix
+
+`LoadRules`'s non-staging fallback now holds the categorizer write lock across **both** the
+`ReloadMappings` call and the pattern publication. Categorization blocks for the duration of a fallback
+reload and resumes on one complete generation; if the reload fails, patterns are never published and
+the previous generation stands.
+
+The reviewer's preferred option — removing the fallback entirely — was not taken. Their fakes are
+non-stagers whose tests require `ReloadMappings` to be invoked and to block, so removing it would have
+required editing independent tests, which the adjudication forbids. The adjudication anticipates this:
+making `stagedUOW3Lookup` a stager is "sufficient only if the production fallback is removed".
+
+The shipped path is unchanged. `*SICMappingCategorizer` implements staging, so production still
+prepares both rule sets and publishes them together without blocking readers.
+
+## Verification
+
+Acceptance command from the adjudication, all four passing:
+
+```text
+go test ./internal/service -run '^TestReviewU3(RuleCachesPublishAtomically|FallbackFailedReloadNeverPublishesPatterns|FailedMappingReloadKeepsPatternCache|ConcurrentCategorizeAndReload)$' -count=1
+--- PASS: TestReviewU3RuleCachesPublishAtomically
+--- PASS: TestReviewU3FailedMappingReloadKeepsPatternCache
+--- PASS: TestReviewU3FallbackFailedReloadNeverPublishesPatterns
+--- PASS: TestReviewU3ConcurrentCategorizeAndReload
+```
+
+| Command | Result |
+|---|---|
+| `gofmt -l ./cmd ./internal`, `go vet ./...`, `git diff --check` | clean |
+| `go test -race -short -count=1 ./...` | **all seven packages pass, zero data races** |
+| `go test -count=1 ./...` | six of seven pass; `internal/service` failed only on `TestReviewU3ImportWithMappingsPerformance` |
+
+### The performance failure, measured rather than assumed
+
+`TestReviewU3ImportWithMappingsPerformance` failed in the loaded full-suite run and was re-run in
+isolation rather than dismissed as contention a second time:
+
+```text
+SIC-free   median 4.7036785s
+SIC-bearing median 4.878474125s   ratio 1.0372
+--- PASS (60.83s)
+```
+
+3.7% against the 10% budget, consistent with the reviewer's 3.15%. There is also structural reason it
+cannot be this revision: the fixture builds a real `SICMappingCategorizer` through
+`NewCategorizerWithSIC`, so it takes the staged path, and this change touched only the non-staging
+fallback. The measurement is the evidence; the structure only corroborates it.

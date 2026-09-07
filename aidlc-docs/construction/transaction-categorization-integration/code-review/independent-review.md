@@ -399,3 +399,72 @@ already-approved UOW-3 cache and modal-result behavior.
 
 Return U3-R2-F01 and U3-R2-F02 to the production provider. The UOW-3 independent gate remains
 **REVISION 2 FAIL** until both tests pass and the complete ordinary and race suites return success.
+
+---
+
+## Revision 3 Cache-Test Adjudication
+
+- Revision 3 production commit: `693ffa6`
+- Production patch: two production files; no test or fixture changes
+- Adjudication date: 2026-09-06
+- Current decision: **FAIL — U3-R2-F01 remains open**
+
+U3-R2-F02 is **RESOLVED**. Both
+`TestReviewU3ChangeCategoryWithMappingUsesRuleSource` and
+`TestReviewU3RuleSourceWriteFailureIsReported` pass. A source read or write failure after the mapping
+commit is now appended to `post_commit_warnings`, preserving the durable result while disclosing the
+incomplete follow-up.
+
+The production provider correctly identified a limitation in the original orchestration of
+`TestReviewU3RuleCachesPublishAtomically`: it called `Categorize` on the same goroutine that later
+released the blocked fake reload, so the test could not accommodate a correct implementation that
+blocks readers during fallback reload. The independent role corrected the test at
+`internal/service/uow3_categorization_review_test.go:430` by running `Categorize` in a goroutine and
+accepting a blocked decision until reload completes.
+
+The two cache tests do not impose contradictory requirements after that correction:
+
+- A successful fallback reload may expose the complete old generation, block until completion, or
+  expose the complete new generation. It must not expose a mixed generation.
+- A fallback reload that later fails may expose the complete old generation or block. It must never
+  expose replacement patterns from the failed reload.
+
+Revision 3 still fails the corrected atomic-publication test:
+
+```text
+TestReviewU3RuleCachesPublishAtomically:
+observed mixed cache generation category 20; valid old/new results are 30 or 1
+```
+
+The fake's early mapping publication is valid for the interface being tested. A non-staging
+`ReloadMappings` implementation may mutate its internal state before returning; the caller has no
+contract permitting it to assume publication occurs only at method return. Moving the fake's assignment
+after its blocking point would hide this valid interleaving rather than fix production behavior.
+
+At `internal/service/categorizer.go:133-143`, Revision 3 calls fallback `ReloadMappings` without holding
+the categorizer write lock and publishes patterns only after it returns. While the call is pending,
+categorization can therefore observe the old pattern set with already-published new mappings. That is
+the mixed category `20` reproduced by the corrected test.
+
+The simplest accepted resolution is to remove the non-staging fallback and require staged publication,
+because the shipped `SICMappingCategorizer` already implements staging. If compatibility is retained,
+the fallback must exclude categorization readers across mapping reload and pattern publication, for
+example by holding the categorizer write lock across that sequence. The corrected independent test now
+permits that blocking behavior.
+
+Making `stagedUOW3Lookup` implement the staging interface is sufficient only if the production fallback
+is removed. Otherwise it would test the shipped staged path while leaving production fallback behavior
+unverified.
+
+Focused Revision 3 results:
+
+| Check | Result |
+|---|---|
+| U3-R2-F02 happy path and injected write failure | PASS |
+| Failed fallback reload never publishes replacement patterns | PASS |
+| Failed mapping reload retains prior pattern cache | PASS |
+| Concurrent categorize/reload | PASS |
+| Corrected successful fallback atomic-publication test | **FAIL — mixed generation `20`** |
+
+The independent gate remains **REVISION 3 FAIL** until U3-R2-F01 is resolved and the complete ordinary
+and race suites pass.

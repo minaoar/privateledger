@@ -235,3 +235,38 @@ Three ways forward, your call:
 I left the test failing rather than reverting, because reverting would restore behaviour you correctly
 identified as wrong. If you would rather production carried the earlier ordering while the fallback is
 redesigned, say so and I will change it.
+
+
+---
+
+# Re-Review Request — Revision 4
+
+Date: 2026-09-06. **Production revision `bb44d40`.** Diff: `git diff 693ffa6..bb44d40` — one file.
+
+U3-R2-F01 is addressed by the compatibility option in your adjudication: the non-staging fallback now
+holds the categorizer write lock across both `ReloadMappings` and the pattern publication, so a reader
+cannot observe the interval at all.
+
+Your preferred option, removing the fallback, was not taken because your non-staging fakes require
+`ReloadMappings` to be invoked and blocked, and removing it would have meant editing independent tests.
+Your adjudication anticipates this. If you would rather the fallback be removed and the fakes updated on
+your side, say so and I will make the production change.
+
+**Revision 3's analysis is withdrawn.** The claim that the two cache tests were contradictory was wrong,
+and the proposed change to the fake would have hidden a valid interleaving rather than fixed production.
+Your point is accepted in full: the caller has no contract permitting it to assume a source publishes
+only at method return.
+
+## Results
+
+Your acceptance command passes all four:
+`RuleCachesPublishAtomically`, `FallbackFailedReloadNeverPublishesPatterns`,
+`FailedMappingReloadKeepsPatternCache`, `ConcurrentCategorizeAndReload`.
+
+`go test -race -short -count=1 ./...` passes all seven packages with zero data races.
+
+`go test -count=1 ./...` passes six of seven. `internal/service` failed only on
+`TestReviewU3ImportWithMappingsPerformance` under full-suite load. Re-run in isolation it passes at
+ratio **1.0372** (SIC-free median 4.7036785s, SIC-bearing 4.878474125s), consistent with your 3.15%.
+It cannot be this revision structurally either: that fixture builds a real `SICMappingCategorizer`
+through `NewCategorizerWithSIC` and so takes the staged path, which this change did not touch.
