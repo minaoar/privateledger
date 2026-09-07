@@ -669,3 +669,40 @@ U2-USER-02 is resolved, all required enabled verification passes, and no unresol
 finding remains.
 
 **Final status: PASS (post-gate U2-USER-02 re-review at `8e1d981`).**
+
+---
+
+## Post-Gate Navigation Re-Review — Fresh Revalidation
+
+**Timestamp:** 2026-09-07T03:12:14Z
+
+**Production revision:** `8e1d98117cb895c1b4ab611fb7b29e70a30871c3`
+
+**Independent test/review revision at revalidation start:** `465c003ea7bde91257c7bda21683d81ea31e95b6`
+
+The pinned production diff and controlling Application Design artifacts were read again. The result is
+unchanged: `layout.html` contains no top-level SIC Mappings entry; `categories.html` contains one
+secondary `btn-outline-secondary` link with
+`data-testid="categories-sic-mappings-link"`; the route and reverse link remain intact. The existing
+reviewer-owned embedded-template regression directly verifies each condition.
+
+| Fresh command/check | Result |
+|---|---|
+| `go test -count=1 ./...` | **PASS** across all seven packages; `internal/service` 85.083s |
+| Focused navigation and JavaScript delete-collision regressions | **PASS** |
+| `go test -race -short -count=1 ./...` | **PASS** across all seven packages; zero race reports |
+| `go build ./...` | **PASS** |
+| `go vet ./...` | **PASS** |
+| `gofmt -l cmd/privateledger/sic_mapping_page_review_test.go` | **PASS**, no output |
+| `git diff --check` before this documentation addition | **PASS** |
+| Production ownership/scope | **PASS**; pinned production change remains limited to the two templates |
+
+An isolated server again started successfully at `127.0.0.1:18843`, but browser discovery returned no
+available connection (`[]`). The fixture was stopped and no user data was touched. Visual browser
+execution is not claimed. This limitation remains non-blocking for the static placement change because
+the test reads the embedded production templates and the complete suite exercises template parsing.
+
+No new production finding was identified. U2-USER-02 remains resolved with no open Blocking or High
+finding.
+
+**Fresh revalidation status: PASS (production revision `8e1d981`).**
