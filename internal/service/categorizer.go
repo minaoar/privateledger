@@ -258,7 +258,7 @@ type ruleGeneration struct {
 // Patterns are captured by reference because LoadRules replaces the slice
 // wholesale rather than mutating it, so the captured value cannot change under
 // the pass.
-func (c *Categorizer) snapshotRules(transactions []*model.Transaction) ruleGeneration {
+func (c *Categorizer) snapshotRules(transactions []*model.Transaction) (ruleGeneration, error) {
 	codes := make(map[model.SICCode]struct{})
 	for _, txn := range transactions {
 		if txn.SICCode != nil {
@@ -283,26 +283,36 @@ func (c *Categorizer) snapshotRules(transactions []*model.Transaction) ruleGener
 		// published without the categorizer's lock ever being taken.
 		if stager, ok := c.sicLookup.(sicMappingStager); ok {
 			index, err := stager.prepareMappings()
-			if err == nil {
-				for code := range codes {
-					if mapping, found := index[code]; found && mapping.HasCategory() {
-						generation.sicByCode[code] = *mapping.CategoryID
-					}
-				}
-				return generation
+			if err != nil {
+				// Deliberately no fallback. An earlier revision dropped to the
+				// per-code path here, reasoning that a staging failure should
+				// not stop the pass. That was wrong: the per-code path is the
+				// one this snapshot exists to replace, so the fallback would
+				// reintroduce the split it sits beside — silently, while the
+				// result reported success and the user saw two transactions
+				// governed by one mapping change land in different categories.
+				//
+				// A source that can stage either produces one generation or the
+				// pass does not run. Failing before anything is written is the
+				// honest outcome.
+				return ruleGeneration{}, fmt.Errorf("failed to capture a mapping generation for re-examination: %w", err)
 			}
-			// A staging failure is not fatal to the pass; fall through to the
-			// per-code path rather than categorizing against nothing.
-			slog.Warn("Falling back to per-code mapping lookup for this pass",
-				slog.String("error", err.Error()))
+			for code := range codes {
+				if mapping, found := index[code]; found && mapping.HasCategory() {
+					generation.sicByCode[code] = *mapping.CategoryID
+				}
+			}
+			return generation, nil
 		}
+		// A source that cannot stage has no atomic read to offer, so per-code
+		// resolution is all there is. Nothing in production takes this path.
 		for code := range codes {
 			if categoryID, ok := c.sicLookup.LookupCategory(code); ok {
 				generation.sicByCode[code] = categoryID
 			}
 		}
 	}
-	return generation
+	return generation, nil
 }
 
 // evaluate applies the snapshot's rules. Same priority order as the live path,
@@ -403,7 +413,11 @@ func (c *Categorizer) Reexamine() (*RecategorizeResult, error) {
 	// guarantee must not depend on every publisher cooperating: the mapping
 	// cache has its own mutex, and a wrapper or a future lookup could publish
 	// without ever touching this one.
-	generation := c.snapshotRules(transactions)
+	generation, err := c.snapshotRules(transactions)
+	if err != nil {
+		slog.Error("Error capturing the rule generation for re-examination", slog.String("error", err.Error()))
+		return nil, err
+	}
 
 	for _, txn := range transactions {
 		if txn.CategorySource == model.CategorySourceManual {

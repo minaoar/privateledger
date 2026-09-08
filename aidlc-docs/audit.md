@@ -1916,3 +1916,15 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 Production Revision 5 — Mixed-Generation Fallback Removed
+**Timestamp**: 2026-09-07T20:10:00Z
+**User Input**: "Please fix the code based on the review comments and push the changes."
+**Re-review Verdict**: FAIL after Revision 4, with one High finding returned. U5-R-F03 and U5-R3-F01 resolved, and the normal atomic snapshot path accepted after 20 consecutive executions of both earlier generation tests.
+**U5-R4-F01 Fixed**: Revision 4 kept the per-code path as a defensive fallback when the pass-level `prepareMappings` read fails. That fallback reintroduces precisely the defect the snapshot exists to remove, because each `LookupCategory` call takes and releases the mapping cache's lock independently and a reload landing between two codes rebuilds the old/new mixture. The reviewer drove it deterministically and observed two transactions in different categories on 10 of 10 runs.
+**The Error Was in the Comment Production Wrote**: "A staging failure is not fatal to the pass; fall through to the per-code path rather than categorizing against nothing." That treated some answer as better than no answer. It is not, when the answer is silently inconsistent and the operation reports success — the user sees two transactions governed by one mapping change land in different categories with nothing indicating the categories came from different rule versions.
+**Fix**: the fallback is deleted. A source that can stage either produces one generation or the pass does not run; `snapshotRules` returns an error, `Reexamine` returns it before writing anything, and no transaction changes. The per-code path remains only for a source that cannot stage at all, which nothing in production is.
+**Verification**: `gofmt`, `go vet` and `go build ./...` clean. `go test -count=1 ./...` and `go test -race -short -count=1 ./...` pass in every package, and the three generation tests pass at `-count=10`.
+**Status**: awaiting independent re-review. Production does not close the gate.
+
+---
+
