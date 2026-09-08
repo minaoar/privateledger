@@ -557,11 +557,18 @@ function describeReexamination(result) {
     const uncategorized = result.uncategorized_count || 0;
     const manual = result.manual_protected_count || 0;
 
-    // The pattern/SIC split is retained from UOW-3, which is what shows
-    // whether mappings are behaving as intended; the FR16 counts answer a
-    // different question and sit alongside it rather than replacing it.
-    parts.push(`${moved} moved to a different category ` +
-        `(${result.pattern_categorized_count || 0} by pattern, ${result.sic_categorized_count || 0} by SIC mapping)`);
+    // The pattern/SIC split is retained from UOW-3, which is what shows whether
+    // mappings are behaving as intended, but only when the response actually
+    // carries it. Rule-change responses report the three FR16 counts without
+    // the split, and defaulting the missing fields to zero printed
+    // "1 moved (0 by pattern, 0 by SIC mapping)" — an explanation that
+    // contradicts the number it is explaining.
+    const hasSplit = result.pattern_categorized_count !== undefined &&
+        result.sic_categorized_count !== undefined;
+    parts.push(hasSplit
+        ? `${moved} moved to a different category ` +
+          `(${result.pattern_categorized_count} by pattern, ${result.sic_categorized_count} by SIC mapping)`
+        : `${moved} moved to a different category`);
     // Reported separately from moves, and never omitted when zero: a rule
     // change can now remove a category, and that is worth seeing plainly
     // rather than being folded into a total or dropped when it is zero.

@@ -1902,3 +1902,17 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 Production Revision 4 — All Re-review Findings Fixed, Suite Green
+**Timestamp**: 2026-09-07T19:40:00Z
+**User Input**: "Please fix the code based on the review comments and push the changes."
+**New Re-review Found on Origin**: `18496d8`. U5-R-F02, F04, F05, F06 and U5R1-F01 are resolved. U5-R-F01 and U5-R-F03 returned to production, plus a new Medium U5-R3-F01.
+**Conflict Production Raised Was Resolved by the Reviewer**: production had reported that the two generation tests could not both pass, because an atomic implementation reads the index through `prepareMappings` and never calls `LookupCategory`, on which both probes gated. The reviewer moved the probes to pause after either the live lookup or the second prepared snapshot, explicitly noting production's observation was correct. That removed the obstacle without weakening either test.
+**U5-R-F01 Fixed**: `snapshotRules` now takes one atomic read of the whole mapping index when the source can stage one, keeping the per-code path only as a fallback for a lookup that cannot stage. Both generation tests pass at `-count=10`.
+**Self-Assessment Recorded**: the previous revision shipped a design production knew could not satisfy BR-U5-10, in order to keep one more test green. That was the wrong trade, and it is recorded as such in `revision-4-summary.md`. A design that cannot meet an approved rule should not be shipped to protect a passing test.
+**U5-R-F03 Fixed**: mapping save and delete now lead their warning branches with the counts, then the warnings, then the do-not-retry line. A warning branch is when the counts matter most — the user needs to know what the change did before the follow-up failed. The factual, non-retry wording is unchanged.
+**U5-R3-F01 Fixed**: `describeReexamination` printed the pattern/SIC split unconditionally with missing fields defaulted to zero, so a rule change displayed "1 moved to a different category (0 by pattern, 0 by SIC mapping)" — an explanation contradicting the number it explains. The split now renders only when the response actually carries both fields; nothing is synthesized.
+**Verification**: `gofmt`, `go vet` and `go build ./...` clean. `go test -count=1 ./...` and `go test -race -short -count=1 ./...` both pass in every package, with no failing or hanging test.
+**Status**: all findings raised across four reviews are now addressed and the suite is green. Awaiting independent re-review; production does not close the gate.
+
+---
+

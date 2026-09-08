@@ -274,6 +274,28 @@ func (c *Categorizer) snapshotRules(transactions []*model.Transaction) ruleGener
 		sicByCode: make(map[model.SICCode]int, len(codes)),
 	}
 	if c.sicLookup != nil {
+		// One atomic read of the whole mapping index where the source can
+		// produce one. Resolving code by code through LookupCategory is not
+		// atomic: each call takes and releases the mapping cache's own lock, so
+		// a reload landing between two codes gives the pass a map assembled
+		// from two generations. That is what BR-U5-10 forbids, and it is not
+		// fixable by locking on this side, because the mapping cache can be
+		// published without the categorizer's lock ever being taken.
+		if stager, ok := c.sicLookup.(sicMappingStager); ok {
+			index, err := stager.prepareMappings()
+			if err == nil {
+				for code := range codes {
+					if mapping, found := index[code]; found && mapping.HasCategory() {
+						generation.sicByCode[code] = *mapping.CategoryID
+					}
+				}
+				return generation
+			}
+			// A staging failure is not fatal to the pass; fall through to the
+			// per-code path rather than categorizing against nothing.
+			slog.Warn("Falling back to per-code mapping lookup for this pass",
+				slog.String("error", err.Error()))
+		}
 		for code := range codes {
 			if categoryID, ok := c.sicLookup.LookupCategory(code); ok {
 				generation.sicByCode[code] = categoryID
