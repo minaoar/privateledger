@@ -2,15 +2,16 @@
 
 ## Gate Result
 
-**FAIL — BLOCKED after production Revision 3**
+**FAIL — BLOCKED after production Revision 4**
 
-The current branch through `60d0c0c` resolves U5-R-F02, U5-R-F04, U5-R-F05, U5-R-F06, and
-U5-R1-F01. The independent gate remains blocked by two High findings: resolving distinct SIC codes one
-at a time is not an atomic mapping snapshot, and mapping save/delete warning results omit the three
-FR16 counts. Browser execution also found one Medium display defect on the Categories page.
+Production Revision 4 (`ec710d2`) resolves the two High findings returned after Revision 3 and the
+Medium Categories display defect. Re-review found one remaining High failure in the new snapshot error
+path: if the atomic pass-level mapping read fails, production falls back to per-code reads and can once
+again combine two mapping generations in one re-examination. The gate remains blocked on that path.
 
-The main re-examination behavior, rule priority, state idempotence, non-triggers, batching, generated
-order independence, and all three performance obligations pass. Production files were not modified.
+The normal atomic snapshot path, UI count reporting, rule priority, state idempotence, non-triggers,
+batching, generated order independence, and all three performance obligations pass. Production files
+were not modified.
 
 ## Reviewer and Scope
 
@@ -23,7 +24,7 @@ order independence, and all three performance obligations pass. Production files
 | Branch | `support-mcc-for-category` |
 | Base revision | `e9b972303e4921461c347850a0b84bfd0d300bdd` |
 | Production revision | `3bd7903061805962efd06cc8f1c2ca915075be21` |
-| Latest re-review revision | `60d0c0c` (latest production code `f5c7d33`; Revision 2 starts at `073f1b3`) |
+| Latest re-review revision | `ec710d2` (Production Revision 4) |
 | Runtime scope reviewed | `internal/service/categorizer.go`; `internal/service/sic_categorizer.go`; `internal/service/sic_mapping_service.go`; `internal/repository/transaction_repo.go`; `internal/handler/category_handler.go`; `cmd/privateledger/web/templates/categories.html`; `cmd/privateledger/web/templates/sic_mappings.html`; `cmd/privateledger/web/templates/transactions.html` |
 | Ownership boundary | Reviewer changed test files and this review artifact only; production files were not modified |
 
@@ -547,7 +548,85 @@ modified during this re-review.
 | Import performance, isolated rerun | PASS: SIC-free median 3.108 s; SIC-bearing median 3.218 s; 3.52% overhead against 10%. |
 | `go vet ./...`; `go build ./...`; `git diff --check` | PASS; build emitted only the known external module-cache metadata warning. |
 
+## Revision 4 Re-review — `ec710d2`
+
+Revision 4 changes `internal/service/categorizer.go`, the Categories and SIC mapping templates, and
+production-owned AI-DLC records. It does not modify reviewer tests. The existing full suite passed at
+the revision before the reviewer added the failure-path test below.
+
+### Finding disposition
+
+| Finding | Revision 4 assessment | Status |
+|---|---|---|
+| U5-R-F01 — one generation per pass | The normal staged path now reads the complete mapping index once. Both earlier generation tests pass 20 consecutive executions. The new staging-error fallback can still mix generations; see U5-R4-F01. | **Superseded by U5-R4-F01** |
+| U5-R-F03 — mapping warning counts | Save and delete warning branches render the three counts before the warnings and durable-state instruction. Static path tests and Chrome execution pass. | **Resolved** |
+| U5-R3-F01 — Categories source breakdown | The source split is rendered only when both optional source fields are present. Chrome displayed `1 moved` with no invented zero/zero split. | **Resolved** |
+
+### U5-R4-F01 — High — A failed atomic snapshot silently falls back to mixed-generation reads
+
+**References:** `internal/service/categorizer.go:261-305`;
+`internal/service/uow5_reexamination_review_test.go:132-186,373-429`; BR-U5-10;
+NFR-U5-CON-02; DP-U5-07.
+
+The new normal path correctly obtains the whole mapping index in one `prepareMappings` call. If that
+call fails, lines 294-303 log a warning and resolve every distinct SIC code through separate
+`LookupCategory` calls. Those calls take and release the mapping cache lock independently. A concurrent
+successful cache reload can therefore land between two codes and rebuild the same old/new mixture that
+U5-R-F01 prohibited.
+
+The deterministic reviewer test lets the initial `LoadRules` staging read succeed, injects a failure in
+the pass-level staging read, pauses after the first fallback lookup samples the old cache, publishes the
+new cache, and then releases the second lookup. The two transactions are assigned to different
+categories on 10 of 10 repetitions. The race detector reports no memory race; this is a higher-level
+consistency failure.
+
+From the user's perspective, a temporary database read failure during re-examination can make two
+transactions governed by the same mapping change receive different answers. The result depends on
+timing, and the operation reports success with both rows moved, so the user receives no indication that
+the categories came from different rule versions.
+
+**Acceptance condition:** when a source supports atomic staging and the pass-level staging read fails,
+do not fall back to per-code reads. Return the error before changing transactions, or obtain one
+complete mapping index through another atomic mechanism. `TestReviewU5FailedPassSnapshotNeverFallsBackToSplitGeneration`
+must pass without hanging; both earlier generation tests must continue to pass repeatedly.
+
+**Status:** Open; blocks the gate.
+
+### Browser execution
+
+Chrome executed the production templates and real handlers against the isolated browser-review
+database.
+
+- Mapping save with an injected post-commit re-examination failure displayed all three zero-valued
+  counts, the failure warning, and the do-not-save-again instruction.
+- Categories add-pattern moved one transaction and displayed `1 moved to a different category`, zero
+  uncategorized, and zero manual-protected. It did not display the false `(0 by pattern, 0 by SIC
+  mapping)` explanation.
+
+### Reviewer-owned Revision 4 change
+
+- Added `TestReviewU5FailedPassSnapshotNeverFallsBackToSplitGeneration` and its controlled lookup to
+  exercise the staging-error branch while allowing either a safe early error or another atomic
+  snapshot mechanism.
+
+### Revision 4 commands and results
+
+| Command | Result |
+|---|---|
+| `go test -count=1 ./...` before the new reviewer test | PASS in all packages; `internal/service` completed in 100.366 s. |
+| `go test -count=1 ./...` after the new reviewer test | FAIL only U5-R4-F01; every other package passes and `internal/service` completed in 98.574 s. |
+| Both prior generation tests at `-count=20` | PASS. |
+| New failed-snapshot generation test at `-count=10` | FAIL on all 10 repetitions with one old-category and one new-category result. |
+| `go test -short -count=1 -run 'TestReviewU5' ./...` | FAIL only U5-R4-F01; every other UOW-5 test passes. |
+| `go test -race -short -count=1 ./...` | FAIL only U5-R4-F01; no Go data-race report emitted. |
+| Two required Rapid properties | PASS with seed `20260906`; the order-independence property passed 100 generated cases. |
+| Re-examination performance | PASS: 20,000 transactions; changing median 553.568 ms and no-op median 83.659 ms against 1.5 s. |
+| Populated merge performance | PASS: 100,000 existing mappings, 100,000 uploaded rows, 20,000 transactions; median 3.031 s against 10 s. |
+| Import performance | PASS: SIC-free median 3.093 s; SIC-bearing median 3.205 s; 3.63% overhead against 10%. |
+| `go vet ./...`; `go build ./...`; `git diff --check` | PASS. |
+
 ## Final Status
 
-**FAIL — BLOCKED after Revision 3.** Return U5-R-F01 and U5-R-F03 to the production role. U5-R3-F01
-is Medium and does not independently block the gate, but should be corrected with the two High findings.
+**FAIL — BLOCKED after Revision 4.** Return U5-R4-F01 to the production role. U5-R-F03 and
+U5-R3-F01 are resolved, and the normal atomic snapshot path passes; only the failed-staging fallback
+keeps the independent gate open.

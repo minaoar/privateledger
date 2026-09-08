@@ -134,6 +134,57 @@ type uow5ShippedReloadProbe struct {
 	prepares  int
 }
 
+// uow5FailingPassSnapshotLookup makes the initial LoadRules staging read
+// succeed, then fails the pass-level staging read. Its live cache can still be
+// reloaded while the fallback resolves individual codes. This is the precise
+// failure window in which falling back to per-code reads would reintroduce the
+// mixed-generation defect that the atomic snapshot is meant to prevent.
+type uow5FailingPassSnapshotLookup struct {
+	mu        sync.RWMutex
+	current   int
+	next      int
+	prepares  int
+	observed  chan struct{}
+	release   chan struct{}
+	firstOnce sync.Once
+}
+
+func (l *uow5FailingPassSnapshotLookup) LookupCategory(model.SICCode) (int, bool) {
+	l.mu.RLock()
+	category := l.current
+	l.mu.RUnlock()
+	l.firstOnce.Do(func() {
+		close(l.observed)
+		<-l.release
+	})
+	return category, true
+}
+
+func (l *uow5FailingPassSnapshotLookup) ReloadMappings() error {
+	l.mu.Lock()
+	l.current = l.next
+	l.mu.Unlock()
+	return nil
+}
+
+func (l *uow5FailingPassSnapshotLookup) prepareMappings() (map[model.SICCode]*model.SICMapping, error) {
+	l.prepares++
+	if l.prepares > 1 {
+		return nil, fmt.Errorf("injected pass snapshot failure")
+	}
+	category := l.current
+	return map[model.SICCode]*model.SICMapping{
+		"5812": model.NewSICMapping("5812", "", "", &category),
+		"5411": model.NewSICMapping("5411", "", "", &category),
+	}, nil
+}
+
+func (l *uow5FailingPassSnapshotLookup) commitMappings(index map[model.SICCode]*model.SICMapping) {
+	l.mu.Lock()
+	l.current = *index["5812"].CategoryID
+	l.mu.Unlock()
+}
+
 func (l *uow5ShippedReloadProbe) pauseAfterSnapshot() {
 	l.firstOnce.Do(func() {
 		close(l.observed)
@@ -315,6 +366,64 @@ func TestReviewU5ShippedMappingReloadCannotSplitOnePass(t *testing.T) {
 	}
 	if storedFirst.CategoryID == nil || storedSecond.CategoryID == nil || *storedFirst.CategoryID != *storedSecond.CategoryID {
 		t.Fatalf("shipped reload split one pass: first=%v second=%v; valid outcomes are both %d or both %d",
+			storedFirst.CategoryID, storedSecond.CategoryID, oldCategory, newCategory)
+	}
+}
+
+func TestReviewU5FailedPassSnapshotNeverFallsBackToSplitGeneration(t *testing.T) {
+	db, txnRepo, patternRepo, _, _, _, accountID := newUOW3ServiceHarness(t)
+	oldCategory := createUOW3Category(t, db, "Failed snapshot old generation")
+	newCategory := createUOW3Category(t, db, "Failed snapshot new generation")
+	lookup := &uow5FailingPassSnapshotLookup{
+		current:  oldCategory,
+		next:     newCategory,
+		observed: make(chan struct{}),
+		release:  make(chan struct{}),
+	}
+	categorizer := NewCategorizerWithSIC(patternRepo, txnRepo, lookup)
+	first := createUOW3Txn(t, txnRepo, accountID, "failed-snapshot-1", "MERCHANT", "5812", nil, model.CategorySourceNone)
+	second := createUOW3Txn(t, txnRepo, accountID, "failed-snapshot-2", "MERCHANT", "5411", nil, model.CategorySourceNone)
+
+	type outcome struct {
+		result *RecategorizeResult
+		err    error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		result, err := categorizer.Reexamine()
+		done <- outcome{result: result, err: err}
+	}()
+	var got outcome
+	select {
+	case got = <-done:
+		// Returning the staging error, or obtaining a complete snapshot through
+		// another atomic mechanism, is safe and must not make this test hang.
+	case <-lookup.observed:
+		if err := lookup.ReloadMappings(); err != nil {
+			t.Fatal(err)
+		}
+		close(lookup.release)
+		got = <-done
+	case <-time.After(2 * time.Second):
+		t.Fatal("re-examination neither returned nor began a fallback lookup")
+	}
+
+	storedFirst, err := txnRepo.GetByID(first.TransactionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	storedSecond, err := txnRepo.GetByID(second.TransactionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.err != nil {
+		if storedFirst.CategoryID != nil || storedSecond.CategoryID != nil {
+			t.Fatalf("failed snapshot returned %v after changing rows: first=%v second=%v", got.err, storedFirst.CategoryID, storedSecond.CategoryID)
+		}
+		return
+	}
+	if storedFirst.CategoryID == nil || storedSecond.CategoryID == nil || *storedFirst.CategoryID != *storedSecond.CategoryID {
+		t.Fatalf("failed atomic snapshot fell back to a mixed generation: first=%v second=%v; valid outcomes are both %d or both %d",
 			storedFirst.CategoryID, storedSecond.CategoryID, oldCategory, newCategory)
 	}
 }
