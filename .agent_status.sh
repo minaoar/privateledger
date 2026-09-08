@@ -10,15 +10,15 @@
 #   # Claude: lets Claude handle routine permissions automatically.
 #   claude --permission-mode auto
 #
-#   # Codex: keeps the workspace sandbox and sends approvals to Codex's
-#   # separate automatic reviewer instead of waiting for Enter.
-#   codex --approve-for-me --sandbox workspace-write
+#   # Codex: --approve-for-me sends approvals to Codex's separate automatic
+#   # reviewer and selects the workspace-write sandbox automatically.
+#   codex --approve-for-me
 #
 # You can also register/start the agents from another terminal when you know
 # the HerdR pane IDs:
 #
 #   herdr agent start coding_agent --kind claude --pane <PANE_ID> -- --permission-mode auto
-#   herdr agent start review_agent --kind codex  --pane <PANE_ID> -- --approve-for-me --sandbox workspace-write
+#   herdr agent start review_agent --kind codex  --pane <PANE_ID> -- --approve-for-me
 #
 # Swap the providers, names, and provider-specific options when Codex owns
 # production and Claude owns independent review.
