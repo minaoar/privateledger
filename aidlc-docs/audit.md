@@ -1940,3 +1940,13 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## Correction — Prior Unit's Build and Test Records Were Overwritten
+**Timestamp**: 2026-09-07T21:00:00Z
+**Error**: the five build-and-test files were written as new documents when they already existed. Git reported them as modified rather than added, and the commit removed 426 lines. Those lines were the records of an earlier unit, `uncategorized-dashboard` from 2026-08-03 on branch `show-uncategorized-transactions`, plus an `import-revert` section in the summary. The summary's own first line said "Covers all units built on this project. Newest first", so the convention was cumulative and production replaced instead of appending.
+**Cause**: production did not read the existing files before writing them. `mkdir -p` on the directory succeeded silently and the directory had appeared in earlier listings, so its contents were never checked.
+**Correction Applied**: the previous versions were recovered from `HEAD~1` and each file rebuilt as the cumulative document it was — this unit's section first under a `# Unit: sic-mcc-categorization (UOW-1 through UOW-5)` heading, then the retained earlier content. The four instruction files had no per-unit heading originally, so their retained content is now labelled and marked as predating that convention rather than being reformatted. Net effect on the working tree is 571 insertions and no deletions relative to the overwriting commit.
+**Verification**: `build-and-test-summary.md` again carries all three unit sections, and each instruction file carries two.
+**Status**: no approved content is lost. The overwriting commit `3caf919` remains in history; the correction follows it rather than rewriting it.
+
+---
+
