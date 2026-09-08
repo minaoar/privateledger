@@ -2,16 +2,16 @@
 
 ## Gate Result
 
-**FAIL — BLOCKED after production Revision 4**
+**PASS after production Revision 5**
 
-Production Revision 4 (`ec710d2`) resolves the two High findings returned after Revision 3 and the
-Medium Categories display defect. Re-review found one remaining High failure in the new snapshot error
-path: if the atomic pass-level mapping read fails, production falls back to per-code reads and can once
-again combine two mapping generations in one re-examination. The gate remains blocked on that path.
+Production Revision 5 (`6ca1ed0`) resolves U5-R4-F01 by returning a pass-level snapshot error before
+any transaction write. It no longer falls back to per-code reads when an atomic source fails. The three
+generation tests pass repeatedly, including the injected snapshot failure, and no Blocking or High
+finding remains.
 
-The normal atomic snapshot path, UI count reporting, rule priority, state idempotence, non-triggers,
+The complete suite, race gate, UI count reporting, rule priority, state idempotence, non-triggers,
 batching, generated order independence, and all three performance obligations pass. Production files
-were not modified.
+were not modified by the reviewer.
 
 ## Reviewer and Scope
 
@@ -24,7 +24,7 @@ were not modified.
 | Branch | `support-mcc-for-category` |
 | Base revision | `e9b972303e4921461c347850a0b84bfd0d300bdd` |
 | Production revision | `3bd7903061805962efd06cc8f1c2ca915075be21` |
-| Latest re-review revision | `ec710d2` (Production Revision 4) |
+| Latest re-review revision | `6ca1ed0` (Production Revision 5) |
 | Runtime scope reviewed | `internal/service/categorizer.go`; `internal/service/sic_categorizer.go`; `internal/service/sic_mapping_service.go`; `internal/repository/transaction_repo.go`; `internal/handler/category_handler.go`; `cmd/privateledger/web/templates/categories.html`; `cmd/privateledger/web/templates/sic_mappings.html`; `cmd/privateledger/web/templates/transactions.html` |
 | Ownership boundary | Reviewer changed test files and this review artifact only; production files were not modified |
 
@@ -625,8 +625,42 @@ database.
 | Import performance | PASS: SIC-free median 3.093 s; SIC-bearing median 3.205 s; 3.63% overhead against 10%. |
 | `go vet ./...`; `go build ./...`; `git diff --check` | PASS. |
 
-## Final Status
+## Revision 4 Status
 
 **FAIL — BLOCKED after Revision 4.** Return U5-R4-F01 to the production role. U5-R-F03 and
 U5-R3-F01 are resolved, and the normal atomic snapshot path passes; only the failed-staging fallback
 keeps the independent gate open.
+
+## Revision 5 Re-review — `6ca1ed0`
+
+Revision 5 changes only `internal/service/categorizer.go` in runtime scope, plus production-owned audit
+and revision-summary records. Production did not modify reviewer tests or the independent review.
+
+### Finding disposition
+
+| Finding | Revision 5 assessment | Status |
+|---|---|---|
+| U5-R4-F01 — failed atomic snapshot fallback | `snapshotRules` now returns the staging error. `Reexamine` propagates it before evaluating or writing any transaction. The injected failure test observes an error and verifies both transactions remain unchanged. | **Resolved** |
+
+The retained per-code branch applies only to a lookup that does not implement the internal staging
+interface. The shipped `SICMappingCategorizer` implements staging, and `cmd/privateledger/main.go` wires
+that concrete type. This compatibility limitation does not affect a production path and is not a UOW-5
+finding.
+
+No browser rerun was needed for Revision 5 because neither template nor handler changed. The Revision 4
+Chrome results for mapping-warning counts and the corrected Categories summary remain the executed UI
+evidence for the final code.
+
+### Revision 5 commands and results
+
+| Command | Result |
+|---|---|
+| `go test -count=1 ./...` | PASS in every package; `internal/service` completed in 101.599 s, including the required properties and three performance gates. |
+| All three generation tests at `-count=20` | PASS, including the injected pass-level snapshot failure. |
+| `go test -race -short -count=1 ./...` | PASS in every package; no Go data-race report. |
+| `go vet ./...`; `go build ./...`; `git diff --check` | PASS. |
+
+## Final Gate Status
+
+**PASS after Revision 5.** All UOW-5 independent findings are resolved, every required test passes, and
+no Blocking or High finding remains. UOW-5 may proceed to the user-owned completion approval step.
