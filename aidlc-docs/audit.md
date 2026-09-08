@@ -1928,3 +1928,15 @@ batch would make legacy database startup fail before the column migration ran.
 
 ---
 
+## UOW-5 Approved and Complete; Build and Test Instructions Generated
+**Timestamp**: 2026-09-07T20:45:00Z
+**User Input**: "review done. anything left now?" / "continue to next stage"
+**Gate Verified Before Accepting**: the reviewer's commit `3992524` was confirmed on origin and the review artifact read directly. Gate result PASS after Revision 5. The single finding disposition row records U5-R4-F01 resolved, and the reviewer explicitly ruled the retained per-code branch not a UOW-5 finding, since it applies only to a lookup that does not implement the internal staging interface and `main.go` wires the concrete type that does. The full suite was re-run on the reviewer's final tree and passes in every package.
+**UOW-5 Marked Complete**: all five units are now complete with independent gates PASS.
+**Build and Test Instructions Generated**: five files under `aidlc-docs/construction/build-and-test/` — build, unit test, integration test, performance test, and summary. Written from measured facts rather than generically: the toolchain and dependency versions were read from `go.mod`, the 44 test files and the seven property-test files were enumerated, and every performance figure is the one actually measured on the recorded reference environment.
+**Points Recorded Because They Are Easy to Lose**: NFR-U5-PERF-01's second half is a correctness test wearing a stopwatch, since a no-op pass being faster than a full one is the only external evidence that BR-U5-17 avoids writes; NFR-U2-PERF-01's fixture must contain 20,000 transactions because an empty one cannot fail for the right reason; the UOW-5 generation defects produced no data race at all, so the race detector will not catch a regression and only the deterministic generation tests will; and NFR-U5-CON-01's contingency stands, so a PERF-01 failure reopens the deadline decision rather than relaxing the budget.
+**Open Items Recorded, None Blocking**: C4-01 UTF-16 detection, C4-02 unbounded category names, C4-03 the accepted positional-trust residual, and deferred UOW-1 findings F-04 and F-05.
+**Status**: Build and Test instructions complete; awaiting approval. Operations remains a placeholder.
+
+---
+
