@@ -82,6 +82,24 @@ gofmt -w <changed-go-files>
 - Verify fresh-database and existing-database paths for schema changes.
 - Preserve the independent ownership boundary defined by AI-DLC: the production provider does not author or weaken verification tests, and the independent provider does not modify production code.
 
+## Version Control
+
+- Stage explicit paths. Never use `git add -A` or `git add .`, and verify the staged set with `git status --porcelain` before committing. A sweeping stage has committed unrelated parked work in this project before.
+- Read a file before writing it. If the path already exists, extend it rather than replacing it — several documents under `aidlc-docs/` are cumulative across units and say so in their opening line.
+- Check that `git status` reports the intent you meant, added versus modified, before committing. A document you expected to create showing as modified means you are about to overwrite an existing record.
+- Commit and push only what the current unit's approved plan covers.
+
+## Responding to Independent Review Findings
+
+The production role owns production fixes; the independent role owns verification tests and the review artifact. When acting on a review:
+
+- **Stop and ask when a finding requires a product or requirements decision.** If the reviewer asks for a decision to be obtained and recorded, or offers a choice of semantics, do not choose. Present the options and wait. Deciding unilaterally has cost a full review round in this project, and the state chosen then had to be undone.
+- **Once a decision is recorded, amend the approved artifacts before changing code**, in that order. A test asserting the superseded behaviour is then the independent role's to update.
+- **Do not ship an implementation you know cannot satisfy an approved rule in order to keep a test passing.** If a finding is correct and you cannot yet satisfy it, say so with evidence and leave the test failing. A design that contradicts an approved rule is not made acceptable by a green suite.
+- **Never edit a verification test to make a build or a check pass.** When an approved contract change breaks a test, whether compilation or behaviour, leave it broken and record it as a handoff finding naming the exact file and line.
+- **Read the newest re-review section, not only the top gate result.** Review artifacts here accumulate, and the current findings are at the end.
+- A clean race report is not sufficient evidence for a consistency guarantee. Ordering and generation guarantees need deterministic tests, run repeatedly.
+
 ## AI-DLC Context Loading
 
 Before unit work, read as applicable:
