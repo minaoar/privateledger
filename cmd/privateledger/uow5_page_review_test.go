@@ -50,3 +50,29 @@ func TestReviewU5EveryRuleChangePageConsumesItsReportedCounts(t *testing.T) {
 		}
 	}
 }
+
+func TestReviewU5MappingWarningResultsStillDisplayCounts(t *testing.T) {
+	page, err := embeddedFiles.ReadFile("web/templates/sic_mappings.html")
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := string(page)
+	const warningBranch = "if (body.post_commit_warnings && body.post_commit_warnings.length) {"
+
+	remaining := source
+	for branch := 1; branch <= 2; branch++ {
+		start := strings.Index(remaining, warningBranch)
+		if start < 0 {
+			t.Fatalf("found %d mapping mutation warning branches, want save and delete", branch-1)
+		}
+		remaining = remaining[start+len(warningBranch):]
+		end := strings.Index(remaining, "return;")
+		if end < 0 {
+			t.Fatalf("mapping mutation warning branch %d has no return", branch)
+		}
+		if !strings.Contains(remaining[:end], "describeRuleChangeCounts(body)") {
+			t.Errorf("mapping mutation warning branch %d hides the three reported counts", branch)
+		}
+		remaining = remaining[end+len("return;"):]
+	}
+}

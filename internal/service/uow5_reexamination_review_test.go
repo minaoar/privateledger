@@ -119,43 +119,63 @@ type uow5BlockingLookup struct {
 	started   chan struct{}
 	release   chan struct{}
 	firstOnce sync.Once
+	prepares  int
 }
 
-// uow5ShippedReloadProbe delegates to the production SIC cache but pauses
-// after the first lookup has sampled it. This exposes whether the mapping
-// service's public ReloadMappings path can publish through the generation lock
-// held by Reexamine.
+// uow5ShippedReloadProbe delegates to the production SIC cache but pauses after
+// the pass samples its mapping generation. It supports both the live per-code
+// lookup and a prepared whole-index snapshot so the assertion does not require
+// one implementation mechanism.
 type uow5ShippedReloadProbe struct {
 	inner     *SICMappingCategorizer
 	observed  chan struct{}
 	release   chan struct{}
 	firstOnce sync.Once
+	prepares  int
 }
 
-func (l *uow5ShippedReloadProbe) LookupCategory(code model.SICCode) (int, bool) {
-	categoryID, ok := l.inner.LookupCategory(code)
+func (l *uow5ShippedReloadProbe) pauseAfterSnapshot() {
 	l.firstOnce.Do(func() {
 		close(l.observed)
 		<-l.release
 	})
+}
+
+func (l *uow5ShippedReloadProbe) LookupCategory(code model.SICCode) (int, bool) {
+	categoryID, ok := l.inner.LookupCategory(code)
+	l.pauseAfterSnapshot()
 	return categoryID, ok
 }
 
 func (l *uow5ShippedReloadProbe) ReloadMappings() error { return l.inner.ReloadMappings() }
 
 func (l *uow5ShippedReloadProbe) prepareMappings() (map[model.SICCode]*model.SICMapping, error) {
-	return l.inner.prepareMappings()
+	index, err := l.inner.prepareMappings()
+	l.prepares++
+	// Reexamine's initial LoadRules is the first prepare. A production fix may
+	// take the pass snapshot with a second atomic prepare instead of calling
+	// LookupCategory. Pause after either snapshot mechanism has sampled the old
+	// generation so this test observes behavior rather than requiring one call
+	// path.
+	if err == nil && l.prepares > 1 {
+		l.pauseAfterSnapshot()
+	}
+	return index, err
 }
 
 func (l *uow5ShippedReloadProbe) commitMappings(index map[model.SICCode]*model.SICMapping) {
 	l.inner.commitMappings(index)
 }
 
-func (l *uow5BlockingLookup) LookupCategory(model.SICCode) (int, bool) {
+func (l *uow5BlockingLookup) pauseAfterSnapshot() {
 	l.firstOnce.Do(func() {
 		close(l.started)
 		<-l.release
 	})
+}
+
+func (l *uow5BlockingLookup) LookupCategory(model.SICCode) (int, bool) {
+	l.pauseAfterSnapshot()
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	return l.category, true
@@ -165,11 +185,16 @@ func (l *uow5BlockingLookup) ReloadMappings() error { return nil }
 
 func (l *uow5BlockingLookup) prepareMappings() (map[model.SICCode]*model.SICMapping, error) {
 	l.mu.RLock()
-	defer l.mu.RUnlock()
 	category := l.category
-	return map[model.SICCode]*model.SICMapping{
+	l.mu.RUnlock()
+	index := map[model.SICCode]*model.SICMapping{
 		"5812": model.NewSICMapping("5812", "", "", &category),
-	}, nil
+	}
+	l.prepares++
+	if l.prepares > 1 {
+		l.pauseAfterSnapshot()
+	}
+	return index, nil
 }
 
 func (l *uow5BlockingLookup) commitMappings(index map[model.SICCode]*model.SICMapping) {

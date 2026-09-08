@@ -80,6 +80,15 @@ func TestUOW3BrowserFixtureServer(t *testing.T) {
 	fallbackTxn := createTxn("browser-fallback", "HOTEL FALLBACK", "7011")
 	bareTxn := createTxn("browser-bare", "BARE CODE", "7999")
 	noSICTxn := createTxn("browser-none", "NO SIC", "")
+	if _, err := db.Exec(`
+		CREATE TRIGGER browser_review_reexamination_failure
+		BEFORE UPDATE OF category_id ON ledger_transaction
+		WHEN OLD.fit_id = 'browser-bare' AND NEW.category_id IS NOT NULL
+		BEGIN
+			SELECT RAISE(ABORT, 'forced browser-review re-examination failure');
+		END`); err != nil {
+		t.Fatal(err)
+	}
 
 	sicCategorizer := service.NewSICMappingCategorizer(sicRepo, txnRepo)
 	categorizer := service.NewCategorizerWithSIC(patternRepo, txnRepo, sicCategorizer)
@@ -89,6 +98,7 @@ func TestUOW3BrowserFixtureServer(t *testing.T) {
 	mappingService := service.NewSICMappingManagementService(sicRepo, categoryRepo, dir, time.Second, sicCategorizer)
 	transactionHandler := handler.NewTransactionHandlerWithSIC(txnRepo, mappingService)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo, patternRepo, categorizer)
+	sicMappingHandler := handler.NewSICMappingHandler(mappingService)
 	pageHandler := handler.NewPageHandler(embeddedFiles,
 		repository.NewAccountRepository(db), txnRepo, categoryRepo, patternRepo, nil, mappingService, "uow3-review")
 
@@ -98,6 +108,7 @@ func TestUOW3BrowserFixtureServer(t *testing.T) {
 	router.StaticFS("/static", http.FS(staticFS))
 	router.GET("/transactions", pageHandler.Transactions)
 	router.GET("/categories", pageHandler.Categories)
+	router.GET("/sic-mappings", pageHandler.SICMappings)
 	router.PATCH("/api/transactions/:id/category", func(c *gin.Context) {
 		time.Sleep(3 * time.Second)
 		transactionHandler.UpdateTransactionCategory(c)
@@ -112,6 +123,10 @@ func TestUOW3BrowserFixtureServer(t *testing.T) {
 	})
 	router.POST("/api/categories/:id/patterns", categoryHandler.AddPattern)
 	router.POST("/api/categories/recategorize", categoryHandler.RecategorizeAll)
+	router.GET("/api/sic-mappings", sicMappingHandler.List)
+	router.POST("/api/sic-mappings", sicMappingHandler.Create)
+	router.PUT("/api/sic-mappings/:id", sicMappingHandler.Update)
+	router.DELETE("/api/sic-mappings/:id", sicMappingHandler.Delete)
 	router.GET("/api/review/transactions/:id", transactionHandler.GetTransaction)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:18843")

@@ -2,13 +2,12 @@
 
 ## Gate Result
 
-**FAIL — BLOCKED after production Revision 1**
+**FAIL — BLOCKED after production Revision 3**
 
-Production Revision 1, `f95066c`, resolves U5-R-F02 and U5-R-F06 and materially improves the server
-side of U5-R-F01, U5-R-F03, U5-R-F04, and U5-R-F05. The independent gate remains blocked: the shipped
-mapping reload path can still split one pass across generations; rule-change screens receive counts
-without displaying them; the category-deletion fix introduces a second database representation of
-“uncategorized”; and two existing category endpoint response shapes were changed rather than extended.
+The current branch through `60d0c0c` resolves U5-R-F02, U5-R-F04, U5-R-F05, U5-R-F06, and
+U5-R1-F01. The independent gate remains blocked by two High findings: resolving distinct SIC codes one
+at a time is not an atomic mapping snapshot, and mapping save/delete warning results omit the three
+FR16 counts. Browser execution also found one Medium display defect on the Categories page.
 
 The main re-examination behavior, rule priority, state idempotence, non-triggers, batching, generated
 order independence, and all three performance obligations pass. Production files were not modified.
@@ -24,8 +23,8 @@ order independence, and all three performance obligations pass. Production files
 | Branch | `support-mcc-for-category` |
 | Base revision | `e9b972303e4921461c347850a0b84bfd0d300bdd` |
 | Production revision | `3bd7903061805962efd06cc8f1c2ca915075be21` |
-| Latest re-review revision | `f95066c` (`git diff c30fa77..f95066c`) |
-| Runtime scope reviewed | `internal/service/categorizer.go`; `internal/service/sic_categorizer.go`; `internal/service/sic_mapping_service.go`; `internal/repository/transaction_repo.go`; `internal/handler/category_handler.go`; `cmd/privateledger/web/templates/categories.html`; `cmd/privateledger/web/templates/sic_mappings.html` |
+| Latest re-review revision | `60d0c0c` (latest production code `f5c7d33`; Revision 2 starts at `073f1b3`) |
+| Runtime scope reviewed | `internal/service/categorizer.go`; `internal/service/sic_categorizer.go`; `internal/service/sic_mapping_service.go`; `internal/repository/transaction_repo.go`; `internal/handler/category_handler.go`; `cmd/privateledger/web/templates/categories.html`; `cmd/privateledger/web/templates/sic_mappings.html`; `cmd/privateledger/web/templates/transactions.html` |
 | Ownership boundary | Reviewer changed test files and this review artifact only; production files were not modified |
 
 The handoff says “six production files and two templates” but enumerates five Go files and two
@@ -425,8 +424,130 @@ change. `TestReviewU5PatternRuleChangeResponsesRemainAdditive` must pass.
 - Added an observable consistency test across the three uncategorized repository paths after deleting a
   manually assigned category.
 
+## Revision 2/3 Re-review — `073f1b3`, `f5c7d33`, `60d0c0c`
+
+The review began at Revision 2 (`073f1b3`). While it was running, the branch advanced with the approved
+U5-R-F05 decision and implementation (`f5c7d33`) and the production provider's generation-test note
+(`60d0c0c`). The final tests and verdict use `60d0c0c` plus the reviewer-owned working-tree changes
+listed below.
+
+### Finding disposition
+
+| Finding | Current assessment | Status |
+|---|---|---|
+| U5-R-F01 — one generation per pass | The pass copies mapping answers one SIC code at a time. A reload between two distinct lookups produces a mixed old/new map. | **Open — High** |
+| U5-R-F02 — concurrent manual overwrite | The write-time SQL guard and affected-row counts continue to pass. | **Resolved** |
+| U5-R-F03 — mapping counts | Normal CRUD, upload, and modal paths display all three counts. Mapping save/delete warning branches omit them. | **Open — High** |
+| U5-R-F04 — pattern counts and warnings | Server responses and all Categories trigger callbacks consume counts and warnings. | **Resolved** |
+| U5-R-F05 — category deletion/manual provenance | The user approved option A; the artifacts were amended before production changed. Former manual assignments become ordinary uncategorized rows and may be assigned by remaining rules. Both deletion-semantics tests pass after correcting the obsolete reviewer expectation. | **Resolved** |
+| U5-R-F06 — empty-category mapping creation | Direct and merge creation continue to invoke re-examination. | **Resolved** |
+| U5-R1-F01 — additive response compatibility | Legacy category and pattern fields remain at the top level beside the new fields. | **Resolved** |
+| U5-R3-F01 — Categories source breakdown | Rule-change responses omit the optional pattern/SIC split, but the page renders each missing value as zero beside a nonzero moved count. | **Open — Medium** |
+
+### U5-R-F01 remains open — the mapping “snapshot” is assembled across generations
+
+**References:** `internal/service/categorizer.go:245-284`;
+`internal/service/sic_categorizer.go:101-136`;
+`internal/service/uow5_reexamination_review_test.go:125-168,259-320`; BR-U5-10;
+NFR-U3-CON-01; NFR-U5-CON-02.
+
+`snapshotRules` prevents lookups during the transaction traversal, but it builds `sicByCode` by calling
+`LookupCategory` once per distinct code. Each call independently acquires and releases
+`SICMappingCategorizer.mu`. A mapping reload can therefore publish between two calls, so the resulting
+map is not one mapping generation.
+
+The strengthened shipped-path test uses two SIC codes that both map to category 1 in the old cache and
+category 2 in the new cache. It pauses after the first code samples the old cache, publishes the new
+cache through the shipped `ReloadMappings`, and releases the pass. One transaction reaches category 1
+and the other reaches category 2 on 10 of 10 runs.
+
+The production note correctly observed that an atomic implementation may use `prepareMappings` and
+never call `LookupCategory`. The reviewer probes now pause after either the live lookup or the second
+prepared snapshot, so such an implementation will not hang and is free to choose the atomic mechanism.
+
+**Acceptance condition:** capture the complete mapping index atomically for the pass, alongside its
+pattern generation. Both generation tests must pass repeatedly without adding a discarded lookup call.
+
+### U5-R-F03 remains open — mapping warning branches hide the counts
+
+**References:** `cmd/privateledger/web/templates/sic_mappings.html:277-285,317-323`;
+`cmd/privateledger/uow5_page_review_test.go:54-78`; FR16;
+`functional-design/frontend-components.md:8-20`; the Revision 1 acceptance condition above.
+
+Mapping save and delete display the count formatter only on full success. When the response contains a
+post-commit warning, both callbacks return after rendering the warnings and the durable-state message;
+the moved, uncategorized, and manual-protected values are omitted. Upload already combines its count
+lines and warnings correctly.
+
+This is observable in Chrome with an injected re-examination failure: the mapping-save warning says
+the mapping was saved and explains the failure, but contains none of the three counts. The independent
+source-path test fails both mutation warning branches.
+
+**Acceptance condition:** include `describeRuleChangeCounts(body)` in the displayed lines for mapping
+save and mapping delete whether or not `post_commit_warnings` is nonempty. Preserve the factual,
+non-retry warning wording.
+
+### U5-R3-F01 — Medium — Categories invents a zero source breakdown
+
+**References:** `cmd/privateledger/web/templates/categories.html:555-565`;
+`internal/handler/category_handler.go:107-151`; FR16.
+
+`describeReexamination` always prints the legacy pattern/SIC split and defaults missing split fields to
+zero. Pattern/category rule-change responses contain the three FR16 counts but not those two optional
+split fields. Browser execution after adding a pattern therefore displayed “1 moved ... (0 by pattern,
+0 by SIC mapping).” The three required counts are correct, but the added explanation contradicts them.
+
+**Acceptance condition:** render the source split only when the response actually contains it, or add
+the real split fields to the rule-change response. Never synthesize a zero/zero split for a nonzero move.
+
+### U5-R-F05 test adjudication
+
+Commit `f5c7d33` records the user's “go ahead with A” decision and amends FR7, BR-U5-05, and
+NFR-U5-REL-02 before changing `ClearCategory`. That satisfies the prior acceptance condition. The
+reviewer replaced the obsolete marker-preservation assertion with the approved behavior: the deleted
+manual assignment is cleared, re-examined to the remaining SIC category, stored as rule-sourced, and
+reported as one move with zero manual protections. The separate one-representation test also passes.
+
+### Browser execution
+
+Chrome executed the production templates and handlers against the isolated browser-review database.
+
+- Categories add-pattern displayed all three FR16 counts, but also exposed U5-R3-F01.
+- SIC mapping save displayed `2/0/0`; deletion displayed `0/1/0` and remained on screen until refresh.
+- Transaction-modal mapping displayed `1/0/0` after the delayed real handler completed.
+- An injected post-commit re-examination failure kept the mapping committed and rendered the warning,
+  but omitted every count, confirming U5-R-F03.
+
+### Reviewer-owned changes in this re-review
+
+- Strengthened the shipped reload test to use two distinct SIC codes.
+- Made both generation probes observable through either `LookupCategory` or an atomic
+  `prepareMappings` snapshot, removing the mechanism-specific timeout identified by production.
+- Corrected the category-deletion test to the approved option A semantics.
+- Added the mapping warning-result count test.
+- Extended the browser-only fixture with SIC mapping routes and a test-only failure injection trigger.
+
+The shared-worktree production commits include earlier reviewer-authored test/review changes. The
+reviewer independently adjudicated and reran them; no production source or production artifact was
+modified during this re-review.
+
+### Revision 2/3 commands and results
+
+| Command | Result |
+|---|---|
+| `go test -count=1 ./...` baseline at Revision 2 | FAIL on the then-open category-deletion consistency test and one noisy import performance sample; all other packages completed. |
+| `go test -count=1 ./...` final current-HEAD run | FAIL only the shipped two-code generation test and mapping warning-count test; all other packages pass, with `internal/service` completing in 97.164 s. |
+| Category-deletion focused tests after approved test correction | PASS. |
+| Both generation tests at `-count=10` | General generation test passes; shipped two-code reload test fails on all 10 repetitions without hanging. |
+| `go test -short -count=1 -run 'TestReviewU5' ./...` | FAIL on the shipped two-code generation test and the mapping warning-count test; all other UOW-5 tests pass after the approved category-deletion correction. |
+| `go test -race -short -count=1 ./...` | FAIL on those same deterministic assertions; no Go data-race warning emitted. |
+| Two required Rapid properties | PASS in 1.774 s. |
+| Re-examination performance | PASS: changing median 542.108 ms; no-op median 80.681 ms; target 1.5 s. |
+| Populated merge performance | PASS: median 2.719 s; target 10 s. |
+| Import performance, isolated rerun | PASS: SIC-free median 3.108 s; SIC-bearing median 3.218 s; 3.52% overhead against 10%. |
+| `go vet ./...`; `go build ./...`; `git diff --check` | PASS; build emitted only the known external module-cache metadata warning. |
+
 ## Final Status
 
-**FAIL — BLOCKED after Revision 1.** U5-R-F02 and U5-R-F06 are resolved. Return U5-R-F01, U5-R-F03,
-U5-R-F04, U5-R-F05, and U5-R1-F01 to the production role. Category deletion requires an explicit
-approved semantic decision before its production fix can close the gate.
+**FAIL — BLOCKED after Revision 3.** Return U5-R-F01 and U5-R-F03 to the production role. U5-R3-F01
+is Medium and does not independently block the gate, but should be corrected with the two High findings.

@@ -215,7 +215,7 @@ func TestReviewU5PatternTriggersNeverWriteManualTransactions(t *testing.T) {
 	}
 }
 
-func TestReviewU5CategoryDeletionPreservesManualChoiceMarker(t *testing.T) {
+func TestReviewU5CategoryDeletionAppliesApprovedManualAssignmentSemantics(t *testing.T) {
 	f := newUOW5CategoryHandlerFixture(t)
 	deletedCategory := f.category(t, "Manual choice")
 	fallbackCategory := f.category(t, "Rule fallback")
@@ -232,19 +232,21 @@ func TestReviewU5CategoryDeletionPreservesManualChoiceMarker(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if stored.CategorySource != model.CategorySourceManual {
-		t.Fatalf("category deletion destroyed the manual marker and allowed rule reassignment: stored=%+v", stored)
+	if stored.CategoryID == nil || *stored.CategoryID != fallbackCategory || stored.CategorySource != model.CategorySourceRule {
+		t.Fatalf("category deletion did not clear and re-examine the former manual assignment: stored=%+v", stored)
 	}
 	var body struct {
 		Result struct {
+			MovedCount           int `json:"moved_count"`
 			ManualProtectedCount int `json:"manual_protected_count"`
 		} `json:"result"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if body.Result.ManualProtectedCount != 1 {
-		t.Fatalf("manual protection count=%d, want 1: %s", body.Result.ManualProtectedCount, w.Body.String())
+	if body.Result.MovedCount != 1 || body.Result.ManualProtectedCount != 0 {
+		t.Fatalf("category deletion counts moved=%d manual=%d, want 1/0: %s",
+			body.Result.MovedCount, body.Result.ManualProtectedCount, w.Body.String())
 	}
 }
 
