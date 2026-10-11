@@ -49,7 +49,7 @@
 - NFR Requirements (CONDITIONAL, per-unit)
 - NFR Design (CONDITIONAL, per-unit)
 - Infrastructure Design (CONDITIONAL, per-unit)
-- Code Generation (ALWAYS) — includes Part 1: Planning and Part 2: Generation
+- Code Generation (ALWAYS) — includes Part 1: Planning, Part 2: Production Generation, and Part 3: Independent Review and Test Generation when model separation is configured
 - Build and Test (ALWAYS)
 
 **Outputs**: Design artifacts, NFR implementations, code, tests
@@ -72,7 +72,7 @@
 - **Workspace Detection**: Initial analysis of workspace state and project type
 - **Requirements Analysis**: Gathering requirements (depth varies based on complexity)
 - **Workflow Planning**: Creating execution plan for which phases to run
-- **Code Generation**: Single stage with two parts — Part 1 (Planning) creates detailed implementation plans, Part 2 (Generation) generates actual code based on plans and prior artifacts
+- **Code Generation**: Single stage with three parts when independent verification is configured — Part 1 creates detailed plans, Part 2 generates production code, and Part 3 uses a separate model to review production code and author/run tests
 - **Build and Test**: Building all units and executing comprehensive testing
 
 ### Conditional Stages

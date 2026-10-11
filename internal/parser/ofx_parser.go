@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -201,6 +202,14 @@ func (p *OFXParser) convertOFXTransaction(ofxTxn *ofxgo.Transaction, accountID i
 		amountFloat,
 		details,
 	)
+	if ofxTxn.SIC > 0 {
+		sicCode, err := model.ParseSICCode(strconv.FormatInt(int64(ofxTxn.SIC), 10))
+		if err != nil {
+			slog.Warn("Ignoring invalid parsed SIC value", slog.String("error", err.Error()))
+		} else {
+			transaction.SICCode = &sicCode
+		}
+	}
 
 	return transaction
 }

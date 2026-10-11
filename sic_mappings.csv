@@ -1,0 +1,982 @@
+SIC_Code,Description,Description_Detail,Category_Name,Category_ID
+742,Veterinary Services,Veterinary Services,Healthcare,12
+763,Agricultural Cooperative,Agricultural Co-operatives,,
+780,Landscaping Services,"Horticultural Services, Landscaping Services",Housing & Utilities,4
+1520,General Contractors,General Contractors-Residential and Commercial,Housing & Utilities,4
+1711,"Heating, Plumbing, A/C","Air Conditioning Contractors – Sales and Installation, Heating Contractors – Sales, Service, Installation",Housing & Utilities,4
+1731,Electrical Contractors,Electrical Contractors,Housing & Utilities,4
+1740,"Masonry, Stonework, and Plaster","Insulation – Contractors, Masonry, Stonework Contractors, Plastering Contractors, Stonework and Masonry Contractors, Tile Settings Contractors",Housing & Utilities,4
+1750,Carpentry Contractors,Carpentry Contractors,Housing & Utilities,4
+1761,"Roofing/Siding, Sheet Metal","Roofing – Contractors, Sheet Metal Work – Contractors, Siding – Contractors",Housing & Utilities,4
+1771,Concrete Work Contractors,Contractors – Concrete Work,Housing & Utilities,4
+1799,Special Trade Contractors,"Contractors – Special Trade, Not Elsewhere Classified",Housing & Utilities,4
+2741,Miscellaneous Publishing and Printing,Miscellaneous Publishing and Printing,,
+2791,"Typesetting, Plate Making, and Related Services","Typesetting, Plate Making, & Related Services",,
+2842,Specialty Cleaning,"Specialty Cleaning, Polishing, and Sanitation Preparations",Housing & Utilities,4
+3000,Airlines,UNITED AIRLINES,Travel/Transport,17
+3001,Airlines,AMERICAN AIRLINES,Travel/Transport,17
+3002,Airlines,PAN AMERICAN,Travel/Transport,17
+3003,Airlines,Airlines,Travel/Transport,17
+3004,Airlines,TRANS WORLD AIRLINES,Travel/Transport,17
+3005,Airlines,BRITISH AIRWAYS,Travel/Transport,17
+3006,Airlines,JAPAN AIRLINES,Travel/Transport,17
+3007,Airlines,AIR FRANCE,Travel/Transport,17
+3008,Airlines,LUFTHANSA,Travel/Transport,17
+3009,Airlines,AIR CANADA,Travel/Transport,17
+3010,Airlines,KLM (ROYAL DUTCH AIRLINES),Travel/Transport,17
+3011,Airlines,AEORFLOT,Travel/Transport,17
+3012,Airlines,QANTAS,Travel/Transport,17
+3013,Airlines,ALITALIA,Travel/Transport,17
+3014,Airlines,SAUDIA ARABIAN AIRLINES,Travel/Transport,17
+3015,Airlines,SWISSAIR,Travel/Transport,17
+3016,Airlines,SAS,Travel/Transport,17
+3017,Airlines,SOUTH AFRICAN AIRWAYS,Travel/Transport,17
+3018,Airlines,VARIG (BRAZIL),Travel/Transport,17
+3019,Airlines,Airlines,Travel/Transport,17
+3020,Airlines,AIR-INDIA,Travel/Transport,17
+3021,Airlines,AIR ALGERIE,Travel/Transport,17
+3022,Airlines,PHILIPPINE AIRLINES,Travel/Transport,17
+3023,Airlines,MEXICANA,Travel/Transport,17
+3024,Airlines,PAKISTAN INTERNATIONAL,Travel/Transport,17
+3025,Airlines,AIR NEW ZEALAND,Travel/Transport,17
+3026,Airlines,Airlines,Travel/Transport,17
+3027,Airlines,UTA/INTERAIR,Travel/Transport,17
+3028,Airlines,AIR MALTA,Travel/Transport,17
+3029,Airlines,SABENA,Travel/Transport,17
+3030,Airlines,AEROLINEAS ARGENTINAS,Travel/Transport,17
+3031,Airlines,OLYMPIC AIRWAYS,Travel/Transport,17
+3032,Airlines,EL AL,Travel/Transport,17
+3033,Airlines,ANSETT AIRLINES,Travel/Transport,17
+3034,Airlines,AUSTRAINLIAN AIRLINES,Travel/Transport,17
+3035,Airlines,TAP (PORTUGAL),Travel/Transport,17
+3036,Airlines,VASP (BRAZIL),Travel/Transport,17
+3037,Airlines,EGYPTAIR,Travel/Transport,17
+3038,Airlines,KUWAIT AIRLINES,Travel/Transport,17
+3039,Airlines,AVIANCA,Travel/Transport,17
+3040,Airlines,GULF AIR (BAHRAIN),Travel/Transport,17
+3041,Airlines,BALKAN-BULGARIAN AIRLINES,Travel/Transport,17
+3042,Airlines,FINNAIR,Travel/Transport,17
+3043,Airlines,AER LINGUS,Travel/Transport,17
+3044,Airlines,AIR LANKA,Travel/Transport,17
+3045,Airlines,NIGERIA AIRWAYS,Travel/Transport,17
+3046,Airlines,CRUZEIRO DO SUL (BRAZIJ),Travel/Transport,17
+3047,Airlines,THY (TURKEY),Travel/Transport,17
+3048,Airlines,ROYAL AIR MAROC,Travel/Transport,17
+3049,Airlines,TUNIS AIR,Travel/Transport,17
+3050,Airlines,ICELANDAIR,Travel/Transport,17
+3051,Airlines,AUSTRIAN AIRLINES,Travel/Transport,17
+3052,Airlines,LANCHILE,Travel/Transport,17
+3053,Airlines,AVIACO (SPAIN),Travel/Transport,17
+3054,Airlines,LADECO (CHILE),Travel/Transport,17
+3055,Airlines,LAB (BOLIVIA),Travel/Transport,17
+3056,Airlines,QUEBECAIRE,Travel/Transport,17
+3057,Airlines,EASTWEST AIRLINES (AUSTRALIA),Travel/Transport,17
+3058,Airlines,DELTA,Travel/Transport,17
+3059,Airlines,Airlines,Travel/Transport,17
+3060,Airlines,NORTHWEST,Travel/Transport,17
+3061,Airlines,CONTINENTAL,Travel/Transport,17
+3062,Airlines,WESTERN,Travel/Transport,17
+3063,Airlines,US AIR,Travel/Transport,17
+3064,Airlines,Airlines,Travel/Transport,17
+3065,Airlines,AIRINTER,Travel/Transport,17
+3066,Airlines,SOUTHWEST,Travel/Transport,17
+3067,Airlines,Airlines,Travel/Transport,17
+3068,Airlines,Airlines,Travel/Transport,17
+3069,Airlines,SUN COUNTRY AIRLINES,Travel/Transport,17
+3070,Airlines,Airlines,Travel/Transport,17
+3071,Airlines,AIR BRITISH COLUBIA,Travel/Transport,17
+3072,Airlines,Airlines,Travel/Transport,17
+3073,Airlines,Airlines,Travel/Transport,17
+3074,Airlines,Airlines,Travel/Transport,17
+3075,Airlines,SINGAPORE AIRLINES,Travel/Transport,17
+3076,Airlines,AEROMEXICO,Travel/Transport,17
+3077,Airlines,THAI AIRWAYS,Travel/Transport,17
+3078,Airlines,CHINA AIRLINES,Travel/Transport,17
+3079,Airlines,Airlines,Travel/Transport,17
+3080,Airlines,Airlines,Travel/Transport,17
+3081,Airlines,NORDAIR,Travel/Transport,17
+3082,Airlines,KOREAN AIRLINES,Travel/Transport,17
+3083,Airlines,AIR AFRIGUE,Travel/Transport,17
+3084,Airlines,EVA AIRLINES,Travel/Transport,17
+3085,Airlines,"MIDWEST EXPRESS AIRLINES, INC.",Travel/Transport,17
+3086,Airlines,Airlines,Travel/Transport,17
+3087,Airlines,METRO AIRLINES,Travel/Transport,17
+3088,Airlines,CROATIA AIRLINES,Travel/Transport,17
+3089,Airlines,TRANSAERO,Travel/Transport,17
+3090,Airlines,Airlines,Travel/Transport,17
+3091,Airlines,Airlines,Travel/Transport,17
+3092,Airlines,Airlines,Travel/Transport,17
+3093,Airlines,Airlines,Travel/Transport,17
+3094,Airlines,ZAMBIA AIRWAYS,Travel/Transport,17
+3095,Airlines,Airlines,Travel/Transport,17
+3096,Airlines,AIR ZIMBABWE,Travel/Transport,17
+3097,Airlines,Airlines,Travel/Transport,17
+3098,Airlines,Airlines,Travel/Transport,17
+3099,Airlines,CATHAY PACIFIC,Travel/Transport,17
+3100,Airlines,MALAYSIAN AIRLINE SYSTEM,Travel/Transport,17
+3101,Airlines,Airlines,Travel/Transport,17
+3102,Airlines,IBERIA,Travel/Transport,17
+3103,Airlines,GARUDA (INDONESIA),Travel/Transport,17
+3104,Airlines,Airlines,Travel/Transport,17
+3105,Airlines,Airlines,Travel/Transport,17
+3106,Airlines,BRAATHENS S.A.F.E. (NORWAY),Travel/Transport,17
+3107,Airlines,Airlines,Travel/Transport,17
+3108,Airlines,Airlines,Travel/Transport,17
+3109,Airlines,Airlines,Travel/Transport,17
+3110,Airlines,WINGS AIRWAYS,Travel/Transport,17
+3111,Airlines,BRITISH MIDLAND,Travel/Transport,17
+3112,Airlines,WINDWARD ISLAND,Travel/Transport,17
+3113,Airlines,Airlines,Travel/Transport,17
+3114,Airlines,Airlines,Travel/Transport,17
+3115,Airlines,Airlines,Travel/Transport,17
+3116,Airlines,Airlines,Travel/Transport,17
+3117,Airlines,VIASA,Travel/Transport,17
+3118,Airlines,VALLEY AIRLINES,Travel/Transport,17
+3119,Airlines,Airlines,Travel/Transport,17
+3120,Airlines,Airlines,Travel/Transport,17
+3121,Airlines,Airlines,Travel/Transport,17
+3122,Airlines,Airlines,Travel/Transport,17
+3123,Airlines,Airlines,Travel/Transport,17
+3124,Airlines,Airlines,Travel/Transport,17
+3125,Airlines,TAN,Travel/Transport,17
+3126,Airlines,TALAIR,Travel/Transport,17
+3127,Airlines,TACA INTERNATIONAL,Travel/Transport,17
+3128,Airlines,Airlines,Travel/Transport,17
+3129,Airlines,SURINAM AIRWAYS,Travel/Transport,17
+3130,Airlines,SUN WORLD INTERNATIONAL,Travel/Transport,17
+3131,Airlines,Airlines,Travel/Transport,17
+3132,Airlines,Airlines,Travel/Transport,17
+3133,Airlines,SUNBELT AIRLINES,Travel/Transport,17
+3134,Airlines,Airlines,Travel/Transport,17
+3135,Airlines,SUDAN AIRWAYS,Travel/Transport,17
+3136,Airlines,Airlines,Travel/Transport,17
+3137,Airlines,SINGLETON,Travel/Transport,17
+3138,Airlines,SIMMONS AIRLINES,Travel/Transport,17
+3139,Airlines,Airlines,Travel/Transport,17
+3140,Airlines,Airlines,Travel/Transport,17
+3141,Airlines,Airlines,Travel/Transport,17
+3142,Airlines,Airlines,Travel/Transport,17
+3143,Airlines,SCENIC AIRLINES,Travel/Transport,17
+3144,Airlines,VIRGIN ATLANTIC,Travel/Transport,17
+3145,Airlines,SAN JUAN AIRLINES,Travel/Transport,17
+3146,Airlines,LUXAIR,Travel/Transport,17
+3147,Airlines,Airlines,Travel/Transport,17
+3148,Airlines,Airlines,Travel/Transport,17
+3149,Airlines,Airlines,Travel/Transport,17
+3150,Airlines,Airlines,Travel/Transport,17
+3151,Airlines,AIR ZAIRE,Travel/Transport,17
+3152,Airlines,Airlines,Travel/Transport,17
+3153,Airlines,Airlines,Travel/Transport,17
+3154,Airlines,PRINCEVILLE,Travel/Transport,17
+3155,Airlines,Airlines,Travel/Transport,17
+3156,Airlines,Airlines,Travel/Transport,17
+3157,Airlines,Airlines,Travel/Transport,17
+3158,Airlines,Airlines,Travel/Transport,17
+3159,Airlines,PBA,Travel/Transport,17
+3160,Airlines,Airlines,Travel/Transport,17
+3161,Airlines,ALL NIPPON AIRWAYS,Travel/Transport,17
+3162,Airlines,Airlines,Travel/Transport,17
+3163,Airlines,Airlines,Travel/Transport,17
+3164,Airlines,NORONTAIR,Travel/Transport,17
+3165,Airlines,NEW YORK HELICOPTER,Travel/Transport,17
+3166,Airlines,Airlines,Travel/Transport,17
+3167,Airlines,Airlines,Travel/Transport,17
+3168,Airlines,Airlines,Travel/Transport,17
+3169,Airlines,Airlines,Travel/Transport,17
+3170,Airlines,NOUNT COOK,Travel/Transport,17
+3171,Airlines,CANADIAN AIRLINES INTERNATIONAL,Travel/Transport,17
+3172,Airlines,NATIONAIR,Travel/Transport,17
+3173,Airlines,Airlines,Travel/Transport,17
+3174,Airlines,Airlines,Travel/Transport,17
+3175,Airlines,Airlines,Travel/Transport,17
+3176,Airlines,METROFLIGHT AIRLINES,Travel/Transport,17
+3177,Airlines,Airlines,Travel/Transport,17
+3178,Airlines,MESA AIR,Travel/Transport,17
+3179,Airlines,Airlines,Travel/Transport,17
+3180,Airlines,Airlines,Travel/Transport,17
+3181,Airlines,MALEV,Travel/Transport,17
+3182,Airlines,LOT (POLAND),Travel/Transport,17
+3183,Airlines,Airlines,Travel/Transport,17
+3184,Airlines,LIAT,Travel/Transport,17
+3185,Airlines,LAV (VENEZUELA),Travel/Transport,17
+3186,Airlines,LAP (PARAGUAY),Travel/Transport,17
+3187,Airlines,LACSA (COSTA RICA),Travel/Transport,17
+3188,Airlines,Airlines,Travel/Transport,17
+3189,Airlines,Airlines,Travel/Transport,17
+3190,Airlines,JUGOSLAV AIR,Travel/Transport,17
+3191,Airlines,ISLAND AIRLINES,Travel/Transport,17
+3192,Airlines,IRAN AIR,Travel/Transport,17
+3193,Airlines,INDIAN AIRLINES,Travel/Transport,17
+3194,Airlines,Airlines,Travel/Transport,17
+3195,Airlines,Airlines,Travel/Transport,17
+3196,Airlines,HAWAIIAN AIR,Travel/Transport,17
+3197,Airlines,HAVASU AIRLINES,Travel/Transport,17
+3198,Airlines,Airlines,Travel/Transport,17
+3199,Airlines,Airlines,Travel/Transport,17
+3200,Airlines,FUYANA AIRWAYS,Travel/Transport,17
+3201,Airlines,Airlines,Travel/Transport,17
+3202,Airlines,Airlines,Travel/Transport,17
+3203,Airlines,GOLDEN PACIFIC AIR,Travel/Transport,17
+3204,Airlines,FREEDOM AIR,Travel/Transport,17
+3205,Airlines,Airlines,Travel/Transport,17
+3206,Airlines,Airlines,Travel/Transport,17
+3207,Airlines,Airlines,Travel/Transport,17
+3208,Airlines,Airlines,Travel/Transport,17
+3209,Airlines,Airlines,Travel/Transport,17
+3210,Airlines,Airlines,Travel/Transport,17
+3211,Airlines,Airlines,Travel/Transport,17
+3212,Airlines,DOMINICANA,Travel/Transport,17
+3213,Airlines,Airlines,Travel/Transport,17
+3214,Airlines,Airlines,Travel/Transport,17
+3215,Airlines,DAN AIR SERVICES,Travel/Transport,17
+3216,Airlines,CUMBERLAND AIRLINES,Travel/Transport,17
+3217,Airlines,CSA,Travel/Transport,17
+3218,Airlines,CROWN AIR,Travel/Transport,17
+3219,Airlines,COPA,Travel/Transport,17
+3220,Airlines,COMPANIA FAUCETT,Travel/Transport,17
+3221,Airlines,TRANSPORTES AEROS MILITARES ECCUATORANOS,Travel/Transport,17
+3222,Airlines,COMMAND AIRWAYS,Travel/Transport,17
+3223,Airlines,COMAIR,Travel/Transport,17
+3224,Airlines,Airlines,Travel/Transport,17
+3225,Airlines,Airlines,Travel/Transport,17
+3226,Airlines,Airlines,Travel/Transport,17
+3227,Airlines,Airlines,Travel/Transport,17
+3228,Airlines,CAYMAN AIRWAYS,Travel/Transport,17
+3229,Airlines,SAETA SOCIAEDAD ECUATORIANOS DE TRANSPORTES AEREOS,Travel/Transport,17
+3230,Airlines,Airlines,Travel/Transport,17
+3231,Airlines,SASHA SERVICIO AERO DE HONDURAS,Travel/Transport,17
+3232,Airlines,Airlines,Travel/Transport,17
+3233,Airlines,CAPITOL AIR,Travel/Transport,17
+3234,Airlines,BWIA,Travel/Transport,17
+3235,Airlines,BROKWAY AIR,Travel/Transport,17
+3236,Airlines,Airlines,Travel/Transport,17
+3237,Airlines,Airlines,Travel/Transport,17
+3238,Airlines,BEMIDJI AIRLINES,Travel/Transport,17
+3239,Airlines,BAR HARBOR AIRLINES,Travel/Transport,17
+3240,Airlines,BAHAMASAIR,Travel/Transport,17
+3241,Airlines,AVIATECA (GUATEMALA),Travel/Transport,17
+3242,Airlines,AVENSA,Travel/Transport,17
+3243,Airlines,AUSTRIAN AIR SERVICE,Travel/Transport,17
+3244,Airlines,Airlines,Travel/Transport,17
+3245,Airlines,Airlines,Travel/Transport,17
+3246,Airlines,Airlines,Travel/Transport,17
+3247,Airlines,Airlines,Travel/Transport,17
+3248,Airlines,Airlines,Travel/Transport,17
+3249,Airlines,Airlines,Travel/Transport,17
+3250,Airlines,Airlines,Travel/Transport,17
+3251,Airlines,ALOHA AIRLINES,Travel/Transport,17
+3252,Airlines,ALM,Travel/Transport,17
+3253,Airlines,AMERICA WEST,Travel/Transport,17
+3254,Airlines,TRUMP AIRLINE,Travel/Transport,17
+3255,Airlines,Airlines,Travel/Transport,17
+3256,Airlines,ALASKA AIRLINES,Travel/Transport,17
+3257,Airlines,Airlines,Travel/Transport,17
+3258,Airlines,Airlines,Travel/Transport,17
+3259,Airlines,AMERICAN TRANS AIR,Travel/Transport,17
+3260,Airlines,Airlines,Travel/Transport,17
+3261,Airlines,AIR CHINA,Travel/Transport,17
+3262,Airlines,"RENO AIR, INC.",Travel/Transport,17
+3263,Airlines,Airlines,Travel/Transport,17
+3264,Airlines,Airlines,Travel/Transport,17
+3265,Airlines,Airlines,Travel/Transport,17
+3266,Airlines,AIR SEYCHELLES,Travel/Transport,17
+3267,Airlines,AIR PANAMA,Travel/Transport,17
+3268,Airlines,Airlines,Travel/Transport,17
+3269,Airlines,Airlines,Travel/Transport,17
+3270,Airlines,Airlines,Travel/Transport,17
+3271,Airlines,Airlines,Travel/Transport,17
+3272,Airlines,Airlines,Travel/Transport,17
+3273,Airlines,Airlines,Travel/Transport,17
+3274,Airlines,Airlines,Travel/Transport,17
+3275,Airlines,Airlines,Travel/Transport,17
+3276,Airlines,Airlines,Travel/Transport,17
+3277,Airlines,Airlines,Travel/Transport,17
+3278,Airlines,Airlines,Travel/Transport,17
+3279,Airlines,Airlines,Travel/Transport,17
+3280,Airlines,AIR JAMAICA,Travel/Transport,17
+3281,Airlines,Airlines,Travel/Transport,17
+3282,Airlines,AIR DJIBOUTI,Travel/Transport,17
+3283,Airlines,Airlines,Travel/Transport,17
+3284,Airlines,AERO VIRGIN ISLANDS,Travel/Transport,17
+3285,Airlines,AERO PERU,Travel/Transport,17
+3286,Airlines,AEROLINEAS NICARAGUENSIS,Travel/Transport,17
+3287,Airlines,AERO COACH AVAIATION,Travel/Transport,17
+3288,Airlines,Airlines,Travel/Transport,17
+3289,Airlines,Airlines,Travel/Transport,17
+3290,Airlines,Airlines,Travel/Transport,17
+3291,Airlines,ARIANA AFGHAN,Travel/Transport,17
+3292,Airlines,CYPRUS AIRWAYS,Travel/Transport,17
+3293,Airlines,ECUATORIANA,Travel/Transport,17
+3294,Airlines,ETHIOPIAN AIRLINES,Travel/Transport,17
+3295,Airlines,KENYA AIRLINES,Travel/Transport,17
+3296,Airlines,Airlines,Travel/Transport,17
+3297,Airlines,Airlines,Travel/Transport,17
+3298,Airlines,AIR MAURITIUS,Travel/Transport,17
+3299,Airlines,WIDERO’S FLYVESELSKAP,Travel/Transport,17
+3351,Car Rental,AFFILIATED AUTO RENTAL,Travel/Transport,17
+3352,Car Rental,AMERICAN INTL RENT-A-CAR,Travel/Transport,17
+3353,Car Rental,BROOKS RENT-A-CAR,Travel/Transport,17
+3354,Car Rental,ACTION AUTO RENTAL,Travel/Transport,17
+3355,Car Rental,Car Rental,Travel/Transport,17
+3356,Car Rental,Car Rental,Travel/Transport,17
+3357,Car Rental,HERTZ RENT-A-CAR,Travel/Transport,17
+3358,Car Rental,Car Rental,Travel/Transport,17
+3359,Car Rental,PAYLESS CAR RENTAL,Travel/Transport,17
+3360,Car Rental,SNAPPY CAR RENTAL,Travel/Transport,17
+3361,Car Rental,AIRWAYS RENT-A-CAR,Travel/Transport,17
+3362,Car Rental,ALTRA AUTO RENTAL,Travel/Transport,17
+3363,Car Rental,Car Rental,Travel/Transport,17
+3364,Car Rental,AGENCY RENT-A-CAR,Travel/Transport,17
+3365,Car Rental,Car Rental,Travel/Transport,17
+3366,Car Rental,BUDGET RENT-A-CAR,Travel/Transport,17
+3367,Car Rental,Car Rental,Travel/Transport,17
+3368,Car Rental,HOLIDAY RENT-A-WRECK,Travel/Transport,17
+3369,Car Rental,Car Rental,Travel/Transport,17
+3370,Car Rental,RENT-A-WRECK,Travel/Transport,17
+3371,Car Rental,Car Rental,Travel/Transport,17
+3372,Car Rental,Car Rental,Travel/Transport,17
+3373,Car Rental,Car Rental,Travel/Transport,17
+3374,Car Rental,Car Rental,Travel/Transport,17
+3375,Car Rental,Car Rental,Travel/Transport,17
+3376,Car Rental,AJAX RENT-A-CAR,Travel/Transport,17
+3377,Car Rental,Car Rental,Travel/Transport,17
+3378,Car Rental,Car Rental,Travel/Transport,17
+3379,Car Rental,Car Rental,Travel/Transport,17
+3380,Car Rental,Car Rental,Travel/Transport,17
+3381,Car Rental,EUROP CAR,Travel/Transport,17
+3382,Car Rental,Car Rental,Travel/Transport,17
+3383,Car Rental,Car Rental,Travel/Transport,17
+3384,Car Rental,Car Rental,Travel/Transport,17
+3385,Car Rental,TROPICAL RENT-A-CAR,Travel/Transport,17
+3386,Car Rental,SHOWCASE RENTAL CARS,Travel/Transport,17
+3387,Car Rental,ALAMO RENT-A-CAR,Travel/Transport,17
+3388,Car Rental,Car Rental,Travel/Transport,17
+3389,Car Rental,AVIS RENT-A-CAR,Travel/Transport,17
+3390,Car Rental,DOLLAR RENT-A-CAR,Travel/Transport,17
+3391,Car Rental,EUROPE BY CAR,Travel/Transport,17
+3392,Car Rental,Car Rental,Travel/Transport,17
+3393,Car Rental,NATIONAL CAR RENTAL,Travel/Transport,17
+3394,Car Rental,KEMWELL GROUP RENT-A-CAR,Travel/Transport,17
+3395,Car Rental,THRIFTY RENT-A-CAR,Travel/Transport,17
+3396,Car Rental,TILDEN TENT-A-CAR,Travel/Transport,17
+3397,Car Rental,Car Rental,Travel/Transport,17
+3398,Car Rental,ECONO-CAR RENT-A-CAR,Travel/Transport,17
+3399,Car Rental,Car Rental,Travel/Transport,17
+3400,Car Rental,AUTO HOST COST CAR RENTALS,Travel/Transport,17
+3401,Car Rental,Car Rental,Travel/Transport,17
+3402,Car Rental,Car Rental,Travel/Transport,17
+3403,Car Rental,Car Rental,Travel/Transport,17
+3404,Car Rental,Car Rental,Travel/Transport,17
+3405,Car Rental,ENTERPRISE RENT-A-CAR,Travel/Transport,17
+3406,Car Rental,Car Rental,Travel/Transport,17
+3407,Car Rental,Car Rental,Travel/Transport,17
+3408,Car Rental,Car Rental,Travel/Transport,17
+3409,Car Rental,GENERAL RENT-A-CAR,Travel/Transport,17
+3410,Car Rental,Car Rental,Travel/Transport,17
+3411,Car Rental,Car Rental,Travel/Transport,17
+3412,Car Rental,A-1 RENT-A-CAR,Travel/Transport,17
+3413,Car Rental,Car Rental,Travel/Transport,17
+3414,Car Rental,GODFREY NATL RENT-A-CAR,Travel/Transport,17
+3415,Car Rental,Car Rental,Travel/Transport,17
+3416,Car Rental,Car Rental,Travel/Transport,17
+3417,Car Rental,Car Rental,Travel/Transport,17
+3418,Car Rental,Car Rental,Travel/Transport,17
+3419,Car Rental,ALPHA RENT-A-CAR,Travel/Transport,17
+3420,Car Rental,ANSA INTL RENT-A-CAR,Travel/Transport,17
+3421,Car Rental,ALLSTAE RENT-A-CAR,Travel/Transport,17
+3422,Car Rental,Car Rental,Travel/Transport,17
+3423,Car Rental,AVCAR RENT-A-CAR,Travel/Transport,17
+3424,Car Rental,Car Rental,Travel/Transport,17
+3425,Car Rental,AUTOMATE RENT-A-CAR,Travel/Transport,17
+3426,Car Rental,Car Rental,Travel/Transport,17
+3427,Car Rental,AVON RENT-A-CAR,Travel/Transport,17
+3428,Car Rental,CAREY RENT-A-CAR,Travel/Transport,17
+3429,Car Rental,INSURANCE RENT-A-CAR,Insurance,7
+3430,Car Rental,MAJOR RENT-A-CAR,Travel/Transport,17
+3431,Car Rental,REPLACEMENT RENT-A-CAR,Travel/Transport,17
+3432,Car Rental,RESERVE RENT-A-CAR,Travel/Transport,17
+3433,Car Rental,UGLY DUCKLING RENT-A-CAR,Travel/Transport,17
+3434,Car Rental,USA RENT-A-CAR,Travel/Transport,17
+3435,Car Rental,VALUE RENT-A-CAR,Travel/Transport,17
+3436,Car Rental,AUTOHANSA RENT-A-CAR,Travel/Transport,17
+3437,Car Rental,CITE RENT-A-CAR,Travel/Transport,17
+3438,Car Rental,INTERENT RENT-A-CAR,Travel/Transport,17
+3439,Car Rental,MILLEVILLE RENT-A-CAR,Travel/Transport,17
+3440,Car Rental,VIA ROUTE RENT-A-CAR,Travel/Transport,17
+3441,Car Rental,Car Rental,Travel/Transport,17
+3501,Hotels/Motels/Inns/Resorts,"HOLIDAY INNS, HOLIDAY INN EXPRESS",Travel/Transport,17
+3502,Hotels/Motels/Inns/Resorts,BEST WESTERN HOTELS,Travel/Transport,17
+3503,Hotels/Motels/Inns/Resorts,SHERATON HOTELS,Travel/Transport,17
+3504,Hotels/Motels/Inns/Resorts,HILTON HOTELS,Travel/Transport,17
+3505,Hotels/Motels/Inns/Resorts,FORTE HOTELS,Travel/Transport,17
+3506,Hotels/Motels/Inns/Resorts,GOLDEN TULIP HOTELS,Travel/Transport,17
+3507,Hotels/Motels/Inns/Resorts,FRIENDSHIP INNS,Travel/Transport,17
+3508,Hotels/Motels/Inns/Resorts,"QUALITY INNS, QUALITY SUITES",Travel/Transport,17
+3509,Hotels/Motels/Inns/Resorts,MARRIOTT HOTELS,Travel/Transport,17
+3510,Hotels/Motels/Inns/Resorts,"DAYS INN, DAYSTOP",Travel/Transport,17
+3511,Hotels/Motels/Inns/Resorts,ARABELLA HOTELS,Travel/Transport,17
+3512,Hotels/Motels/Inns/Resorts,INTER-CONTINENTAL HOTELS,Travel/Transport,17
+3513,Hotels/Motels/Inns/Resorts,WESTIN HOTELS,Travel/Transport,17
+3514,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3515,Hotels/Motels/Inns/Resorts,RODEWAY INNS,Travel/Transport,17
+3516,Hotels/Motels/Inns/Resorts,LA QUINTA MOTOR INNS,Travel/Transport,17
+3517,Hotels/Motels/Inns/Resorts,AMERICANA HOTELS,Travel/Transport,17
+3518,Hotels/Motels/Inns/Resorts,SOL HOTELS,Travel/Transport,17
+3519,Hotels/Motels/Inns/Resorts,PULLMAN INTERNATIONAL HOTELS,Travel/Transport,17
+3520,Hotels/Motels/Inns/Resorts,MERIDIEN HOTELS,Travel/Transport,17
+3521,Hotels/Motels/Inns/Resorts,CREST HOTELS (see FORTE HOTELS),Travel/Transport,17
+3522,Hotels/Motels/Inns/Resorts,TOKYO HOTEL,Travel/Transport,17
+3523,Hotels/Motels/Inns/Resorts,PENNSULA HOTEL,Travel/Transport,17
+3524,Hotels/Motels/Inns/Resorts,WELCOMGROUP HOTELS,Travel/Transport,17
+3525,Hotels/Motels/Inns/Resorts,DUNFEY HOTELS,Travel/Transport,17
+3526,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3527,Hotels/Motels/Inns/Resorts,DOWNTOWNER-PASSPORT HOTEL,Travel/Transport,17
+3528,Hotels/Motels/Inns/Resorts,"RED LION HOTELS, RED LION INNS",Travel/Transport,17
+3529,Hotels/Motels/Inns/Resorts,CP HOTELS,Travel/Transport,17
+3530,Hotels/Motels/Inns/Resorts,"RENAISSANCE HOTELS, STOUFFER HOTELS",Travel/Transport,17
+3531,Hotels/Motels/Inns/Resorts,ASTIR HOTELS,Travel/Transport,17
+3532,Hotels/Motels/Inns/Resorts,SUN ROUTE HOTELS,Travel/Transport,17
+3533,Hotels/Motels/Inns/Resorts,HOTEL IBIS,Travel/Transport,17
+3534,Hotels/Motels/Inns/Resorts,SOUTHERN PACIFIC HOTELS,Travel/Transport,17
+3535,Hotels/Motels/Inns/Resorts,HILTON INTERNATIONAL,Travel/Transport,17
+3536,Hotels/Motels/Inns/Resorts,AMFAC HOTELS,Travel/Transport,17
+3537,Hotels/Motels/Inns/Resorts,ANA HOTEL,Travel/Transport,17
+3538,Hotels/Motels/Inns/Resorts,CONCORDE HOTELS,Travel/Transport,17
+3539,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3540,Hotels/Motels/Inns/Resorts,IBEROTEL HOTELS,Travel/Transport,17
+3541,Hotels/Motels/Inns/Resorts,HOTEL OKURA,Travel/Transport,17
+3542,Hotels/Motels/Inns/Resorts,ROYAL HOTELS,Travel/Transport,17
+3543,Hotels/Motels/Inns/Resorts,FOUR SEASONS HOTELS,Travel/Transport,17
+3544,Hotels/Motels/Inns/Resorts,CIGA HOTELS,Travel/Transport,17
+3545,Hotels/Motels/Inns/Resorts,SHANGRI-LA INTERNATIONAL,Travel/Transport,17
+3546,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3547,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3548,Hotels/Motels/Inns/Resorts,HOTELES MELIA,Travel/Transport,17
+3549,Hotels/Motels/Inns/Resorts,AUBERGE DES GOVERNEURS,Travel/Transport,17
+3550,Hotels/Motels/Inns/Resorts,REGAL 8 INNS,Travel/Transport,17
+3551,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3552,Hotels/Motels/Inns/Resorts,COAST HOTELS,Travel/Transport,17
+3553,Hotels/Motels/Inns/Resorts,PARK INNS INTERNATIONAL,Travel/Transport,17
+3554,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3555,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3556,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3557,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3558,Hotels/Motels/Inns/Resorts,JOLLY HOTELS,Travel/Transport,17
+3559,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3560,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3561,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3562,Hotels/Motels/Inns/Resorts,COMFORT INNS,Travel/Transport,17
+3563,Hotels/Motels/Inns/Resorts,JOURNEY’S END MOTLS,Travel/Transport,17
+3564,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3565,Hotels/Motels/Inns/Resorts,RELAX INNS,Travel/Transport,17
+3566,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3567,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3568,Hotels/Motels/Inns/Resorts,LADBROKE HOTELS,Travel/Transport,17
+3569,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3570,Hotels/Motels/Inns/Resorts,FORUM HOTELS,Travel/Transport,17
+3571,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3572,Hotels/Motels/Inns/Resorts,MIYAKO HOTELS,Travel/Transport,17
+3573,Hotels/Motels/Inns/Resorts,SANDMAN HOTELS,Travel/Transport,17
+3574,Hotels/Motels/Inns/Resorts,VENTURE INNS,Travel/Transport,17
+3575,Hotels/Motels/Inns/Resorts,VAGABOND HOTELS,Travel/Transport,17
+3576,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3577,Hotels/Motels/Inns/Resorts,MANDARIN ORIENTAL HOTEL,Travel/Transport,17
+3578,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3579,Hotels/Motels/Inns/Resorts,HOTEL MERCURE,Travel/Transport,17
+3580,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3581,Hotels/Motels/Inns/Resorts,DELTA HOTEL,Travel/Transport,17
+3582,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3583,Hotels/Motels/Inns/Resorts,SAS HOTELS,Travel/Transport,17
+3584,Hotels/Motels/Inns/Resorts,PRINCESS HOTELS INTERNATIONAL,Travel/Transport,17
+3585,Hotels/Motels/Inns/Resorts,HUNGAR HOTELS,Travel/Transport,17
+3586,Hotels/Motels/Inns/Resorts,SOKOS HOTELS,Travel/Transport,17
+3587,Hotels/Motels/Inns/Resorts,DORAL HOTELS,Travel/Transport,17
+3588,Hotels/Motels/Inns/Resorts,HELMSLEY HOTELS,Travel/Transport,17
+3589,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3590,Hotels/Motels/Inns/Resorts,FAIRMONT HOTELS,Travel/Transport,17
+3591,Hotels/Motels/Inns/Resorts,SONESTA HOTELS,Travel/Transport,17
+3592,Hotels/Motels/Inns/Resorts,OMNI HOTELS,Travel/Transport,17
+3593,Hotels/Motels/Inns/Resorts,CUNARD HOTELS,Travel/Transport,17
+3594,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3595,Hotels/Motels/Inns/Resorts,HOSPITALITY INTERNATIONAL,Healthcare,12
+3596,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3597,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3598,Hotels/Motels/Inns/Resorts,REGENT INTERNATIONAL HOTELS,Travel/Transport,17
+3599,Hotels/Motels/Inns/Resorts,PANNONIA HOTELS,Travel/Transport,17
+3600,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3601,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3602,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3603,Hotels/Motels/Inns/Resorts,NOAH’S HOTELS,Travel/Transport,17
+3604,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3605,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3606,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3607,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3608,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3609,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3610,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3611,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3612,Hotels/Motels/Inns/Resorts,MOVENPICK HOTELS,Travel/Transport,17
+3613,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3614,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3615,Hotels/Motels/Inns/Resorts,TRAVELODGE,Travel/Transport,17
+3616,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3617,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3618,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3619,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3620,Hotels/Motels/Inns/Resorts,TELFORD INTERNATIONAL,Travel/Transport,17
+3621,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3622,Hotels/Motels/Inns/Resorts,MERLIN HOTELS,Travel/Transport,17
+3623,Hotels/Motels/Inns/Resorts,DORINT HOTELS,Travel/Transport,17
+3624,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3625,Hotels/Motels/Inns/Resorts,HOTLE UNIVERSALE,Travel/Transport,17
+3626,Hotels/Motels/Inns/Resorts,PRINCE HOTELS,Travel/Transport,17
+3627,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3628,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3629,Hotels/Motels/Inns/Resorts,DAN HOTELS,Travel/Transport,17
+3630,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3631,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3632,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3633,Hotels/Motels/Inns/Resorts,RANK HOTELS,Travel/Transport,17
+3634,Hotels/Motels/Inns/Resorts,SWISSOTEL,Travel/Transport,17
+3635,Hotels/Motels/Inns/Resorts,RESO HOTELS,Travel/Transport,17
+3636,Hotels/Motels/Inns/Resorts,SAROVA HOTELS,Travel/Transport,17
+3637,Hotels/Motels/Inns/Resorts,"RAMADA INNS, RAMADA LIMITED",Travel/Transport,17
+3638,Hotels/Motels/Inns/Resorts,"HO JO INN, HOWARD JOHNSON",Travel/Transport,17
+3639,Hotels/Motels/Inns/Resorts,MOUNT CHARLOTTE THISTLE,Travel/Transport,17
+3640,Hotels/Motels/Inns/Resorts,HYATT HOTEL,Travel/Transport,17
+3641,Hotels/Motels/Inns/Resorts,SOFITEL HOTELS,Travel/Transport,17
+3642,Hotels/Motels/Inns/Resorts,NOVOTEL HOTELS,Travel/Transport,17
+3643,Hotels/Motels/Inns/Resorts,STEIGENBERGER HOTELS,Travel/Transport,17
+3644,Hotels/Motels/Inns/Resorts,ECONO LODGES,Travel/Transport,17
+3645,Hotels/Motels/Inns/Resorts,QUEENS MOAT HOUSES,Travel/Transport,17
+3646,Hotels/Motels/Inns/Resorts,SWALLOW HOTELS,Travel/Transport,17
+3647,Hotels/Motels/Inns/Resorts,HUSA HOTELS,Travel/Transport,17
+3648,Hotels/Motels/Inns/Resorts,DE VERE HOTELS,Travel/Transport,17
+3649,Hotels/Motels/Inns/Resorts,RADISSON HOTELS,Travel/Transport,17
+3650,Hotels/Motels/Inns/Resorts,RED ROOK INNS,Travel/Transport,17
+3651,Hotels/Motels/Inns/Resorts,IMPERIAL LONDON HOTEL,Travel/Transport,17
+3652,Hotels/Motels/Inns/Resorts,EMBASSY HOTELS,Travel/Transport,17
+3653,Hotels/Motels/Inns/Resorts,PENTA HOTELS,Travel/Transport,17
+3654,Hotels/Motels/Inns/Resorts,LOEWS HOTELS,Travel/Transport,17
+3655,Hotels/Motels/Inns/Resorts,SCANDIC HOTELS,Travel/Transport,17
+3656,Hotels/Motels/Inns/Resorts,SARA HOTELS,Travel/Transport,17
+3657,Hotels/Motels/Inns/Resorts,OBEROI HOTELS,Travel/Transport,17
+3658,Hotels/Motels/Inns/Resorts,OTANI HOTELS,Travel/Transport,17
+3659,Hotels/Motels/Inns/Resorts,TAJ HOTELS INTERNATIONAL,Travel/Transport,17
+3660,Hotels/Motels/Inns/Resorts,KNIGHTS INNS,Travel/Transport,17
+3661,Hotels/Motels/Inns/Resorts,METROPOLE HOTELS,Travel/Transport,17
+3662,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3663,Hotels/Motels/Inns/Resorts,HOTELES EL PRESIDENTS,Travel/Transport,17
+3664,Hotels/Motels/Inns/Resorts,FLAG INN,Travel/Transport,17
+3665,Hotels/Motels/Inns/Resorts,HAMPTON INNS,Travel/Transport,17
+3666,Hotels/Motels/Inns/Resorts,STAKIS HOTELS,Travel/Transport,17
+3667,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3668,Hotels/Motels/Inns/Resorts,MARITIM HOTELS,Travel/Transport,17
+3669,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3670,Hotels/Motels/Inns/Resorts,ARCARD HOTELS,Travel/Transport,17
+3671,Hotels/Motels/Inns/Resorts,ARCTIA HOTELS,Travel/Transport,17
+3672,Hotels/Motels/Inns/Resorts,CAMPANIEL HOTELS,Travel/Transport,17
+3673,Hotels/Motels/Inns/Resorts,IBUSZ HOTELS,Travel/Transport,17
+3674,Hotels/Motels/Inns/Resorts,RANTASIPI HOTELS,Travel/Transport,17
+3675,Hotels/Motels/Inns/Resorts,INTERHOTEL CEDOK,Travel/Transport,17
+3676,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3677,Hotels/Motels/Inns/Resorts,CLIMAT DE FRANCE HOTELS,Travel/Transport,17
+3678,Hotels/Motels/Inns/Resorts,CUMULUS HOTELS,Travel/Transport,17
+3679,Hotels/Motels/Inns/Resorts,DANUBIUS HOTEL,Travel/Transport,17
+3680,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3681,Hotels/Motels/Inns/Resorts,ADAMS MARK HOTELS,Travel/Transport,17
+3682,Hotels/Motels/Inns/Resorts,ALLSTAR INNS,Travel/Transport,17
+3683,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3684,Hotels/Motels/Inns/Resorts,BUDGET HOST INNS,Travel/Transport,17
+3685,Hotels/Motels/Inns/Resorts,BUDGETEL HOTELS,Travel/Transport,17
+3686,Hotels/Motels/Inns/Resorts,SUISSE CHALETS,Travel/Transport,17
+3687,Hotels/Motels/Inns/Resorts,CLARION HOTELS,Travel/Transport,17
+3688,Hotels/Motels/Inns/Resorts,COMPRI HOTELS,Travel/Transport,17
+3689,Hotels/Motels/Inns/Resorts,CONSORT HOTELS,Travel/Transport,17
+3690,Hotels/Motels/Inns/Resorts,COURTYARD BY MARRIOTT,Travel/Transport,17
+3691,Hotels/Motels/Inns/Resorts,DILLION INNS,Travel/Transport,17
+3692,Hotels/Motels/Inns/Resorts,DOUBLETREE HOTELS,Travel/Transport,17
+3693,Hotels/Motels/Inns/Resorts,DRURY INNS,Travel/Transport,17
+3694,Hotels/Motels/Inns/Resorts,ECONOMY INNS OF AMERICA,Travel/Transport,17
+3695,Hotels/Motels/Inns/Resorts,EMBASSY SUITES,Travel/Transport,17
+3696,Hotels/Motels/Inns/Resorts,EXEL INNS,Travel/Transport,17
+3697,Hotels/Motels/Inns/Resorts,FARFIELD HOTELS,Travel/Transport,17
+3698,Hotels/Motels/Inns/Resorts,HARLEY HOTELS,Travel/Transport,17
+3699,Hotels/Motels/Inns/Resorts,MIDWAY MOTOR LODGE,Travel/Transport,17
+3700,Hotels/Motels/Inns/Resorts,MOTEL 6,Travel/Transport,17
+3701,Hotels/Motels/Inns/Resorts,GUEST QUARTERS (Formally PICKETT SUITE HOTELS),Travel/Transport,17
+3702,Hotels/Motels/Inns/Resorts,THE REGISTRY HOTELS,Travel/Transport,17
+3703,Hotels/Motels/Inns/Resorts,RESIDENCE INNS,Travel/Transport,17
+3704,Hotels/Motels/Inns/Resorts,ROYCE HOTELS,Travel/Transport,17
+3705,Hotels/Motels/Inns/Resorts,SANDMAN INNS,Travel/Transport,17
+3706,Hotels/Motels/Inns/Resorts,SHILO INNS,Travel/Transport,17
+3707,Hotels/Motels/Inns/Resorts,SHONEY’S INNS,Travel/Transport,17
+3708,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3709,Hotels/Motels/Inns/Resorts,SUPER8 MOTELS,Travel/Transport,17
+3710,Hotels/Motels/Inns/Resorts,THE RITZ CARLTON HOTELS,Travel/Transport,17
+3711,Hotels/Motels/Inns/Resorts,FLAG INNS (AUSRALIA),Travel/Transport,17
+3712,Hotels/Motels/Inns/Resorts,GOLDEN CHAIN HOTEL,Travel/Transport,17
+3713,Hotels/Motels/Inns/Resorts,QUALITY PACIFIC HOTEL,Travel/Transport,17
+3714,Hotels/Motels/Inns/Resorts,FOUR SEASONS HOTEL (AUSTRALIA),Travel/Transport,17
+3715,Hotels/Motels/Inns/Resorts,FARIFIELD INN,Travel/Transport,17
+3716,Hotels/Motels/Inns/Resorts,CARLTON HOTELS,Travel/Transport,17
+3717,Hotels/Motels/Inns/Resorts,CITY LODGE HOTELS,Travel/Transport,17
+3718,Hotels/Motels/Inns/Resorts,KAROS HOTELS,Travel/Transport,17
+3719,Hotels/Motels/Inns/Resorts,PROTEA HOTELS,Travel/Transport,17
+3720,Hotels/Motels/Inns/Resorts,SOUTHERN SUN HOTELS,Travel/Transport,17
+3721,Hotels/Motels/Inns/Resorts,HILTON CONRAD,Travel/Transport,17
+3722,Hotels/Motels/Inns/Resorts,WYNDHAM HOTEL AND RESORTS,Travel/Transport,17
+3723,Hotels/Motels/Inns/Resorts,RICA HOTELS,Travel/Transport,17
+3724,Hotels/Motels/Inns/Resorts,INER NOR HOTELS,Travel/Transport,17
+3725,Hotels/Motels/Inns/Resorts,SEAINES PLANATION,Travel/Transport,17
+3726,Hotels/Motels/Inns/Resorts,RIO SUITES,Travel/Transport,17
+3727,Hotels/Motels/Inns/Resorts,BROADMOOR HOTEL,Travel/Transport,17
+3728,Hotels/Motels/Inns/Resorts,BALLY’S HOTEL AND CASINO,Travel/Transport,17
+3729,Hotels/Motels/Inns/Resorts,JOHN ASCUAGA’S NUGGET,Travel/Transport,17
+3730,Hotels/Motels/Inns/Resorts,MGM GRAND HOTEL,Travel/Transport,17
+3731,Hotels/Motels/Inns/Resorts,HARRAH’S HOTELS AND CASINOS,Travel/Transport,17
+3732,Hotels/Motels/Inns/Resorts,OPRYLAND HOTEL,Travel/Transport,17
+3733,Hotels/Motels/Inns/Resorts,BOCA RATON RESORT,Travel/Transport,17
+3734,Hotels/Motels/Inns/Resorts,HARVEY/BRISTOL HOTELS,Travel/Transport,17
+3735,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3736,Hotels/Motels/Inns/Resorts,COLORADO BELLE/EDGEWATER RESORT,Travel/Transport,17
+3737,Hotels/Motels/Inns/Resorts,RIVIERA HOTEL AND CASINO,Travel/Transport,17
+3738,Hotels/Motels/Inns/Resorts,TROPICANA RESORT AND CASINO,Travel/Transport,17
+3739,Hotels/Motels/Inns/Resorts,WOODSIDE HOTELS AND RESORTS,Travel/Transport,17
+3740,Hotels/Motels/Inns/Resorts,TOWNPLACE SUITES,Travel/Transport,17
+3741,Hotels/Motels/Inns/Resorts,MILLENIUM BROADWAY HOTEL,Travel/Transport,17
+3742,Hotels/Motels/Inns/Resorts,CLUB MED,Travel/Transport,17
+3743,Hotels/Motels/Inns/Resorts,BILTMORE HOTEL AND SUITES,Travel/Transport,17
+3744,Hotels/Motels/Inns/Resorts,CAREFREE RESORTS,Travel/Transport,17
+3745,Hotels/Motels/Inns/Resorts,ST. REGIS HOTEL,Travel/Transport,17
+3746,Hotels/Motels/Inns/Resorts,THE ELIOT HOTEL,Travel/Transport,17
+3747,Hotels/Motels/Inns/Resorts,CLUBCORP/CLUB RESORTS,Travel/Transport,17
+3748,Hotels/Motels/Inns/Resorts,WELESLEY INNS,Travel/Transport,17
+3749,Hotels/Motels/Inns/Resorts,THE BEVERLY HILLS HOTEL,Travel/Transport,17
+3750,Hotels/Motels/Inns/Resorts,CROWNE PLAZA HOTELS,Travel/Transport,17
+3751,Hotels/Motels/Inns/Resorts,HOMEWOOD SUITES,Travel/Transport,17
+3752,Hotels/Motels/Inns/Resorts,PEABODY HOTELS,Travel/Transport,17
+3753,Hotels/Motels/Inns/Resorts,GREENBRIAH RESORTS,Travel/Transport,17
+3754,Hotels/Motels/Inns/Resorts,AMELIA ISLAND PLANATION,Travel/Transport,17
+3755,Hotels/Motels/Inns/Resorts,THE HOMESTEAD,Travel/Transport,17
+3756,Hotels/Motels/Inns/Resorts,SOUTH SEAS RESORTS,Travel/Transport,17
+3757,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3758,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3759,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3760,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3761,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3762,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3763,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3764,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3765,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3766,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3767,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3768,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3769,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3770,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3771,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3772,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3773,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3774,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3775,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3776,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3777,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3778,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3779,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3780,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3781,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3782,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3783,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3784,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3785,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3786,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3787,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3788,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3789,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3790,Hotels/Motels/Inns/Resorts,Hotels/Motels/Inns/Resorts,Travel/Transport,17
+3816,,Home2Suites,Travel/Transport,17
+3835,,* MASTERS ECONOMY INNS,Travel/Transport,17
+4011,Railroads,Railroads,Travel/Transport,17
+4111,"Commuter Transport, Ferries","Local/Suburban Commuter Passenger Transportation – Railroads, Feries, Local Water Transportation.",Travel/Transport,17
+4112,Passenger Railways,Passenger Railways,Travel/Transport,17
+4119,Ambulance Services,Ambulance Services,Healthcare,12
+4121,Taxicabs/Limousines,Taxicabs and Limousines,Travel/Transport,17
+4131,Bus Lines,"Bus Lines, Including Charters, Tour Buses",Travel/Transport,17
+4214,"Motor Freight Carriers and Trucking - Local and Long Distance, Moving and Storage Companies, and Local Delivery Services ","Motor Freight Carriers, Moving and Storage Companies, Trucking – Local/Long Distance, Delivery Services – Local",Travel/Transport,17
+4215,Courier Services ,"Courier Services – Air or Ground, Freight forwarders",Travel/Transport,17
+4225,"Public Warehousing and Storage - Farm Products, Refrigerated Goods, Household Goods, and Storage ","Public warehousing, Storage",Travel/Transport,17
+4411,Cruise Lines,Cruise and Steamship Lines,Travel/Transport,17
+4457,Boat Rentals and Leases,Boat Rentals and Leases,Travel/Transport,17
+4468,"Marinas, Service and Supplies","Marinas, Marine Service, and Supplies",Shopping & Retail,3
+4511,"Airlines, Air Carriers","Airlines, Air Carriers ( not listed elsewhere)",Travel/Transport,17
+4582,"Airports, Flying Fields","Airports, Airport Terminals, Flying Fields",Travel/Transport,17
+4722,"Travel Agencies, Tour Operators",Travel Agencies and Tour Operations,Travel/Transport,17
+4723,TUI Travel - Germany,Package Tour Operators (For use in Germany only),Travel/Transport,17
+4784,Tolls/Bridge Fees,Toll and Bridge Fees,Travel/Transport,17
+4789,Transportation Services (Not Elsewhere Classified),"Transportation Services, Not elsewhere classified)",Travel/Transport,17
+4812,Telecommunication Equipment and Telephone Sales,Telecommunications Equipment including telephone sales,Phone & Internet,9
+4814,Telecommunication Services,"Fax services, Telecommunication Services",Phone & Internet,9
+4815,,VisaPhone,,
+4816,Computer Network Services,Computer Network Services,Phone & Internet,9
+4821,Telegraph Services,Telegraph services,Phone & Internet,9
+4829,"Wires, Money Orders",Money Orders – Wire Transfer,,
+4899,"Cable, Satellite, and Other Pay Television and Radio",Cable and other pay television (previously Cable Services),Phone & Internet,9
+4900,Utilities ,"Electric, Gas, Sanitary and Water Utilities",Housing & Utilities,4
+5013,Motor Vehicle Supplies and New Parts,Motor vehicle supplies and new parts,Auto & Maintenance,5
+5021,Office and Commercial Furniture,Office and Commercial Furniture,Shopping & Retail,3
+5039,Construction Materials (Not Elsewhere Classified),"Construction Materials, Not Elsewhere Classified",Housing & Utilities,4
+5044,"Photographic, Photocopy, Microfilm Equipment, and Supplies","Office, Photographic, Photocopy, and Microfilm Equipment",Shopping & Retail,3
+5045,"Computers, Peripherals, and Software","Computers, Computer Peripheral Equipment, Software",Shopping & Retail,3
+5046,Commercial Equipment (Not Elsewhere Classified),"Commercial Equipment, Not Elsewhere Classified",Shopping & Retail,3
+5047,"Medical, Dental, Ophthalmic, and Hospital Equipment and Supplies","Medical, Dental Ophthalmic, Hospital Equipment and Supplies",Healthcare,12
+5051,Metal Service Centers,Metal Service Centers and Offices,,
+5065,Electrical Parts and Equipment,Electrical Parts and Equipment,Shopping & Retail,3
+5072,"Hardware, Equipment, and Supplies",Hardware Equipment and Supplies,Housing & Utilities,4
+5074,"Plumbing, Heating Equipment, and Supplies",Plumbing and Heating Equipment and Supplies,Housing & Utilities,4
+5085,Industrial Supplies (Not Elsewhere Classified),"Industrial Supplies, Not Elsewhere Classified",Shopping & Retail,3
+5094,"Precious Stones and Metals, Watches and Jewelry","Precious Stones and Metals, Watches and Jewelry",Shopping & Retail,3
+5099,Durable Goods (Not Elsewhere Classified),"Durable Goods, Not Elsewhere Classified",,
+5111,"Stationary, Office Supplies, Printing and Writing Paper","Stationery, Office Supplies, Printing, and Writing Paper",Shopping & Retail,3
+5122,"Drugs, Drug Proprietaries, and Druggist Sundries","Drugs, Drug Proprietors, and Druggist’s Sundries",Healthcare,12
+5131,"Piece Goods, Notions, and Other Dry Goods","Piece Goods, Notions, and Other Dry Goods",Shopping & Retail,3
+5137,"Uniforms, Commercial Clothing",Men’s Women’s and Children’s Uniforms and Commercial Clothing,Shopping & Retail,3
+5139,Commercial Footwear,Commercial Footwear,Shopping & Retail,3
+5169,Chemicals and Allied Products (Not Elsewhere Classified),"Chemicals and Allied Products, Not Elsewhere Classified",,
+5172,Petroleum and Petroleum Products,Petroleum and Petroleum Products,Gas & Fuel,6
+5192,"Books, Periodicals, and Newspapers","Books, Periodicals, and Newspapers",Shopping & Retail,3
+5193,"Florists Supplies, Nursery Stock, and Flowers","Florists’ Supplies, Nursery Stock and Flowers",Gifts & Social,11
+5198,"Paints, Varnishes, and Supplies","Paints, Varnishes, and Supplies",Housing & Utilities,4
+5199,Nondurable Goods (Not Elsewhere Classified),"Non-durable Goods, Not Elsewhere Classified",,
+5200,Home Supply Warehouse Stores,Home Supply Warehouse Stores,Housing & Utilities,4
+5211,"Lumber, Building Materials Stores",Lumber and Building Materials Stores,Housing & Utilities,4
+5231,"Glass, Paint, and Wallpaper Stores","Glass, Paint, and Wallpaper Stores",Housing & Utilities,4
+5251,Hardware Stores,Hardware Stores,Housing & Utilities,4
+5261,"Nurseries, Lawn and Garden Supply Stores",Nurseries – Lawn and Garden Supply Store,Housing & Utilities,4
+5271,Mobile Home Dealers,Mobile Home Dealers,Housing & Utilities,4
+5300,Wholesale Clubs,Wholesale Clubs,Groceries & Household,1
+5309,Duty Free Stores,Duty Free Store,Shopping & Retail,3
+5310,Discount Stores,Discount Stores,Shopping & Retail,3
+5311,Department Stores,Department Stores,Shopping & Retail,3
+5331,Variety Stores,Variety Stores,Shopping & Retail,3
+5399,Miscellaneous General Merchandise,Misc. General Merchandise,Shopping & Retail,3
+5411,"Grocery Stores, Supermarkets","Grocery Stores, Supermarkets",Groceries & Household,1
+5422,Freezer and Locker Meat Provisioners,Meat Provisioners – Freezer and Locker,Groceries & Household,1
+5441,"Candy, Nut, and Confectionery Stores","Candy, Nut, and Confectionery Stores",Groceries & Household,1
+5451,Dairy Products Stores,Dairy Products Stores,Groceries & Household,1
+5462,Bakeries,Bakeries,Groceries & Household,1
+5499,Miscellaneous Food Stores - Convenience Stores and Specialty Markets,Misc. Food Stores – Convenience Stores and Specialty Markets,Groceries & Household,1
+5511,"Car and Truck Dealers (New & Used) Sales, Service, Repairs Parts and Leasing ","Car and Truck Dealers (New and Used) Sales, Service, Repairs, Parts, and Leasing",Auto & Maintenance,5
+5521,"Car and Truck Dealers (Used Only) Sales, Service, Repairs Parts and Leasing ",Automobile and Truck Dealers (Used Only),Auto & Maintenance,5
+5531,Auto and Home Supply Stores,Automobile Supply Stores,Auto & Maintenance,5
+5532,Automotive Tire Stores,Automotive Tire Stores,Auto & Maintenance,5
+5533,Automotive Parts and Accessories Stores,"Automotive Parts, Accessories Stores",Auto & Maintenance,5
+5541,Service Stations ,Service Stations ( with or without ancillary services),Gas & Fuel,6
+5542,Automated Fuel Dispensers,Automated Fuel Dispensers,Gas & Fuel,6
+5551,Boat Dealers,Boat Dealers,Auto & Maintenance,5
+5561,"Motorcycle Shops, Dealers","Recreational and Utility Trailers, Camp Dealers",Auto & Maintenance,5
+5571,Motorcycle Shops and Dealers,Motorcycle Dealers,Auto & Maintenance,5
+5592,Motor Homes Dealers,Motor Home Dealers,Auto & Maintenance,5
+5598,Snowmobile Dealers,Snowmobile Dealers,Auto & Maintenance,5
+5599,Miscellaneous Auto Dealers ,Miscellaneous Auto Dealers ,Auto & Maintenance,5
+5611,Men’s and Boy’s Clothing and Accessories Stores,Men’s and Boy’s Clothing and Accessories Stores,Shopping & Retail,3
+5621,Women’s Ready-To-Wear Stores,Women’s Ready-to-Wear Stores,Shopping & Retail,3
+5631,Women’s Accessory and Specialty Shops,Women’s Accessory and Specialty Shops,,
+5641,Children’s and Infant’s Wear Stores,Children’s and Infant’s Wear Stores,Shopping & Retail,3
+5651,Family Clothing Stores,Family Clothing Stores,Shopping & Retail,3
+5655,Sports and Riding Apparel Stores,"Sports Apparel, Riding Apparel Stores",Shopping & Retail,3
+5661,Shoe Stores,Shoe Stores,Shopping & Retail,3
+5681,Furriers and Fur Shops,Furriers and Fur Shops,Shopping & Retail,3
+5691,"Men’s, Women’s Clothing Stores",Men’s and Women’s Clothing Stores,Shopping & Retail,3
+5697,"Tailors, Alterations","Tailors, Seamstress, Mending, and Alterations",Shopping & Retail,3
+5698,Wig and Toupee Stores,Wig and Toupee Stores,Shopping & Retail,3
+5699,Miscellaneous Apparel and Accessory Shops,Miscellaneous Apparel and Accessory Shops,Shopping & Retail,3
+5712,"Furniture, Home Furnishings, and Equipment Stores, Except Appliances","Furniture, Home Furnishings, and Equipment Stores, ExceptAppliances",Shopping & Retail,3
+5713,Floor Covering Stores,Floor Covering Stores,Shopping & Retail,3
+5714,"Drapery, Window Covering, and Upholstery Stores","Drapery, Window Covering and Upholstery Stores",Shopping & Retail,3
+5718,"Fireplace, Fireplace Screens, and Accessories Stores","Fireplace, Fireplace Screens, and Accessories Stores",Shopping & Retail,3
+5719,Miscellaneous Home Furnishing Specialty Stores,Miscellaneous Home Furnishing Specialty Stores,Shopping & Retail,3
+5722,Household Appliance Stores,Household Appliance Stores,Shopping & Retail,3
+5732,Electronics Stores,Electronic Sales,Shopping & Retail,3
+5733,"Music Stores-Musical Instruments, Pianos, and Sheet Music","Music Stores, Musical Instruments, Piano Sheet Music",Shopping & Retail,3
+5734,Computer Software Stores,Computer Software Stores,Shopping & Retail,3
+5735,Record Stores,Record Shops,Shopping & Retail,3
+5811,Caterers,Caterers,Food & Dining,2
+5812,"Eating Places, Restaurants",Eating places and Restaurants,Food & Dining,2
+5813,Drinking Places,"Drinking Places (Alcoholic Beverages), Bars, Taverns, Cocktail lounges, Nightclubs and Discotheques",Food & Dining,2
+5814,Fast Food Restaurants,Fast Food Restaurants,Food & Dining,2
+5815,,"Digital Goods: Media, Books, Movies, Music",Entertainment,10
+5816,,Digital Goods: Games,Entertainment,10
+5817,,Digital Goods: Applications (Excludes Games),Entertainment,10
+5818,,Digital Goods: Large Digital Goods Merchant,Entertainment,10
+5832,,"Antique Shops – Sales, Repairs, and Restoration Services",Shopping & Retail,3
+5912,Drug Stores and Pharmacies,Drug Stores and Pharmacies,Healthcare,12
+5921,"Package Stores-Beer, Wine, and Liquor","Package Stores – Beer, Wine, and Liquor",Shopping & Retail,3
+5931,Used Merchandise and Secondhand Stores,Used Merchandise and Secondhand Stores,Shopping & Retail,3
+5932,Antique Shops,Antique Shops,Shopping & Retail,3
+5933,Pawn Shops,Pawn Shops and Salvage Yards,Shopping & Retail,3
+5935,Wrecking and Salvage Yards,Wrecking and Salvage Yards,Auto & Maintenance,5
+5937,Antique Reproductions,Antique Reproductions,Shopping & Retail,3
+5940,Bicycle Shops,Bicycle Shops – Sales and Service,Shopping & Retail,3
+5941,Sporting Goods Stores,Sporting Goods Stores,Shopping & Retail,3
+5942,Book Stores,Book Stores,Shopping & Retail,3
+5943,"Stationery Stores, Office, and School Supply Stores","Stationery Stores, Office and School Supply Stores",Shopping & Retail,3
+5944,"Jewelry Stores, Watches, Clocks, and Silverware Stores","Watch, Clock, Jewelry, and Silverware Stores",Shopping & Retail,3
+5945,"Hobby, Toy, and Game Shops","Hobby, Toy, and Game Shops",Shopping & Retail,3
+5946,Camera and Photographic Supply Stores,Camera and Photographic Supply Stores,Shopping & Retail,3
+5947,"Gift, Card, Novelty, and Souvenir Shops","Card Shops, Gift, Novelty, and Souvenir Shops",Gifts & Social,11
+5948,Luggage and Leather Goods Stores,Leather Goods Stores,Shopping & Retail,3
+5949,"Sewing, Needlework, Fabric, and Piece Goods Stores","Sewing, Needle, Fabric, and Price Goods Stores",Shopping & Retail,3
+5950,"Glassware, Crystal Stores",Glassware/Crystal Stores,Shopping & Retail,3
+5960,Direct Marketing - Insurance Services,Direct Marketing- Insurance Service,Insurance,7
+5961,,"Mail Order Houses Including Catalog Order Stores, Book/Record Clubs (No longer permitted for U.S. original presentments)",Shopping & Retail,3
+5962,Direct Marketing - Travel,Direct Marketing – Travel Related Arrangements Services,Travel/Transport,17
+5963,Door-To-Door Sales,Door-to-Door Sales,Shopping & Retail,3
+5964,Direct Marketing - Catalog Merchant,Direct Marketing – Catalog Merchant,Shopping & Retail,3
+5965,Direct Marketing - Combination Catalog and Retail Merchant,Direct Marketing – Catalog and Catalog and Retail Merchant,Shopping & Retail,3
+5966,Direct Marketing - Outbound Tele,Direct Marketing- Outbound Telemarketing Merchant,Shopping & Retail,3
+5967,Direct Marketing - Inbound Tele,Direct Marketing – Inbound Teleservices Merchant,Shopping & Retail,3
+5968,Direct Marketing - Subscription,Direct Marketing – Continuity/Subscription Merchant,Shopping & Retail,3
+5969,Direct Marketing - Other ,Direct Marketing – Not Elsewhere Classified,Shopping & Retail,3
+5970,Artist’s Supply and Craft Shops,Artist’s Supply and Craft Shops,Shopping & Retail,3
+5971,Art Dealers and Galleries,Art Dealers and Galleries,Shopping & Retail,3
+5972,Stamp and Coin Stores,Stamp and Coin Stores – Philatelic and Numismatic Supplies,Shopping & Retail,3
+5973,Religious Goods Stores,Religious Goods Stores,Gifts & Social,11
+5975,Hearing Aids Sales and Supplies,"Hearing Aids – Sales, Service, and Supply Stores",Healthcare,12
+5976,Orthopedic Goods - Prosthetic Devices,Orthopedic Goods Prosthetic Devices,Healthcare,12
+5977,Cosmetic Stores,Cosmetic Stores,Shopping & Retail,3
+5978,Typewriter Stores,"Typewriter Stores – Sales, Rental, Service",Shopping & Retail,3
+5983,Fuel Dealers (Non Automotive),"Fuel – Fuel Oil, Wood, Coal, Liquefied Petroleum",Gas & Fuel,6
+5992,Florists,Florists,Gifts & Social,11
+5993,Cigar Stores and Stands,Cigar Stores and Stands,Shopping & Retail,3
+5994,News Dealers and Newsstands,News Dealers and Newsstands,Shopping & Retail,3
+5995,"Pet Shops, Pet Food, and Supplies","Pet Shops, Pet Foods, and Supplies Stores",Groceries & Household,1
+5996,Swimming Pools Sales,"Swimming Pools – Sales, Service, and Supplies",Housing & Utilities,4
+5997,Electric Razor Stores,Electric Razor Stores – Sales and Service,Shopping & Retail,3
+5998,Tent and Awning Shops,Tent and Awning Shops,Housing & Utilities,4
+5999,Miscellaneous Specialty Retail,Miscellaneous and Specialty Retail Stores,Shopping & Retail,3
+6010,Manual Cash Disburse,Financial Institutions – Manual Cash Disbursements,Skip / Ignore,16
+6011,Automated Cash Disburse,Financial Institutions – Manual Cash Disbursements,Skip / Ignore,16
+6012,Financial Institutions,Financial Institutions – Merchandise and Services,Skip / Ignore,16
+6051,"Non-FI, Money Orders","Non-Financial Institutions – Foreign Currency, Money Orders (not wire transfer) and Travelers Cheques",Skip / Ignore,16
+6211,Security Brokers/Dealers,Security Brokers/Dealers,Investment,13
+6300,"Insurance Underwriting, Premiums","Insurance Sales, Underwriting, and Premiums",Insurance,7
+6381,,"Insurance Premiums, (no longer valid for first presentment work)",Insurance,7
+6399,Insurance - Default,"Insurance, Not Elsewhere Classified ( no longer valid forfirst presentment work)",Insurance,7
+6513,Real Estate Agents and Managers - Rentals,Real Estate Agents and Managers - Rentals,Housing & Utilities,4
+7011,"Hotels, Motels, and Resorts","Lodging – Hotels, Motels, Resorts, Central Reservation Services (not elsewhere classified)",Travel/Transport,17
+7012,Timeshares,Timeshares,Travel/Transport,17
+7032,Sporting/Recreation Camps,Sporting and Recreational Camps,Travel/Transport,17
+7033,"Trailer Parks, Campgrounds",Trailer Parks and Camp Grounds,Travel/Transport,17
+7210,"Laundry, Cleaning Services","Laundry, Cleaning, and Garment Services",Housing & Utilities,4
+7211,Laundries ,Laundry – Family and Commercial,Housing & Utilities,4
+7216,Dry Cleaners,Dry Cleaners,Housing & Utilities,4
+7217,Carpet/Upholstery Cleaning,Carpet and Upholstery Cleaning,Housing & Utilities,4
+7221,Photographic Studios,Photographic Studios,,
+7230,Barber and Beauty Shops,Barber and Beauty Shops,Fitness & Wellness,8
+7251,Shoe Repair/Hat Cleaning,"Shop Repair Shops and Shoe Shine Parlors, and Hat Cleaning Shops",Shopping & Retail,3
+7261,"Funeral Services, Crematories",Funeral Service and Crematories,Extended/Family-Expense,18
+7273,Dating/Escort Services,Dating and Escort Services,Entertainment,10
+7276,Tax Preparation Services,Tax Preparation Service,Yearly-Once,19
+7277,Counseling Services,"Counseling Service – Debt, Marriage, Personal",Healthcare,12
+7278,Buying/Shopping Services,"Buying/Shopping Services, Clubs",Shopping & Retail,3
+7296,Clothing Rental ,"Clothing Rental – Costumes, Formal Wear, Uniforms",Shopping & Retail,3
+7297,Massage Parlors,Massage Parlors,Fitness & Wellness,8
+7298,Health and Beauty Spas,Health and Beauty Shops,Fitness & Wellness,8
+7299,Miscellaneous General Services,Miscellaneous Personal Services ( not elsewhere classifies),,
+7311,Advertising Services,Advertising Services,,
+7321,Credit Reporting Agencies,Consumer Credit Reporting Agencies,,
+7332,,Blueprinting and Photocopying Services,,
+7333,"Commercial Photography, Art and Graphics","Commercial Photography, Art and Graphics",,
+7338,"Quick Copy, Repro, and Blueprint","Quick Copy, Reproduction and Blueprinting Services",,
+7339,Secretarial Support Services,Stenographic and Secretarial Support Services,,
+7342,Exterminating Services,Exterminating and Disinfecting Services,Housing & Utilities,4
+7349,Cleaning and Maintenance,"Cleaning and Maintenance, Janitorial Services",Housing & Utilities,4
+7361,Employment/Temp Agencies,"Employment Agencies, Temporary Help Services",,
+7372,Computer Programming,"Computer Programming, Integrated Systems Design and Data Processing Services",,
+7375,Information Retrieval Services,Information Retrieval Services,,
+7379,Computer Repair,"Computer Maintenance and Repair Services, Not Elsewhere Classified",Shopping & Retail,3
+7392,"Consulting, Public Relations","Management, Consulting, and Public Relations Services",,
+7393,Detective Agencies,Protective and Security Services – Including Armored Carsand Guard Dogs,,
+7394,Equipment Rental ,"Equipment Rental and Leasing Services, Tool Rental, Furniture Rental, and Appliance Rental",Shopping & Retail,3
+7395,Photo Developing,"Photofinishing Laboratories, Photo Developing",,
+7399,Miscellaneous Business Services ,"Business Services, Not Elsewhere Classified",,
+7511,Truck Stop,Truck Stop,Gas & Fuel,6
+7512,Car Rental Agencies,Car Rental Companies ( Not Listed Below),Travel/Transport,17
+7513,Truck/Utility Trailer Rentals,Truck and Utility Trailer Rentals,Travel/Transport,17
+7519,Recreational Vehicle Rentals,Motor Home and Recreational Vehicle Rentals,Travel/Transport,17
+7523,"Parking Lots, Garages",Automobile Parking Lots and Garages,Travel/Transport,17
+7531,Auto Body Repair Shops,Automotive Body Repair Shops,Auto & Maintenance,5
+7534,Tire Retreading and Repair,Tire Re-treading and Repair Shops,Auto & Maintenance,5
+7535,Auto Paint Shops,Paint Shops – Automotive,Auto & Maintenance,5
+7538,Auto Service Shops,Automotive Service Shops,Auto & Maintenance,5
+7542,Car Washes,Car Washes,Auto & Maintenance,5
+7549,Towing Services,Towing Services,Auto & Maintenance,5
+7622,Electronics Repair Shops,Radio Repair Shops,Shopping & Retail,3
+7623,"A/C, Refrigeration Repair",Air Conditioning and Refrigeration Repair Shops,Housing & Utilities,4
+7629,Small Appliance Repair,Electrical And Small Appliance Repair Shops,Housing & Utilities,4
+7631,Watch/Jewelry Repair,"Watch, Clock, and Jewelry Repair",Shopping & Retail,3
+7641,"Furniture Repair, Refinishing","Furniture, Furniture Repair, and Furniture Refinishing",Housing & Utilities,4
+7692,Welding Repair,Welding Repair,,
+7699,Miscellaneous Repair Shops,Repair Shops and Related Services –Miscellaneous,,
+7800,,Government-Owned Lotteries,Entertainment,10
+7801,,Government-Licensed On-Line Casinos (On-Line Gambling),Entertainment,10
+7802,,Government-Licensed Horse/Dog Racing,Entertainment,10
+7829,Picture/Video Production,Motion Pictures and Video Tape Production and Distribution,Entertainment,10
+7832,Motion Picture Theaters,Motion Picture Theaters,Entertainment,10
+7841,Video Tape Rental Stores,Video Tape Rental Stores,Entertainment,10
+7911,"Dance Hall, Studios, Schools","Dance Halls, Studios and Schools",Fitness & Wellness,8
+7922,Theatrical Ticket Agencies,"Theatrical Producers (Except Motion Pictures), Ticket Agencies",Entertainment,10
+7929,"Bands, Orchestras","Bands, Orchestras, and Miscellaneous Entertainers (Not Elsewhere Classified)",Entertainment,10
+7932,Billiard/Pool Establishments,Billiard and Pool Establishments,Entertainment,10
+7933,Bowling Alleys,Bowling Alleys,Entertainment,10
+7941,Sports Clubs/Fields,"Commercial Sports, Athletic Fields, Professional Sport Clubs, and Sport Promoters",Fitness & Wellness,8
+7991,Tourist Attractions and Exhibits,Tourist Attractions and Exhibits,Entertainment,10
+7992,Golf Courses - Public,Golf Courses – Public,Fitness & Wellness,8
+7993,Video Amusement Game Supplies,Video Amusement Game Supplies,Entertainment,10
+7994,Video Game Arcades,Video Game Arcades/Establishments,Entertainment,10
+7995,Betting/Casino Gambling,"Betting (including Lottery Tickets, Casino Gaming Chips, Off-track Betting and Wagers at Race Tracks)",Entertainment,10
+7996,Amusement Parks/Carnivals,"Amusement Parks, Carnivals, Circuses, Fortune Tellers",Entertainment,10
+7997,Country Clubs,"Membership Clubs (Sports, Recreation, Athletic), Country Clubs, and Private Golf Courses",Fitness & Wellness,8
+7998,Aquariums,"Aquariums, Sea-aquariums, Dolphinariums",Entertainment,10
+7999,Miscellaneous Recreation Services,Recreation Services (Not Elsewhere Classified),Entertainment,10
+8011,Doctors,Doctors and Physicians (Not Elsewhere Classified),Healthcare,12
+8021,"Dentists, Orthodontists",Dentists and Orthodontists,Healthcare,12
+8031,Osteopaths,Osteopaths,Healthcare,12
+8041,Chiropractors,Chiropractors,Healthcare,12
+8042,"Optometrists, Ophthalmologist",Optometrists and Ophthalmologists,Healthcare,12
+8043,"Opticians, Eyeglasses","Opticians, Opticians Goods and Eyeglasses",Healthcare,12
+8044,,"Opticians, Optical Goods, and Eyeglasses (no longer validfor first presentments)",Healthcare,12
+8049,"Chiropodists, Podiatrists",Podiatrists and Chiropodists,Healthcare,12
+8050,Nursing/Personal Care ,Nursing and Personal Care Facilities,Healthcare,12
+8062,Hospitals,Hospitals,Healthcare,12
+8071,Medical and Dental Labs,Medical and Dental Laboratories,Healthcare,12
+8099,Medical Services ,Medical Services and Health Practitioners (Not Elsewhere Classified),Healthcare,12
+8111,"Legal Services, Attorneys",Legal Services and Attorneys,,
+8211,"Elementary, Secondary Schools",Elementary and Secondary Schools,Extended/Family-Expense,18
+8220,"Colleges, Universities","Colleges, Junior Colleges, Universities, and ProfessionalSchools",Extended/Family-Expense,18
+8241,Correspondence Schools,Correspondence Schools,Extended/Family-Expense,18
+8244,Business/Secretarial Schools,Business and Secretarial Schools,Extended/Family-Expense,18
+8249,Vocational/Trade Schools,Vocational Schools and Trade Schools,Extended/Family-Expense,18
+8299,Educational Services ,Schools and Educational Services ( Not Elsewhere Classified),Extended/Family-Expense,18
+8351,Child Care Services,Child Care Services,Extended/Family-Expense,18
+8398,Charitable and Social Service Organizations - Fundraising,Charitable and Social Service Organizations,Gifts & Social,11
+8641,"Civic, Social, Fraternal Associations","Civic, Fraternal, and Social Associations",Gifts & Social,11
+8651,Political Organizations,Political Organizations,Gifts & Social,11
+8661,Religious Organizations,Religious Organizations,Gifts & Social,11
+8675,Automobile Associations,Automobile Associations,Auto & Maintenance,5
+8699,Membership Organizations,Membership Organizations ( Not Elsewhere Classified),,
+8734,Testing Laboratories,Testing Laboratories ( non-medical),Healthcare,12
+8911,Architectural/Surveying Services,Architectural – Engineering and Surveying Services,,
+8931,Accounting/Bookkeeping Services,"Accounting, Auditing, and Bookkeeping Services",,
+8999,Professional Services,Professional Services ( Not Elsewhere Defined),,
+9211,"Court Costs, Including Alimony and Child Support - Courts of Law","Court Costs, including Alimony and Child Support",Extended/Family-Expense,18
+9222,Fines - Government Administrative Entities,Fines,,
+9223,"Bail and Bond Payments (payment to the surety for the bond, not the actual bond paid to the government agency) ",Bail and Bond Payments,,
+9311,Tax Payments - Government Agencies,Tax Payments,Yearly-Once,19
+9399,Government Services (Not Elsewhere Classified),Government Services ( Not Elsewhere Classified),,
+9402,Postal Services - Government Only,Postal Services – Government Only,,
+9405,U.S. Federal Government Agencies or Departments,Intra – Government Transactions,Skip / Ignore,16
+9700,,Automated Referral Service ( For Visa Only),Skip / Ignore,16
+9701,,Visa Credential Service ( For Visa Only),Skip / Ignore,16
+9702,,GCAS Emergency Services ( For Visa Only),Skip / Ignore,16
+9950,Intra-Company Purchases,Intra – Company Purchases ( For Visa Only),Skip / Ignore,16

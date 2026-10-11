@@ -4,7 +4,10 @@
         <h1 class="h3 mb-0">Categories</h1>
         <p class="text-muted">Manage categories and auto-categorization patterns</p>
     </div>
-    <div class="col-auto">
+    <div class="col-auto d-flex align-items-start gap-2">
+        <a class="btn btn-outline-secondary" href="/sic-mappings" data-testid="categories-sic-mappings-link">
+            <i class="bi bi-upc-scan"></i> SIC Mappings
+        </a>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
             <i class="bi bi-plus-circle"></i> Add Category
         </button>
@@ -429,9 +432,10 @@ document.getElementById('addCategoryForm').addEventListener('submit', async func
         });
 
         if (response.ok) {
-            showToast('Category added successfully!', 'success');
+            const result = await response.json();
+            showToast(`Category added. ${describeReexamination(result)}`, 'success');
             bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => location.reload(), 2500);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to add category', 'danger');
@@ -462,9 +466,10 @@ document.getElementById('addPatternForm').addEventListener('submit', async funct
         });
 
         if (response.ok) {
-            showToast('Pattern added successfully!', 'success');
+            const result = await response.json();
+            showToast(`Pattern added. ${describeReexamination(result)}`, 'success');
             bootstrap.Modal.getInstance(document.getElementById('addPatternModal')).hide();
-            setTimeout(() => location.reload(), 1000);
+            setTimeout(() => location.reload(), 2500);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to add pattern', 'danger');
@@ -482,8 +487,9 @@ async function deleteCategory(id, name) {
     try {
         const response = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
         if (response.ok) {
-            showToast('Category deleted successfully', 'success');
-            setTimeout(() => location.reload(), 1000);
+            const result = await response.json();
+            showToast(`Category deleted. ${describeReexamination(result)}`, 'success');
+            setTimeout(() => location.reload(), 2500);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to delete category', 'danger');
@@ -501,8 +507,9 @@ async function deletePattern(id, name) {
     try {
         const response = await fetch(`/api/patterns/${id}`, { method: 'DELETE' });
         if (response.ok) {
-            showToast('Pattern deleted successfully', 'success');
-            setTimeout(() => location.reload(), 1000);
+            const result = await response.json();
+            showToast(`Pattern deleted. ${describeReexamination(result)}`, 'success');
+            setTimeout(() => location.reload(), 2500);
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to delete pattern', 'danger');
@@ -513,21 +520,75 @@ async function deletePattern(id, name) {
 }
 
 async function recategorizeAll() {
-    if (!confirm('Re-categorize all uncategorized transactions based on current patterns?')) {
+    // SIC mappings now participate in this action, so it can categorize an
+    // entire backlog through mappings the user has never exercised. Saying so
+    // once beforehand is better than having it discovered afterwards.
+    if (!confirm(
+        'Re-categorize all uncategorized transactions?\n\n' +
+        'Both text patterns and SIC mappings will be applied.\n' +
+        'Categories you assigned manually are never changed.'
+    )) {
         return;
     }
 
     try {
         const response = await fetch('/api/categories/recategorize', { method: 'POST' });
-        if (response.ok) {
-            const result = await response.json();
-            showToast(`Re-categorized ${result.categorized_count} of ${result.processed_count} transactions`, 'success');
-        } else {
+        if (!response.ok) {
             showToast('Failed to re-categorize', 'danger');
+            return;
         }
+        const result = await response.json();
+
+        showToast(describeReexamination(result),
+            result.moved_count === 0 && result.uncategorized_count === 0 ? 'info' : 'success');
     } catch (error) {
-        showToast('An error occurred', 'danger');
+        showToast('The result is unknown. Refresh and check before retrying.', 'warning');
     }
+}
+
+// Named describeReexamination rather than anything generic: layout.html loads
+// app.js after page content, so a page function sharing a name with an app.js
+// global is silently overwritten while the markup still looks correct. That
+// was defect U2-F09.
+function describeReexamination(result) {
+    const parts = [];
+
+    const moved = result.moved_count || 0;
+    const uncategorized = result.uncategorized_count || 0;
+    const manual = result.manual_protected_count || 0;
+
+    // The pattern/SIC split is retained from UOW-3, which is what shows whether
+    // mappings are behaving as intended, but only when the response actually
+    // carries it. Rule-change responses report the three FR16 counts without
+    // the split, and defaulting the missing fields to zero printed
+    // "1 moved (0 by pattern, 0 by SIC mapping)" — an explanation that
+    // contradicts the number it is explaining.
+    const hasSplit = result.pattern_categorized_count !== undefined &&
+        result.sic_categorized_count !== undefined;
+    parts.push(hasSplit
+        ? `${moved} moved to a different category ` +
+          `(${result.pattern_categorized_count} by pattern, ${result.sic_categorized_count} by SIC mapping)`
+        : `${moved} moved to a different category`);
+    // Reported separately from moves, and never omitted when zero: a rule
+    // change can now remove a category, and that is worth seeing plainly
+    // rather than being folded into a total or dropped when it is zero.
+    parts.push(`${uncategorized} became uncategorized`);
+    // The question anyone asks after a bulk rewrite is whether their hand-set
+    // categories survived. A zero here is an answer, not an absence.
+    parts.push(`${manual} left alone because you set them by hand`);
+
+    if (result.processed_count !== undefined) {
+        parts.push(`${result.processed_count} transactions examined`);
+    }
+    if (Array.isArray(result.post_commit_warnings) && result.post_commit_warnings.length > 0) {
+        // Stated as a completed fact, never as something to retry: the rule
+        // change is already durable by the time re-examination runs, so
+        // repeating it would apply the rule twice, not recover anything.
+        result.post_commit_warnings.forEach(w => parts.push(w));
+        parts.push('The rule change itself was saved');
+    }
+
+    return parts.join('. ');
 }
 </script>
 {{end}}

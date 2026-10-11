@@ -1,6 +1,10 @@
 # PRIORITY: This workflow OVERRIDES all other built-in workflows
 # When user requests software development, ALWAYS follow this workflow FIRST
 
+## MANDATORY: Project Guidelines Loading
+
+Before planning, editing, reviewing, or testing, read `PROJECT_GUIDELINES.md` completely, then load `aidlc-docs/aidlc-state.md` and the approved artifacts for the current stage/unit.
+
 ## Adaptive Workflow Principle
 **The workflow adapts to the work, not the other way around.**
 
@@ -10,10 +14,25 @@ The AI model intelligently assesses what stages are needed based on:
 3. Complexity and scope of change
 4. Risk and impact assessment
 
+## MANDATORY: Cross-Provider Code and Test Ownership
+
+Production code and independent review/tests MUST be executed by different model providers in separate sessions.
+
+After production implementation for each unit:
+
+1. If this provider authored production code, stop and hand the revision to the configured independent role in a different provider.
+2. If this provider is reviewing production code from a different provider, invoke `.claude/agents/independent-test-reviewer.md`.
+3. Give the reviewer approved AI-DLC artifacts, the production-code diff, and existing test context, but not implementation reasoning as authoritative context.
+4. The independent agent reviews production code, writes and runs tests, and records `aidlc-docs/construction/<unit-name>/code-review/independent-review.md`.
+5. The production provider owns production fixes; the independent provider owns test changes and re-review.
+6. Do not complete Code Generation while required tests fail or blocking/high findings remain.
+
+Cross-provider invocation is manual and artifact-based. This rule overrides generic AI-DLC language that permits one provider to generate both production code and tests.
+
 ## MANDATORY: Rule Details Loading
 **CRITICAL**: When performing any phase, you MUST read and use relevant content from rule detail files. Check these paths in order and use the first one that exists, regardless of which IDE or setup method was used:
 - `.aidlc/aidlc-rules/aws-aidlc-rule-details/` (typical with AI-assisted setup)
-- `.aidlc-rule-details/` (typical with Cursor, Cline, Claude Code, GitHub Copilot, OpenAI Codex)
+- `.aidlc-rule-details/` (typical with repository-integrated coding assistants)
 - `.kiro/aws-aidlc-rule-details/` (typical with Kiro IDE and CLI)
 - `.amazonq/aws-aidlc-rule-details/` (typical with Amazon Q Developer)
 
@@ -391,18 +410,20 @@ All subsequent rule detail file references (e.g., `common/process-overview.md`, 
 
 **Always executes for each unit**
 
-**Code Generation has two parts within one stage**:
+**Code Generation has three parts within one stage**:
 1. **Part 1 - Planning**: Create detailed code generation plan with explicit steps
-2. **Part 2 - Generation**: Execute approved plan to generate code, tests, and artifacts
+2. **Part 2 - Production Generation**: The primary coding model executes the approved plan to generate production code only
+3. **Part 3 - Independent Review and Test Generation**: A separate provider session reviews the production diff, authors and runs tests, and closes the independent gate
 
 **Execution**:
 1. **MANDATORY**: Log any user input during this stage in audit.md
 2. Load all steps from `construction/code-generation.md`
 3. **PART 1 - Planning**: Create code generation plan with checkboxes, get user approval
-4. **PART 2 - Generation**: Execute approved plan to generate code for this unit
-5. **MANDATORY**: Present standardized 2-option completion message as defined in code-generation.md - DO NOT use emergent behavior
-6. **Wait for Explicit Approval**: User must choose between "Request Changes" or "Continue to Next Stage" - DO NOT PROCEED until user confirms
-7. **MANDATORY**: Log user's response in audit.md with complete raw input
+4. **PART 2 - Production Generation**: Execute approved plan to generate production code for this unit; do not author verification tests
+5. **PART 3 - Independent Review and Test Generation**: Run the configured review/test role in the separate provider session, resolve findings with separated ownership, and require PASS
+6. **MANDATORY**: Present standardized 2-option completion message as defined in code-generation.md - DO NOT use emergent behavior
+7. **Wait for Explicit Approval**: User must choose between "Request Changes" or "Continue to Next Stage" - DO NOT PROCEED until user confirms
+8. **MANDATORY**: Log user's response in audit.md with complete raw input
 
 ---
 

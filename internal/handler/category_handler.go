@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -90,6 +93,66 @@ type CreateCategoryRequest struct {
 	Patterns     []string `json:"patterns"` // Initial patterns (optional)
 }
 
+// ruleChangeOutcome is the committed-with-warnings shape every rule change
+// returns, mirroring how mapping mutations already report themselves.
+//
+// A pattern mutation commits before re-examination runs. If re-examination
+// then fails, the rule change is still durable — so the response says so and
+// carries the warning, rather than reporting plain success and leaving the
+// caller unable to tell the two apart.
+type ruleChangeOutcome struct {
+	MovedCount           int      `json:"moved_count"`
+	UncategorizedCount   int      `json:"uncategorized_count"`
+	ManualProtectedCount int      `json:"manual_protected_count"`
+	PostCommitWarnings   []string `json:"post_commit_warnings,omitempty"`
+}
+
+// withRuleChangeCounts merges the rule-change counts into an existing response
+// body without disturbing its shape.
+//
+// The payload is marshalled and re-decoded so its own JSON tags decide the
+// top-level field names. That keeps the legacy fields exactly where callers
+// already expect them; the alternative — nesting the old body under a new key —
+// is a breaking transport change, and a silent one, because a decoder for the
+// old type succeeds and yields zeros.
+func withRuleChangeCounts(payload any, outcome ruleChangeOutcome) map[string]any {
+	merged := map[string]any{}
+	if encoded, err := json.Marshal(payload); err == nil {
+		if err := json.Unmarshal(encoded, &merged); err != nil {
+			merged = map[string]any{}
+		}
+	}
+	merged["moved_count"] = outcome.MovedCount
+	merged["uncategorized_count"] = outcome.UncategorizedCount
+	merged["manual_protected_count"] = outcome.ManualProtectedCount
+	if len(outcome.PostCommitWarnings) > 0 {
+		merged["post_commit_warnings"] = outcome.PostCommitWarnings
+	}
+	return merged
+}
+
+// reexamineAfterRuleChange runs the pass and reports it. The rule change is
+// already committed by every caller, so a failure here is never a reason to
+// fail the request.
+func (h *CategoryHandler) reexamineAfterRuleChange(context string) ruleChangeOutcome {
+	result, err := h.categorizer.Reexamine()
+	if err != nil {
+		slog.Error("Failed to re-examine after a rule change",
+			slog.String("context", context),
+			slog.String("error", err.Error()))
+		return ruleChangeOutcome{
+			PostCommitWarnings: []string{
+				fmt.Sprintf("The rule change was saved, but re-examining transactions failed: %v", err),
+			},
+		}
+	}
+	return ruleChangeOutcome{
+		MovedCount:           result.MovedCount,
+		UncategorizedCount:   result.UncategorizedCount,
+		ManualProtectedCount: result.ManualProtectedCount,
+	}
+}
+
 // CreateCategory creates a new category with optional initial patterns
 // POST /api/categories
 func (h *CategoryHandler) CreateCategory(c *gin.Context) {
@@ -147,10 +210,12 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		patterns = append(patterns, *pattern)
 	}
 
-	// Trigger re-categorization if patterns were added
+	// Creating a pattern is a rule change, so every transaction the rules
+	// govern is re-examined, not only the uncategorized ones. Reexamine
+	// reloads rules itself.
+	outcome := ruleChangeOutcome{}
 	if len(patterns) > 0 {
-		h.categorizer.LoadPatterns()
-		h.categorizer.RecategorizeByCategory(category.CategoryID)
+		outcome = h.reexamineAfterRuleChange("create_category_patterns")
 	}
 
 	result := &model.CategoryWithPatterns{
@@ -158,7 +223,11 @@ func (h *CategoryHandler) CreateCategory(c *gin.Context) {
 		Patterns: patterns,
 	}
 
-	c.JSON(http.StatusCreated, result)
+	// Additive: the legacy CategoryWithPatterns fields stay at the top level
+	// and the rule-change counts join them. Nesting them under a "category"
+	// key, as an earlier revision did, silently hands existing consumers a
+	// zero-valued object instead of an error.
+	c.JSON(http.StatusCreated, withRuleChangeCounts(result, outcome))
 }
 
 // UpdateCategoryRequest represents the request body for updating a category
@@ -248,7 +317,22 @@ func (h *CategoryHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Category deleted successfully"})
+	// Deleting a category is a rule change twice over: the cascade removes its
+	// patterns, and its SIC mappings are left with no category so they assign
+	// nothing. Re-examination runs after that cascade has completed, never
+	// before, so it evaluates against the rules that remain (BR-U5-09).
+	//
+	// The ClearCategory above is still what detaches this category's own
+	// transactions; re-examination then decides where the remaining rules put
+	// them, which may be a different category rather than nowhere.
+	outcome := h.reexamineAfterRuleChange("delete_category")
+
+	// "result" is retained because the deletion response introduced it in this
+	// unit and a test pins it; the counts are also merged at the top level so
+	// every rule-change response reads the same way.
+	body := withRuleChangeCounts(gin.H{"message": "Category deleted successfully"}, outcome)
+	body["result"] = outcome
+	c.JSON(http.StatusOK, body)
 }
 
 // AddPatternRequest represents the request body for adding a pattern to a category
@@ -297,11 +381,10 @@ func (h *CategoryHandler) AddPattern(c *gin.Context) {
 		return
 	}
 
-	// Trigger re-categorization for this category
-	h.categorizer.LoadPatterns()
-	h.categorizer.RecategorizeByCategory(categoryID)
+	// Adding a pattern is a rule change. Reexamine reloads rules itself.
+	outcome := h.reexamineAfterRuleChange("add_pattern")
 
-	c.JSON(http.StatusCreated, pattern)
+	c.JSON(http.StatusCreated, withRuleChangeCounts(pattern, outcome))
 }
 
 // findConflictingPattern checks if the new pattern conflicts with any existing pattern
@@ -338,16 +421,24 @@ func (h *CategoryHandler) DeletePattern(c *gin.Context) {
 		return
 	}
 
-	// Reload patterns for categorizer
-	go h.categorizer.LoadPatterns()
+	// Deleting a pattern is a rule change, so transactions it had categorized
+	// are re-examined and follow whatever the remaining rules say — or become
+	// uncategorized if nothing claims them. Reexamine reloads rules itself,
+	// synchronously; this was once a detached goroutine that raced with
+	// in-flight reads of the rule cache.
+	outcome := h.reexamineAfterRuleChange("delete_pattern")
 
-	c.JSON(http.StatusOK, gin.H{"message": "Pattern deleted successfully"})
+	c.JSON(http.StatusOK, withRuleChangeCounts(gin.H{"message": "Pattern deleted successfully"}, outcome))
 }
 
-// RecategorizeAll triggers re-categorization of all uncategorized transactions
+// RecategorizeAll re-examines every transaction against the current rules.
 // POST /api/categories/recategorize
+//
+// The route and handler name are unchanged so the existing page keeps working;
+// what changed is the scope, which now includes transactions a rule already
+// categorized.
 func (h *CategoryHandler) RecategorizeAll(c *gin.Context) {
-	result, err := h.categorizer.RecategorizeAll()
+	result, err := h.categorizer.Reexamine()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

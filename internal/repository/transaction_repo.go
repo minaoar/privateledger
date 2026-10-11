@@ -2,9 +2,9 @@ package repository
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/oronno/privateledger/internal/model"
@@ -25,8 +25,8 @@ func (r *TransactionRepository) Create(txn *model.Transaction) error {
 	query := `
 		INSERT INTO ledger_transaction (
 			account_id, import_batch_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			transaction_details, transaction_type, sic_code, category_id, category_source
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	result, err := r.db.Exec(query,
@@ -38,6 +38,7 @@ func (r *TransactionRepository) Create(txn *model.Transaction) error {
 		txn.Amount,
 		txn.TransactionDetails,
 		txn.TransactionType,
+		txn.SICCode,
 		txn.CategoryID,
 		txn.CategorySource,
 	)
@@ -65,7 +66,7 @@ func formatDatePosted(datePosted time.Time) string {
 func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID string, datePosted time.Time) (*model.Transaction, error) {
 	query := `
 		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source, created_at
+			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
 		FROM ledger_transaction
 		WHERE account_id = ? AND trn_type = ? AND fit_id = ? AND date_posted = ?
 	`
@@ -80,6 +81,7 @@ func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID stri
 		&txn.Amount,
 		&txn.TransactionDetails,
 		&txn.TransactionType,
+		&txn.SICCode,
 		&txn.CategoryID,
 		&txn.CategorySource,
 		&txn.CreatedAt,
@@ -98,10 +100,12 @@ func (r *TransactionRepository) FindDuplicate(accountID int, trnType, fitID stri
 // GetByID retrieves a transaction by its ID
 func (r *TransactionRepository) GetByID(transactionID int) (*model.Transaction, error) {
 	query := `
-		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source, created_at
-		FROM ledger_transaction
-		WHERE transaction_id = ?
+		SELECT t.transaction_id, t.account_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
+			t.transaction_details, t.transaction_type, t.sic_code, t.category_id, t.category_source, t.created_at,
+			COALESCE(NULLIF(sm.description, ''), sm.description_detail) AS sic_description
+		FROM ledger_transaction t
+		LEFT JOIN sic_mapping sm ON t.sic_code = sm.sic_code
+		WHERE t.transaction_id = ?
 	`
 
 	var txn model.Transaction
@@ -114,9 +118,11 @@ func (r *TransactionRepository) GetByID(transactionID int) (*model.Transaction, 
 		&txn.Amount,
 		&txn.TransactionDetails,
 		&txn.TransactionType,
+		&txn.SICCode,
 		&txn.CategoryID,
 		&txn.CategorySource,
 		&txn.CreatedAt,
+		&txn.SICDescription,
 	)
 
 	if err == sql.ErrNoRows {
@@ -157,14 +163,16 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 	query := `
 		SELECT
 			t.transaction_id, t.account_id, t.import_batch_id, t.trn_type, t.fit_id, t.date_posted, t.amount,
-			t.transaction_details, t.transaction_type, t.category_id, t.category_source, t.created_at,
+			t.transaction_details, t.transaction_type, t.sic_code, t.category_id, t.category_source, t.created_at,
 			a.name as account_name,
 			c.name as category_name,
 			c.color as category_color,
-			c.icon as category_icon
+			c.icon as category_icon,
+			COALESCE(NULLIF(sm.description, ''), sm.description_detail) AS sic_description
 		FROM ledger_transaction t
 		LEFT JOIN account a ON t.account_id = a.account_id
 		LEFT JOIN category c ON t.category_id = c.category_id
+		LEFT JOIN sic_mapping sm ON t.sic_code = sm.sic_code
 		WHERE 1=1
 	`
 	var args []interface{}
@@ -246,6 +254,7 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 			&txn.Amount,
 			&txn.TransactionDetails,
 			&txn.TransactionType,
+			&txn.SICCode,
 			&txn.CategoryID,
 			&txn.CategorySource,
 			&txn.CreatedAt,
@@ -253,6 +262,7 @@ func (r *TransactionRepository) List(filter TransactionFilter) ([]*model.Transac
 			&txn.CategoryName,
 			&txn.CategoryColor,
 			&txn.CategoryIcon,
+			&txn.SICDescription,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan transaction: %w", err)
@@ -293,7 +303,7 @@ func (r *TransactionRepository) UpdateCategory(transactionID int, categoryID *in
 func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error) {
 	query := `
 		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
-			transaction_details, transaction_type, category_id, category_source, created_at
+			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
 		FROM ledger_transaction
 		WHERE category_source = 0
 		ORDER BY date_posted DESC
@@ -317,6 +327,7 @@ func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error)
 			&txn.Amount,
 			&txn.TransactionDetails,
 			&txn.TransactionType,
+			&txn.SICCode,
 			&txn.CategoryID,
 			&txn.CategorySource,
 			&txn.CreatedAt,
@@ -327,6 +338,74 @@ func (r *TransactionRepository) GetUncategorized() ([]*model.Transaction, error)
 		transactions = append(transactions, &txn)
 	}
 
+	return transactions, nil
+}
+
+// GetUncategorizedBySICCodes returns genuinely uncategorized transactions
+// matching any canonical SIC code. An empty input avoids issuing invalid SQL.
+//
+// Both a zero source and an absent category are required: a row can carry a
+// category while its source reads none, and automatic categorization must
+// never revise a category that is already there.
+func (r *TransactionRepository) GetUncategorizedBySICCodes(sicCodes []string) ([]*model.Transaction, error) {
+	if len(sicCodes) == 0 {
+		return []*model.Transaction{}, nil
+	}
+
+	// The codes travel as a single JSON array parameter rather than one
+	// placeholder each. SQLite accepts 32,766 bound variables, and a mapping
+	// upload can affect more codes than that, so expanding placeholders would
+	// fail on exactly the large merges this query exists to serve.
+	//
+	// Codes are encoded as JSON strings because sic_code is a TEXT column;
+	// json_each over [7011] would yield an INTEGER whose comparison is decided
+	// by type affinity, while ["7011"] yields TEXT and matches.
+	encodedCodes, err := json.Marshal(sicCodes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode SIC codes for lookup: %w", err)
+	}
+
+	query := `
+		SELECT transaction_id, account_id, import_batch_id, trn_type, fit_id, date_posted, amount,
+			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
+		FROM ledger_transaction
+		WHERE category_source = 0
+			AND category_id IS NULL
+			AND sic_code IN (SELECT value FROM json_each(?))
+		ORDER BY date_posted DESC
+	`
+
+	rows, err := r.db.Query(query, string(encodedCodes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to query uncategorized transactions by SIC codes: %w", err)
+	}
+	defer rows.Close()
+
+	transactions := make([]*model.Transaction, 0)
+	for rows.Next() {
+		var txn model.Transaction
+		if err := rows.Scan(
+			&txn.TransactionID,
+			&txn.AccountID,
+			&txn.ImportBatchID,
+			&txn.TrnType,
+			&txn.FitID,
+			&txn.DatePosted,
+			&txn.Amount,
+			&txn.TransactionDetails,
+			&txn.TransactionType,
+			&txn.SICCode,
+			&txn.CategoryID,
+			&txn.CategorySource,
+			&txn.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan transaction by SIC code: %w", err)
+		}
+		transactions = append(transactions, &txn)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating transactions by SIC codes: %w", err)
+	}
 	return transactions, nil
 }
 
@@ -379,31 +458,143 @@ func (r *TransactionRepository) Delete(transactionID int) error {
 	return nil
 }
 
-// BulkUpdateCategory updates categories for multiple transactions matching a pattern
-func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.CategorySource, transactionIDs []int) error {
+// BulkUpdateCategory assigns one category to a set of transactions and reports
+// how many rows it actually changed.
+//
+// Manual rows are excluded in SQL, not by the caller. Re-examination decides
+// from a materialized read and writes later, so a row can become manual in
+// between; a predicate on IDs alone would then overwrite a choice the user made
+// after the read. The guarantee that manual is never overwritten has to hold at
+// write time to mean anything.
+//
+// The returned count is rows affected rather than len(transactionIDs), so a row
+// excluded by that predicate is not reported as moved.
+func (r *TransactionRepository) BulkUpdateCategory(categoryID int, source model.CategorySource, transactionIDs []int) (int, error) {
 	if len(transactionIDs) == 0 {
-		return nil
+		return 0, nil
 	}
 
-	// Build placeholders for IN clause
-	placeholders := make([]string, len(transactionIDs))
-	args := []interface{}{categoryID, source}
-	for i, id := range transactionIDs {
-		placeholders[i] = "?"
-		args = append(args, id)
-	}
-
-	query := fmt.Sprintf(
-		`UPDATE ledger_transaction SET category_id = ?, category_source = ? WHERE transaction_id IN (%s)`,
-		strings.Join(placeholders, ","),
-	)
-
-	_, err := r.db.Exec(query, args...)
+	// One JSON array parameter instead of one placeholder per ID. Beyond
+	// SQLite's 32,766 variable ceiling the expanded form fails outright, and
+	// chunking around it would need an explicit transaction to stay
+	// all-or-nothing. A single statement is atomic by construction.
+	//
+	// IDs are encoded as JSON numbers to match the INTEGER column.
+	encodedIDs, err := json.Marshal(transactionIDs)
 	if err != nil {
-		return fmt.Errorf("failed to bulk update categories: %w", err)
+		return 0, fmt.Errorf("failed to encode transaction IDs for update: %w", err)
 	}
 
-	return nil
+	query := `UPDATE ledger_transaction
+		SET category_id = ?, category_source = ?
+		WHERE transaction_id IN (SELECT value FROM json_each(?))
+		  AND category_source != ?`
+
+	res, err := r.db.Exec(query, categoryID, source, string(encodedIDs), model.CategorySourceManual)
+	if err != nil {
+		return 0, fmt.Errorf("failed to bulk update categories: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read updated row count: %w", err)
+	}
+
+	return int(affected), nil
+}
+
+// BulkClearCategory removes the category from a set of transactions in one
+// statement, writing the same representation of "uncategorized" that category
+// deletion already produces.
+//
+// This exists because BulkUpdateCategory takes a plain int and cannot express
+// "no category", and because ClearCategory issues one round trip per row —
+// fine for deleting a category, far too slow for a re-examination that may
+// uncategorize thousands.
+//
+// Built exactly like BulkUpdateCategory: one JSON array parameter rather than
+// one placeholder per ID, so the statement stays clear of SQLite's 32,766
+// variable ceiling and is atomic by construction.
+func (r *TransactionRepository) BulkClearCategory(transactionIDs []int) (int, error) {
+	if len(transactionIDs) == 0 {
+		return 0, nil
+	}
+
+	encodedIDs, err := json.Marshal(transactionIDs)
+	if err != nil {
+		return 0, fmt.Errorf("failed to encode transaction IDs for clear: %w", err)
+	}
+
+	// Excludes manual rows for the same reason as BulkUpdateCategory: removing
+	// a category the user chose by hand is at least as damaging as replacing
+	// it, so the predicate has to hold at write time rather than at read time.
+	query := `UPDATE ledger_transaction
+		SET category_id = NULL, category_source = ?
+		WHERE transaction_id IN (SELECT value FROM json_each(?))
+		  AND category_source != ?`
+
+	res, err := r.db.Exec(query, model.CategorySourceNone, string(encodedIDs), model.CategorySourceManual)
+	if err != nil {
+		return 0, fmt.Errorf("failed to bulk clear categories: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to read cleared row count: %w", err)
+	}
+
+	return int(affected), nil
+}
+
+// GetAllForReexamination returns every transaction, including manually
+// categorized ones.
+//
+// Read scope and write scope differ here, which is deliberate (BR-U5-02 as
+// amended). Re-examination writes only non-manual transactions, but it must
+// read the manual ones too, because FR16 reports how many of them the current
+// rules would otherwise have moved. Filtering them out in SQL would make that
+// count unanswerable.
+func (r *TransactionRepository) GetAllForReexamination() ([]*model.Transaction, error) {
+	// Column set mirrors GetUncategorized exactly, minus its WHERE clause. The
+	// deterministic order by transaction_id keeps a re-examination's batching
+	// and its reported counts reproducible across runs.
+	query := `
+		SELECT transaction_id, account_id, trn_type, fit_id, date_posted, amount,
+			transaction_details, transaction_type, sic_code, category_id, category_source, created_at
+		FROM ledger_transaction
+		ORDER BY transaction_id
+	`
+
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query transactions for re-examination: %w", err)
+	}
+	defer rows.Close()
+
+	transactions := make([]*model.Transaction, 0)
+	for rows.Next() {
+		var txn model.Transaction
+		if err := rows.Scan(
+			&txn.TransactionID,
+			&txn.AccountID,
+			&txn.TrnType,
+			&txn.FitID,
+			&txn.DatePosted,
+			&txn.Amount,
+			&txn.TransactionDetails,
+			&txn.TransactionType,
+			&txn.SICCode,
+			&txn.CategoryID,
+			&txn.CategorySource,
+			&txn.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan transaction for re-examination: %w", err)
+		}
+		transactions = append(transactions, &txn)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate transactions for re-examination: %w", err)
+	}
+
+	return transactions, nil
 }
 
 // GetMostRecentTransactionDate returns the date of the most recent transaction

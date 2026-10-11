@@ -12,6 +12,11 @@
 # Config files (local settings)
 config.json
 
+# SIC mapping backups written beside the binary on every CSV import.
+# These hold the user's real category mappings and are retained by design,
+# so they accumulate in whatever directory the app runs from.
+sic_mappings.backup-*.csv
+
 # Test data
 testdata/*.ofx
 

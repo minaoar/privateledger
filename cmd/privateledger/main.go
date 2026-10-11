@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/oronno/privateledger/internal/config"
@@ -17,14 +18,25 @@ import (
 	"github.com/oronno/privateledger/internal/handler"
 	"github.com/oronno/privateledger/internal/logger"
 	"github.com/oronno/privateledger/internal/middleware"
+	"github.com/oronno/privateledger/internal/model"
 	"github.com/oronno/privateledger/internal/parser"
 	"github.com/oronno/privateledger/internal/repository"
 	"github.com/oronno/privateledger/internal/service"
 )
 
 const (
-	defaultConfigFile = "config.json"
-	defaultDBFile     = "privateledger.db"
+	defaultConfigFile     = "config.json"
+	defaultDBFile         = "privateledger.db"
+	defaultSICMappingFile = "sic_mappings.csv"
+
+	// maxSICSeedDiagnostics bounds how many rejected seed rows are logged at
+	// startup. It is an alias of the shared domain bound rather than its own
+	// literal, so the startup log and the upload response cannot drift apart.
+	maxSICSeedDiagnostics = model.MaxSICMappingDiagnostics
+
+	// sicAdmissionTimeout bounds how long a competing SIC mapping mutation
+	// waits for the service gate before the caller is told the service is busy.
+	sicAdmissionTimeout = 5 * time.Second
 )
 
 var (
@@ -43,6 +55,7 @@ func main() {
 	execDir := filepath.Dir(execPath)
 	configPath := filepath.Join(execDir, defaultConfigFile)
 	dbPath := filepath.Join(execDir, defaultDBFile)
+	sicMappingPath := filepath.Join(execDir, defaultSICMappingFile)
 
 	// Load configuration
 	cfg, err := config.Load(configPath)
@@ -84,26 +97,54 @@ func main() {
 	categoryRepo := repository.NewCategoryRepository(db)
 	patternRepo := repository.NewCategoryPatternRepository(db)
 	importBatchRepo := repository.NewImportBatchRepository(db)
+	sicMappingRepo := repository.NewSICMappingRepository(db)
 
 	// Initialize services
 	ofxParser := parser.NewOFXParser()
-	categorizer := service.NewCategorizer(patternRepo, transactionRepo)
+	// One SIC categorizer instance serves two roles: Categorizer's lookup and
+	// UOW-2's recategorization collaborator. They must be the same instance,
+	// or a mapping change would reload one view of the cache and leave the
+	// other stale.
+	sicCategorizer := service.NewSICMappingCategorizer(sicMappingRepo, transactionRepo)
+	categorizer := service.NewCategorizerWithSIC(patternRepo, transactionRepo, sicCategorizer)
 	importService := service.NewImportService(ofxParser, transactionRepo, accountRepo, categorizer, importBatchRepo)
 	insightsService := service.NewInsightsService(transactionRepo, categoryRepo, cfg)
+	// The no-op recategorization collaborator is supplied explicitly: UOW-3
+	// replaces it with the real adapter, and passing nil would let "did no
+	// work" be mistaken for "worked".
+	sicMappingService := service.NewSICMappingManagementService(
+		sicMappingRepo,
+		categoryRepo,
+		execDir,
+		sicAdmissionTimeout,
+		sicCategorizer,
+	)
+
+	sicImportReport, err := sicMappingService.ImportFileIfPresentWithReport(sicMappingPath)
+	if err != nil {
+		attributes := []any{slog.String("error", err.Error())}
+		if sicImportReport != nil {
+			attributes = append(attributes, slog.String("outcome", string(sicImportReport.Outcome)))
+		}
+		slog.Error("Failed to initialize SIC mappings", attributes...)
+		log.Fatalf("Failed to initialize SIC mappings: %v", err)
+	}
+	logSICMappingImportOutcome(sicMappingPath, sicImportReport)
 
 	// Load patterns for categorizer
-	if err := categorizer.LoadPatterns(); err != nil {
-		slog.Warn("Failed to load categorizer patterns", slog.String("error", err.Error()))
+	if err := categorizer.LoadRules(); err != nil {
+		slog.Warn("Failed to load categorization rules", slog.String("error", err.Error()))
 	}
 
 	// Initialize handlers
 	accountHandler := handler.NewAccountHandler(accountRepo)
-	transactionHandler := handler.NewTransactionHandler(transactionRepo)
+	transactionHandler := handler.NewTransactionHandlerWithSIC(transactionRepo, sicMappingService)
 	categoryHandler := handler.NewCategoryHandler(categoryRepo, patternRepo, categorizer)
 	importHandler := handler.NewImportHandler(importService)
 	importBatchHandler := handler.NewImportBatchHandler(importBatchRepo, importService)
 	insightsHandler := handler.NewInsightsHandler(insightsService, accountRepo)
-	pageHandler := handler.NewPageHandler(embeddedFiles, accountRepo, transactionRepo, categoryRepo, patternRepo, insightsService, Version)
+	sicMappingHandler := handler.NewSICMappingHandler(sicMappingService)
+	pageHandler := handler.NewPageHandler(embeddedFiles, accountRepo, transactionRepo, categoryRepo, patternRepo, insightsService, sicMappingService, Version)
 
 	// Initialize Gin router
 	if cfg.DebugMode {
@@ -163,6 +204,17 @@ func main() {
 		api.GET("/insights/dashboard", insightsHandler.GetDashboard)
 		api.GET("/insights/monthly", insightsHandler.GetMonthlySummary)
 		api.GET("/insights/current-period", insightsHandler.GetCurrentPeriod)
+
+		// SIC mapping management
+		api.GET("/sic-mappings", sicMappingHandler.List)
+		api.POST("/sic-mappings", sicMappingHandler.Create)
+		api.PUT("/sic-mappings/:id", sicMappingHandler.Update)
+		api.DELETE("/sic-mappings/:id", sicMappingHandler.Delete)
+		api.GET("/sic-mappings/download", sicMappingHandler.Download)
+		api.POST("/sic-mappings/upload", sicMappingHandler.Upload)
+
+		// Create or update a SIC mapping from a transaction categorization modal
+		api.POST("/transactions/:id/sic-mapping", transactionHandler.CreateSICMappingForTransaction)
 	}
 
 	// Serve static files
@@ -174,6 +226,7 @@ func main() {
 	router.GET("/onboarding", pageHandler.Onboarding)
 	router.GET("/accounts", pageHandler.Accounts)
 	router.GET("/categories", pageHandler.Categories)
+	router.GET("/sic-mappings", pageHandler.SICMappings)
 	router.GET("/transactions", pageHandler.Transactions)
 	router.GET("/import", pageHandler.Import)
 	router.GET("/how-to-download", pageHandler.HowToDownload)
@@ -197,6 +250,56 @@ func main() {
 	if err := router.Run(addr); err != nil {
 		slog.Error("Failed to start server", slog.String("error", err.Error()))
 		log.Fatalf("Failed to start server: %v", err)
+	}
+}
+
+func logSICMappingImportOutcome(path string, report *model.SICMappingImportReport) {
+	if report == nil {
+		return
+	}
+	switch report.Outcome {
+	case model.SICMappingImportAbsent:
+		return
+	case model.SICMappingImportSkippedExisting:
+		slog.Info("Skipping SIC mapping seed because SQLite mappings already exist",
+			slog.String("path", path),
+			slog.Int("existing_mappings", report.ExistingRows))
+	case model.SICMappingImportOversized:
+		slog.Warn("Rejecting oversized SIC mapping seed",
+			slog.String("path", path),
+			slog.Int64("maximum_bytes", model.MaxSICMappingFileSize))
+	case model.SICMappingImportInvalid:
+		limit := len(report.Errors)
+		if limit > maxSICSeedDiagnostics {
+			limit = maxSICSeedDiagnostics
+		}
+		for _, validationErr := range report.Errors[:limit] {
+			// The message is included because the seed path has no screen.
+			// Without it a stale category name in sic_mappings.csv reports only
+			// code=category_not_found, with nothing identifying the value or
+			// its replacement, and the mitigation this diagnostic exists for
+			// never reaches the longest-lived mapping file in the product.
+			// Every value inside the message is bounded and sanitized by
+			// model.NewDiagValue, and the assembled message is capped, so this
+			// cannot become a payload carrier. See NFR-U4-SEC-01 as amended,
+			// with NFR-U1-SEC-02 and NFRP-U1-08 narrowed to match.
+			slog.Warn("Rejected SIC mapping seed row",
+				slog.String("path", path),
+				slog.Int("row", validationErr.RowNumber),
+				slog.String("field", validationErr.Field),
+				slog.String("code", validationErr.Code),
+				slog.String("message", validationErr.Message))
+		}
+		slog.Warn("SIC mapping seed validation failed; no mappings imported",
+			slog.String("path", path),
+			slog.Int("total_rows", report.TotalRows),
+			slog.Int("rejected_rows", report.RejectedRows),
+			slog.Int("reported_diagnostics", limit),
+			slog.Int("omitted_diagnostics", len(report.Errors)-limit))
+	case model.SICMappingImportImported:
+		slog.Info("Imported SIC mapping seed",
+			slog.String("path", path),
+			slog.Int("imported_rows", report.ImportedRows))
 	}
 }
 

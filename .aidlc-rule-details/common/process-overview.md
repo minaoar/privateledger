@@ -125,7 +125,7 @@ flowchart TD
 - NFR Requirements: Determine NFRs and select tech stack (CONDITIONAL, per-unit)
 - NFR Design: Incorporate NFR patterns and logical components (CONDITIONAL, per-unit)
 - Infrastructure Design: Map to actual infrastructure services (CONDITIONAL, per-unit)
-- Code Generation: Generate code with Part 1 - Planning, Part 2 - Generation (ALWAYS, per-unit)
+- Code Generation: Part 1 plans, Part 2 generates production code, and Part 3 performs independent review and test generation with a model separate from the production-code model (ALWAYS, per-unit when model separation is configured)
 - Build and Test: Build all units and execute comprehensive testing (ALWAYS)
 
 **🟡 OPERATIONS PHASE** - Placeholder

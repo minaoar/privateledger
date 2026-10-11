@@ -1,9 +1,12 @@
 # Code Generation - Detailed Steps
 
 ## Overview
-This stage generates code for each unit of work through two integrated parts:
+This stage generates code for each unit of work through three integrated parts:
 - **Part 1 - Planning**: Create detailed code generation plan with explicit steps
-- **Part 2 - Generation**: Execute approved plan to generate code, tests, and artifacts
+- **Part 2 - Production Generation**: The selected production-provider role executes the approved plan to generate production code and production artifacts
+- **Part 3 - Independent Review and Test Generation**: A separate capable model reviews the production diff and authors/runs tests
+
+**MANDATORY PROVIDER SEPARATION**: Production code and independent review/tests must use different model providers in separate sessions. Use the production and review/test role definitions provided by each environment. The handoff is manual and artifact-based; neither provider automatically invokes the other.
 
 **Note**: For brownfield projects, "generate" means modify existing files when appropriate, not create duplicates.
 
@@ -31,16 +34,16 @@ This stage generates code for each unit of work through two integrated parts:
 - [ ] Create explicit steps for unit generation:
   - Project Structure Setup (greenfield only)
   - Business Logic Generation
-  - Business Logic Unit Testing
+  - Business Logic Test Requirements and Independent Reviewer Handoff
   - Business Logic Summary
   - API Layer Generation
-  - API Layer Unit Testing
+  - API Layer Test Requirements and Independent Reviewer Handoff
   - API Layer Summary
   - Repository Layer Generation
-  - Repository Layer Unit Testing
+  - Repository Layer Test Requirements and Independent Reviewer Handoff
   - Repository Layer Summary
   - Frontend Components Generation (if applicable)
-  - Frontend Components Unit Testing (if applicable)
+  - Frontend Components Test Requirements and Independent Reviewer Handoff (if applicable)
   - Frontend Components Summary (if applicable)
   - Database Migration Scripts (if data models exist)
   - Documentation Generation (API docs, README updates)
@@ -112,6 +115,7 @@ This stage generates code for each unit of work through two integrated parts:
   - **Build/Config Files**: Workspace root
 - [ ] Follow unit story requirements
 - [ ] Respect dependencies and interfaces
+- [ ] Generate production code only; do not create or modify verification test files, fixtures, test helpers, or test-only configuration
 
 ## Step 12: Update Progress
 - [ ] Mark the completed step as [x] in the unit code generation plan
@@ -120,11 +124,46 @@ This stage generates code for each unit of work through two integrated parts:
 - [ ] **Brownfield only**: Verify no duplicate files created (e.g., no `ClassName_modified.java` alongside `ClassName.java`)
 - [ ] Save all generated artifacts
 
-## Step 13: Continue or Complete Generation
+## Step 13: Continue or Complete Production Generation
 - [ ] If more steps remain, return to Step 10
-- [ ] If all steps complete, proceed to present completion message
+- [ ] If all production steps complete, prepare the independent reviewer handoff
 
-## Step 14: Present Completion Message
+---
+
+# PART 3: INDEPENDENT REVIEW AND TEST GENERATION
+
+## Step 14: Create Independent Reviewer Handoff
+- [ ] Identify the independent provider and review/test role; the provider must differ from the production provider and must not receive implementation reasoning as authoritative context
+- [ ] Provide approved requirements, stories, unit/design/NFR artifacts, code-generation plan, production diff, and relevant existing tests
+- [ ] Require acceptance-criteria traceability, review findings with file/line references, and explicit test coverage
+- [ ] Record the production revision/commit/diff being reviewed
+
+## Step 15: Execute Independent Code Review
+- [ ] Review production behavior against approved artifacts, not against implementation assumptions
+- [ ] Check correctness, error paths, data integrity, security, concurrency, layering, and regressions
+- [ ] Record findings in `aidlc-docs/construction/{unit-name}/code-review/independent-review.md`
+- [ ] Treat blocking and high-severity findings as gate failures
+
+## Step 16: Generate and Run Tests Independently
+- [ ] The independent model owns test strategy and test code
+- [ ] Generate unit, integration, contract, UI, migration, concurrency, and property-based tests as applicable to the unit
+- [ ] Run the relevant tests and record exact commands/results in the independent review artifact
+- [ ] Do not weaken a valid failing test to match current production behavior
+
+## Step 17: Resolve Findings with Separated Ownership
+- [ ] The original production provider fixes production defects without editing independently authored tests
+- [ ] The independent model corrects tests only when evidence shows they contradict approved artifacts, documenting the rationale
+- [ ] Material production fixes return to the independent model for re-review and test execution
+- [ ] Repeat until tests pass and no blocking/high findings remain
+
+## Step 18: Close Independent Gate
+- [ ] Independent review artifact exists and identifies the model/role used
+- [ ] Acceptance criteria have test or documented non-testable coverage
+- [ ] Required tests pass
+- [ ] Blocking/high findings are resolved
+- [ ] Independent review artifact final status is PASS
+
+## Step 19: Present Completion Message
 - Present completion message in this structure:
      1. **Completion Announcement** (mandatory): Always start with this:
 
@@ -135,7 +174,7 @@ This stage generates code for each unit of work through two integrated parts:
      2. **AI Summary** (optional): Provide structured bullet-point summary
         - **Brownfield**: Distinguish modified vs created files (e.g., "• Modified: `src/services/user-service.ts`", "• Created: `src/services/auth-service.ts`")
         - **Greenfield**: List created files with paths (e.g., "• Created: `src/services/user-service.ts`")
-        - List tests, documentation, deployment artifacts with paths
+        - List independently authored tests, review artifact, documentation, and deployment artifacts with paths
         - Keep factual, no workflow instructions
      3. **Formatted Workflow Message** (mandatory): Always end with this exact format:
 
@@ -157,12 +196,12 @@ This stage generates code for each unit of work through two integrated parts:
 ---
 ```
 
-## Step 15: Wait for Explicit Approval
+## Step 20: Wait for Explicit Approval
 - Do not proceed until the user explicitly approves the generated code
 - Approval must be clear and unambiguous
 - If user requests changes, update the code and repeat the approval process
 
-## Step 16: Record Approval and Update Progress
+## Step 21: Record Approval and Update Progress
 - Log approval in audit.md with timestamp
 - Record the user's approval response with timestamp
 - Mark Code Generation stage as complete for this unit in aidlc-state.md
@@ -200,6 +239,10 @@ This stage generates code for each unit of work through two integrated parts:
 - **UPDATE CHECKBOXES**: Mark [x] immediately after completing each step
 - **STORY TRACEABILITY**: Mark unit stories [x] when functionality is implemented
 - **RESPECT DEPENDENCIES**: Only implement when unit dependencies are satisfied
+- **SEPARATE OWNERSHIP**: Production code and verification tests must be authored by different model providers in separate sessions
+- **NO SELF-APPROVAL**: The production-code model cannot close the independent review gate
+- **FAILURE OWNERSHIP**: Production fixes belong to the production model; test fixes belong to the independent reviewer/test author
+- **NO TEST WEAKENING**: Never change an accurate test merely to make current production behavior pass
 
 ### Automation Friendly Code Rules
 When generating UI code (web, mobile, desktop), ensure elements are automation-friendly:
@@ -212,6 +255,9 @@ When generating UI code (web, mobile, desktop), ensure elements are automation-f
 - Complete unit code generation plan created and approved
 - All steps in unit code generation plan marked [x]
 - All unit stories implemented according to plan
-- All code and tests generated (tests will be executed in Build & Test phase)
+- Production code generated by the primary model
+- Tests generated and executed by a separate independent provider
+- Independent review artifact exists with final status PASS
+- No unresolved blocking/high review findings
 - Deployment artifacts generated
 - Complete unit ready for build and verification
